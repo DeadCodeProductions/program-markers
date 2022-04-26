@@ -11,6 +11,7 @@
 
 #include <catch2/catch.hpp>
 #include <memory>
+#include <type_traits>
 
 using namespace clang;
 
@@ -22,32 +23,27 @@ std::string formatCode(llvm::StringRef Code) {
     return *ChangedCode;
 }
 
-std::string runToolOnCode(llvm::StringRef Code,
-                          dead::DeadInstrumenter::Mode Mode) {
+template <typename Tool> std::string runToolOnCode(llvm::StringRef Code) {
     clang::RewriterTestContext Context;
     clang::FileID ID = Context.createInMemoryFile("input.cc", Code);
 
     std::map<std::string, tooling::Replacements> FileToReplacements;
-    dead::DeadInstrumenter DeadInstrumenterTool{FileToReplacements, Mode};
+    Tool InstrumenterTool{FileToReplacements};
     ast_matchers::MatchFinder Finder;
-    DeadInstrumenterTool.registerMatchers(Finder);
+    InstrumenterTool.registerMatchers(Finder);
     std::unique_ptr<tooling::FrontendActionFactory> Factory =
         tooling::newFrontendActionFactory(&Finder);
     REQUIRE(tooling::runToolOnCode(Factory->create(), Code, "input.cc"));
+    if constexpr (std::is_same_v<Tool, dead::Instrumenter>)
+        InstrumenterTool.applyReplacements();
     formatAndApplyAllReplacements(FileToReplacements, Context.Rewrite);
     return formatCode(Context.getRewrittenText(ID));
 }
 
 std::string runBranchInstrumenterOnCode(llvm::StringRef Code) {
-    return runToolOnCode(
-        Code, dead::DeadInstrumenter::Mode::CanonicalizeAndInstrument);
-}
-
-std::string runBranchCanonicalizerOnCode(llvm::StringRef Code) {
-    return runToolOnCode(Code, dead::DeadInstrumenter::Mode::CanonicalizeOnly);
+    return runToolOnCode<dead::Instrumenter>(Code);
 }
 
 std::string runMakeGlobalsStaticOnCode(llvm::StringRef Code) {
-    return runToolOnCode(Code,
-                         dead::DeadInstrumenter::Mode::MakeGlobalsStaticOnly);
+    return runToolOnCode<dead::GlobalStaticMaker>(Code);
 }
