@@ -1,4 +1,4 @@
-`dead-instrument` is the instrumenter used in [DEAD](https://github.com/DeadCodeProductions/dead_instrumenter).
+`dead-instrument` is the instrumenter used in [DEAD](https://github.com/DeadCodeProductions/dead).
 
 
 #### Build
@@ -56,4 +56,4 @@ int foo(int a) {
 
 
 To use the instrumenter in python import `from dead_instrumenter.instrumenter import instrument_program`. 
-Calling `instrument_program(filename:str) -> None` will instrument `filename`.
+Calling `instrument_program(filename: Path) -> str` will instrument `filename` at the file-level and return the prefix for the markers (default: `DCEMarker`).
