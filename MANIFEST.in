@@ -1,0 +1,1 @@
+include python_src/dead_instrumenter/py.typed
