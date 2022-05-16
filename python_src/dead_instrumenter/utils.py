@@ -75,10 +75,10 @@ def pushd(new_dir: str) -> Iterator[None]:
         os.chdir(previous_dir)
 
 
-def download_and_build() -> str:
+def download_and_build(no_questions: bool = False) -> str:
     print("Downloanding and building dead-instrumenter")
     print(f"It will be installed under {Path.home()/'.local/bin'}")
-    if not binary_question(
+    if not no_questions and not binary_question(
         "Build Prequisites: cmake, make, clang/llvm 13, git. Are they satisfied?"
     ):
         raise DeadInstrumenterConfigError(
@@ -106,23 +106,33 @@ def download_and_build() -> str:
             return str(prefix / "bin/dead-instrument")
 
 
-def make_config(config_path: Path) -> Config:
+def make_config(config_path: Path, no_questions: bool = False) -> Config:
     assert not config_path.exists()
     print(f"{config_path} does not exist")
-    if not binary_question("Shall I create one?"):
+    if (not no_questions) and not binary_question("Shall I create one?"):
         raise DeadInstrumenterConfigError("No config for dead-instrumenter available")
 
-    clang = input("Path to clang? (leave blank to use whatever is available): ").strip()
+    clang = (
+        None
+        if no_questions
+        else input(
+            "Path to clang? (leave blank to use whatever is available): "
+        ).strip()
+    )
     if not clang:
         clang_default = shutil.which("clang")
         clang = clang_default if clang_default else ""
     check_executable(clang)
 
-    instrumenter = input(
-        "Path to dead-instrumenter? (leave blank to download and build): "
-    ).strip()
+    instrumenter = (
+        None
+        if no_questions
+        else input(
+            "Path to dead-instrumenter? (leave blank to download and build): "
+        ).strip()
+    )
     if not instrumenter:
-        instrumenter = download_and_build()
+        instrumenter = download_and_build(no_questions=no_questions)
     check_executable(instrumenter)
 
     config = Config(instrumenter, clang)
@@ -135,7 +145,7 @@ class Binary(Enum):
     CLANG = 2
 
 
-def find_binary(binary: Binary) -> str:
+def find_binary(binary: Binary, no_questions: bool = False) -> str:
     """Looks up a binary in $home/.config/dead/instrumenter.json
     if the config file does not exists, the user is prompted
     Args:
@@ -148,7 +158,9 @@ def find_binary(binary: Binary) -> str:
     if config_path.exists():
         config = Config.load(config_path)
     else:
-        config = make_config(Path.home() / ".config/dead/instrumenter.json")
+        config = make_config(
+            Path.home() / ".config/dead/instrumenter.json", no_questions
+        )
 
     if binary == Binary.CLANG:
         return config.clang_path
