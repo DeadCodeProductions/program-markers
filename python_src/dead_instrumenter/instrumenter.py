@@ -59,3 +59,38 @@ def instrument_program(
     subprocess.run(cmd, capture_output=True, check=True)
 
     return "DCEMarker"
+
+
+def annotate_with_static(
+    file: Path,
+    flags: list[str] = [],
+    instrumenter: Optional[Path] = None,
+    clang: Optional[Path] = None,
+) -> None:
+    """Turn all globals in the given file into static globals.
+
+    Args:
+        file (Path): Path to code file to be instrumented.
+        flags (list[str]): list of user provided clang flags
+        instrumenter (Path): Path to the instrumenter executable., if not
+                             provided will use what's specified in
+        clang (Path): Path to the clang executable.
+    Returns:
+        None:
+    """
+
+    instrumenter_resolved = (
+        find_binary(Binary.INSTRUMENTER) if not instrumenter else instrumenter
+    )
+
+    clang_resolved = find_binary(Binary.CLANG) if not clang else str(clang)
+    includes = find_include_paths(clang_resolved, file, flags)
+
+    cmd = [str(instrumenter_resolved), "--mode", "globals", str(file)]
+    for path in includes:
+        cmd.append(f"--extra-arg=-isystem{str(path)}")
+    cmd.append("--")
+
+    subprocess.run(cmd, capture_output=True, check=True)
+
+    return
