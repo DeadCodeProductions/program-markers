@@ -119,7 +119,7 @@ class MarkerDeclGenerator : public MatchComputation<std::string> {
                      std::string *Result) const override {
         Result->append("void DCEMarker");
         Result->append(std::to_string(MarkerDeclCount++));
-        Result->append("_(void);");
+        Result->append("_(void);\n");
         return llvm::Error::success();
     }
 
