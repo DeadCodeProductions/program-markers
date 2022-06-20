@@ -1066,3 +1066,52 @@ TEST_CASE("BranchInstrumenter if dowhile with nested macro",
     REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
 }
 
+TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
+          "[if][do][macro][return]") {
+
+    auto Code = R"code(
+    void foo() {
+        while (1) {}
+        if (1) {}
+        do {} while(1);
+        if (1);
+    })code";
+
+    auto ExpectedCode = R"code(void DCEMarker0_(void);
+    void DCEMarker1_(void);
+    void DCEMarker2_(void);
+    void DCEMarker3_(void);
+    void DCEMarker4_(void);
+
+    void foo() {
+        DCEMarker0_();
+        while (1) {
+      #ifndef DeleteDCEMarkerBlock1_
+
+        DCEMarker1_();
+      #endif
+        }
+        if (1) {
+      #ifndef DeleteDCEMarkerBlock2_
+
+        DCEMarker2_();
+      #endif
+        }
+        do {
+      #ifndef DeleteDCEMarkerBlock3_
+
+        DCEMarker3_();
+      #endif
+        } while(1);
+        if (1){
+      #ifndef DeleteDCEMarkerBlock4_
+
+        DCEMarker4_();
+        ;
+      #endif
+        }
+    })code";
+
+    CAPTURE(Code);
+    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+}

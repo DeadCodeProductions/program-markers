@@ -206,9 +206,9 @@ auto instrumentStmtAfterReturnRule() {
 auto InstrumentCStmt(std::string id, bool with_macro = false) {
     if (with_macro)
         return flattenVector(
-            {edit(addMarker(insertBefore(statements(id), cat("")))),
-             edit(addDeleteMacro(insertBefore(statements(id), cat("")))),
-             edit(insertAfter(statements(id), cat("#endif\n")))});
+            {edit(insertAfter(statements(id), cat("#endif\n"))),
+             edit(addMarker(insertBefore(statements(id), cat("")))),
+             edit(addDeleteMacro(insertBefore(statements(id), cat(""))))});
     return edit(addMarker(insertBefore(statements(id), cat(""))));
 }
 
