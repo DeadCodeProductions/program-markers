@@ -30,7 +30,7 @@ using namespace clang::transformer::detail;
 namespace dead {
 
 namespace {
-enum class EditMetadataKind { MarkerDecl, MarkerCall };
+enum class EditMetadataKind { MarkerDecl, MarkerCall, MacroDisableBlockBegin };
 std::string GetFilenameFromRange(const CharSourceRange &R,
                                  const SourceManager &SM) {
     const std::pair<FileID, unsigned> DecomposedLocation =
@@ -56,20 +56,31 @@ void detail::RuleActionEditCollector::run(
     auto SM = Result.SourceManager;
     for (const auto &T : *Edits) {
         assert(T.Kind == transformer::EditKind::Range);
-        bool isMarker = llvm::any_isa<EditMetadataKind>(T.Metadata)
-                            ? (llvm::any_cast<EditMetadataKind>(T.Metadata) ==
-                               EditMetadataKind::MarkerCall
-
-                               )
-                            : false;
-        if (isMarker) {
+        const auto *Metadata =
+            T.Metadata.hasValue()
+                ? llvm::any_cast<EditMetadataKind>(&T.Metadata)
+                : nullptr;
+        if (!Metadata) {
+            Replacements.emplace_back(*SM, T.Range, T.Replacement);
+            continue;
+        }
+        if (*Metadata == EditMetadataKind::MarkerCall) {
             auto N =
                 FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)]++;
             Replacements.emplace_back(*SM, T.Range,
                                       T.Replacement + "DCEMarker" +
                                           std::to_string(N) + "_();");
-        } else
-            Replacements.emplace_back(*SM, T.Range, T.Replacement);
+        } else if (*Metadata == EditMetadataKind::MacroDisableBlockBegin) {
+            auto N =
+                FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)] - 1;
+            Replacements.emplace_back(*SM, T.Range,
+                                      T.Replacement +
+                                          "#ifndef DeleteDCEMarkerBlock" +
+                                          std::to_string(N) + "_\n\n");
+        } else {
+            llvm_unreachable("dead::detail::RuleActionEditCollector::run: "
+                             "Unknown EditMetadataKind");
+        }
     }
 }
 
@@ -110,13 +121,22 @@ ASTEdit addMarker(ASTEdit Edit) {
             -> EditMetadataKind { return EditMetadataKind::MarkerCall; });
 }
 
+ASTEdit addDeleteMacro(ASTEdit Edit) {
+    return withMetadata(
+        Edit,
+        [](const clang::ast_matchers::MatchFinder::MatchResult &)
+            -> EditMetadataKind {
+            return EditMetadataKind::MacroDisableBlockBegin;
+        });
+}
+
 template <typename T>
 SourceLocation handleReturnStmts(const T &Node, SourceLocation End,
                                  const SourceManager &SM) {
     if (const auto &Ret = Node.template get<ReturnStmt>()) {
         if (Ret->getRetValue())
             return End;
-        // ReturnStmts without an Expr have broken range...
+        // ReturnStmts without an Expr have a broken range...
         return End.getLocWithOffset(7);
     }
     // The end loc might be pointing to a nested return...
@@ -171,6 +191,7 @@ AST_POLYMORPHIC_MATCHER(BeginNotInMacroAndInMain,
 }
 
 auto instrumentStmtAfterReturnRule() {
+    // TODO: Add disabling macros
     auto matcher =
         mapAnyOf(ifStmt, switchStmt, forStmt, whileStmt, doStmt,
                  cxxForRangeStmt)
@@ -182,15 +203,22 @@ auto instrumentStmtAfterReturnRule() {
     return makeRule(matcher, action);
 }
 
-auto InstrumentCStmt(std::string id) {
-    return addMarker(insertBefore(statements(id), cat("")));
+auto InstrumentCStmt(std::string id, bool with_macro = false) {
+    if (with_macro)
+        return flattenVector(
+            {edit(addMarker(insertBefore(statements(id), cat("")))),
+             edit(addDeleteMacro(insertBefore(statements(id), cat("")))),
+             edit(insertAfter(statements(id), cat("#endif\n")))});
+    return edit(addMarker(insertBefore(statements(id), cat(""))));
 }
 
 EditGenerator InstrumentNonCStmt(std::string id) {
-    return flattenVector(
-        {edit(addMarker(
-             insertBefore(statementWithMacrosExpanded(id), cat("{")))),
-         edit(insertAfter(statementWithMacrosExpanded(id), cat("\n}")))});
+    return flattenVector({edit(addMarker(insertBefore(
+                              statementWithMacrosExpanded(id), cat("")))),
+                          edit(addDeleteMacro(insertBefore(
+                              statementWithMacrosExpanded(id), cat("{")))),
+                          edit(insertAfter(statementWithMacrosExpanded(id),
+                                           cat("\n#endif\n}")))});
 }
 
 auto instrumentFunction() {
@@ -224,11 +252,11 @@ auto instrumentIfStmt() {
             stmt(hasParent(ifStmt(ElseNotInMacroAndInMain()))).bind("else")))),
         hasThen(anyOf(compoundStmt(inMainAndNotMacro).bind("cthen"),
                       stmt().bind("then"))));
-    auto actions =
-        flattenVector({ifBound("cthen", InstrumentCStmt("cthen")),
-                       ifBound("celse", InstrumentCStmt("celse")),
-                       ifBound("then", InstrumentNonCStmt("then"), noEdits()),
-                       ifBound("else", InstrumentNonCStmt("else"), noEdits())
+    auto actions = flattenVector(
+        {ifBound("cthen", InstrumentCStmt("cthen", true), noEdits()),
+         ifBound("celse", InstrumentCStmt("celse", true), noEdits()),
+         ifBound("then", InstrumentNonCStmt("then"), noEdits()),
+         ifBound("else", InstrumentNonCStmt("else"), noEdits())
 
         });
     return makeRule(matcher, actions);
@@ -267,14 +295,16 @@ auto instrumentLoop() {
         doStmt(DoAndWhileNotMacroAndInMain(), hasBody(stmt().bind("body")))
             .bind("dostmt");
     auto doWhileAction = {
-        addMarker(insertBefore(statementWithMacrosExpanded("body"), cat("{"))),
-        insertBefore(doStmtWhile("dostmt"), cat("\n}"))};
+        addMarker(insertBefore(statementWithMacrosExpanded("body"), cat(""))),
+        addDeleteMacro(
+            insertBefore(statementWithMacrosExpanded("body"), cat("{"))),
+        insertBefore(doStmtWhile("dostmt"), cat("\n#endif\n}"))};
     auto nonCompoundLoopMatcher =
         mapAnyOf(forStmt, whileStmt, cxxForRangeStmt)
             .with(inMainAndNotMacro,
                   hasBody(stmt(inMainAndNotMacro).bind("body")));
     return applyFirst(
-        {makeRule(compoundMatcher, InstrumentCStmt("body")),
+        {makeRule(compoundMatcher, InstrumentCStmt("body", true)),
          makeRule(nonCompoundDoWhileMatcher, doWhileAction),
          makeRule(nonCompoundLoopMatcher, InstrumentNonCStmt("body"))});
 }
@@ -301,6 +331,7 @@ AST_MATCHER(SwitchCase, colonNotInMacroAndInMain) {
 }
 
 auto instrumentSwitchCase() {
+    // TODO: Add disabling macros
     auto matcher = switchCase(colonNotInMacroAndInMain()).bind("stmt");
     auto action = addMarker(insertAfter(SwitchCaseColonLoc("stmt"), cat("")));
     return makeRule(matcher, action);
