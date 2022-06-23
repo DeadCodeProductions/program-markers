@@ -30,7 +30,14 @@ using namespace clang::transformer::detail;
 namespace dead {
 
 namespace {
-enum class EditMetadataKind { MarkerDecl, MarkerCall, MacroDisableBlockBegin };
+enum class EditMetadataKind {
+    MarkerDecl,
+    MarkerCall,
+    MacroDisableBlockBegin,
+    IfAtMostOneDefined,
+    IfAtLeastOneDefined,
+    NewElseBranch
+};
 std::string GetFilenameFromRange(const CharSourceRange &R,
                                  const SourceManager &SM) {
     const std::pair<FileID, unsigned> DecomposedLocation =
@@ -77,6 +84,38 @@ void detail::RuleActionEditCollector::run(
                                       T.Replacement +
                                           "#ifndef DeleteDCEMarkerBlock" +
                                           std::to_string(N) + "_\n\n");
+        } else if (*Metadata == EditMetadataKind::IfAtMostOneDefined) {
+            auto N =
+                FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)];
+            Replacements.emplace_back(*SM, T.Range,
+                                      T.Replacement +
+                                          "#if !defined(DeleteDCEMarkerBlock" +
+                                          std::to_string(N) +
+                                          "_) || "
+                                          "!defined(DeleteDCEMarkerBlock" +
+                                          std::to_string(N + 1) + "_)\n");
+        } else if (*Metadata == EditMetadataKind::IfAtLeastOneDefined) {
+            auto N =
+                FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)];
+            Replacements.emplace_back(
+                *SM, T.Range,
+                T.Replacement + "\n#if !defined(DeleteDCEMarkerBlock" +
+                    std::to_string(N) +
+                    "_) && "
+                    "!defined(DeleteDCEMarkerBlock" +
+                    std::to_string(N + 1) + "_)\n\n");
+
+        } else if (*Metadata == EditMetadataKind::NewElseBranch) {
+            auto N =
+                FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)]++;
+            Replacements.emplace_back(
+                *SM, T.Range,
+                T.Replacement + "#if !defined(DeleteDCEMarkerBlock" +
+                    std::to_string(N) +
+                    "_) && "
+                    "!defined(DeleteDCEMarkerBlock" +
+                    std::to_string(N + 1) + "_) \n\n else {\nDCEMarker" +
+                    std::to_string(N) + "_();\n}\n#endif\n");
         } else {
             llvm_unreachable("dead::detail::RuleActionEditCollector::run: "
                              "Unknown EditMetadataKind");
@@ -114,20 +153,32 @@ Expected<DynTypedNode> getNode(const ast_matchers::BoundNodes &Nodes,
     return It->second;
 }
 
-ASTEdit addMarker(ASTEdit Edit) {
+ASTEdit addMetadata(ASTEdit &&Edit, EditMetadataKind Kind) {
     return withMetadata(
-        Edit,
-        [](const clang::ast_matchers::MatchFinder::MatchResult &)
-            -> EditMetadataKind { return EditMetadataKind::MarkerCall; });
+        std::move(Edit),
+        [Kind](const clang::ast_matchers::MatchFinder::MatchResult &)
+            -> EditMetadataKind { return Kind; });
+}
+
+ASTEdit addMarker(ASTEdit Edit) {
+    return addMetadata(std::move(Edit), EditMetadataKind::MarkerCall);
 }
 
 ASTEdit addDeleteMacro(ASTEdit Edit) {
-    return withMetadata(
-        Edit,
-        [](const clang::ast_matchers::MatchFinder::MatchResult &)
-            -> EditMetadataKind {
-            return EditMetadataKind::MacroDisableBlockBegin;
-        });
+    return addMetadata(std::move(Edit),
+                       EditMetadataKind::MacroDisableBlockBegin);
+}
+
+ASTEdit addElseBranch(ASTEdit Edit) {
+    return addMetadata(std::move(Edit), EditMetadataKind::NewElseBranch);
+}
+
+ASTEdit addIfAtMostOneDefined(ASTEdit Edit) {
+    return addMetadata(std::move(Edit), EditMetadataKind::IfAtMostOneDefined);
+}
+
+ASTEdit addIfAtLeastOneDefined(ASTEdit Edit) {
+    return addMetadata(std::move(Edit), EditMetadataKind::IfAtLeastOneDefined);
 }
 
 template <typename T>
@@ -203,22 +254,49 @@ auto instrumentStmtAfterReturnRule() {
     return makeRule(matcher, action);
 }
 
+RangeSelector CStmtLBrace(std::string ID) {
+    return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+               -> Expected<CharSourceRange> {
+        Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
+        if (!Node) {
+            llvm::outs() << "ERROR";
+            return Node.takeError();
+        }
+        const auto &SM = *Result.SourceManager;
+        return SM.getExpansionRange(Node->get<CompoundStmt>()->getLBracLoc());
+    };
+}
+
+RangeSelector CStmtRBrace(std::string ID) {
+    return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+               -> Expected<CharSourceRange> {
+        Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
+        if (!Node) {
+            llvm::outs() << "ERROR";
+            return Node.takeError();
+        }
+        const auto &SM = *Result.SourceManager;
+        return SM.getExpansionRange(Node->get<CompoundStmt>()->getRBracLoc());
+    };
+}
+
 auto InstrumentCStmt(std::string id, bool with_macro = false) {
     if (with_macro)
         return flattenVector(
-            {edit(insertAfter(statements(id), cat("#endif\n"))),
+            {edit(insertAfter(CStmtRBrace(id), cat("#endif\n"))),
              edit(addMarker(insertBefore(statements(id), cat("")))),
-             edit(addDeleteMacro(insertBefore(statements(id), cat(""))))});
+             edit(addDeleteMacro(insertBefore(CStmtLBrace(id), cat(""))))});
     return edit(addMarker(insertBefore(statements(id), cat(""))));
 }
 
 EditGenerator InstrumentNonCStmt(std::string id) {
     return flattenVector({edit(addMarker(insertBefore(
-                              statementWithMacrosExpanded(id), cat("")))),
-                          edit(addDeleteMacro(insertBefore(
                               statementWithMacrosExpanded(id), cat("{")))),
+                          edit(addDeleteMacro(insertBefore(
+                              statementWithMacrosExpanded(id), cat("")))),
                           edit(insertAfter(statementWithMacrosExpanded(id),
-                                           cat("\n#endif\n}")))});
+                                           cat("}\n#endif\n")))});
+    // cat("\n}")))});
 }
 
 auto instrumentFunction() {
@@ -237,6 +315,23 @@ AST_MATCHER(IfStmt, RParenNotInMacroAndInMain) {
            SM.isInMainFile(SM.getExpansionLoc(RParenLoc));
 }
 
+AST_MATCHER(IfStmt, ConditionNotInMacroAndInMain) {
+    (void)Builder;
+    auto RParenLoc = Node.getRParenLoc();
+    auto LParenLoc = Node.getLParenLoc();
+    auto IfLoc = Node.getIfLoc();
+    const auto &SM = Finder->getASTContext().getSourceManager();
+
+    if (RParenLoc.isMacroID() ||
+        !SM.isInMainFile(SM.getExpansionLoc(RParenLoc)))
+        return false;
+
+    if (LParenLoc.isMacroID() ||
+        !SM.isInMainFile(SM.getExpansionLoc(LParenLoc)))
+        return false;
+    return !IfLoc.isMacroID() && SM.isInMainFile(SM.getExpansionLoc(IfLoc));
+}
+
 AST_MATCHER(IfStmt, ElseNotInMacroAndInMain) {
     (void)Builder;
     auto ElseLoc = Node.getElseLoc();
@@ -244,21 +339,88 @@ AST_MATCHER(IfStmt, ElseNotInMacroAndInMain) {
     return !ElseLoc.isMacroID() && SM.isInMainFile(SM.getExpansionLoc(ElseLoc));
 }
 
-auto instrumentIfStmt() {
-    auto matcher = ifStmt(
-        RParenNotInMacroAndInMain(),
-        optionally(hasElse(anyOf(
-            compoundStmt(inMainAndNotMacro).bind("celse"),
-            stmt(hasParent(ifStmt(ElseNotInMacroAndInMain()))).bind("else")))),
-        hasThen(anyOf(compoundStmt(inMainAndNotMacro).bind("cthen"),
-                      stmt().bind("then"))));
-    auto actions = flattenVector(
-        {ifBound("cthen", InstrumentCStmt("cthen", true), noEdits()),
-         ifBound("celse", InstrumentCStmt("celse", true), noEdits()),
-         ifBound("then", InstrumentNonCStmt("then"), noEdits()),
-         ifBound("else", InstrumentNonCStmt("else"), noEdits())
+RangeSelector IfLParenLoc(std::string ID) {
+    return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+               -> Expected<CharSourceRange> {
+        Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
+        if (!Node) {
+            llvm::outs() << "ERROR";
+            return Node.takeError();
+        }
+        const auto &SM = *Result.SourceManager;
+        return SM.getExpansionRange(Node->get<IfStmt>()->getLParenLoc());
+    };
+}
 
-        });
+RangeSelector IfRParenLoc(std::string ID) {
+    return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+               -> Expected<CharSourceRange> {
+        Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
+        if (!Node) {
+            llvm::outs() << "ERROR";
+            return Node.takeError();
+        }
+        const auto &SM = *Result.SourceManager;
+        return SM.getExpansionRange(Node->get<IfStmt>()->getRParenLoc());
+    };
+}
+
+RangeSelector ElseLoc(std::string ID) {
+    return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+               -> Expected<CharSourceRange> {
+        Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
+        if (!Node) {
+            llvm::outs() << "ERROR";
+            return Node.takeError();
+        }
+        const auto &SM = *Result.SourceManager;
+        return SM.getExpansionRange(Node->get<IfStmt>()->getElseLoc());
+    };
+}
+
+auto instrumentIfStmt() {
+    auto matcher =
+        ifStmt(ConditionNotInMacroAndInMain(),
+               optionally(hasElse(
+                   anyOf(compoundStmt(inMainAndNotMacro).bind("celse"),
+                         stmt(hasParent(ifStmt(ElseNotInMacroAndInMain())))
+                             .bind("else")))),
+               hasThen(anyOf(compoundStmt(inMainAndNotMacro).bind("cthen"),
+                             stmt().bind("then"))))
+            .bind("ifstmt");
+    auto actions = flattenVector(
+        {// ifdef magic
+         edit(insertAfter(statementWithMacrosExpanded("ifstmt"),
+                          cat("#endif\n"))),
+         edit(addIfAtLeastOneDefined(
+             insertBefore(statementWithMacrosExpanded("ifstmt"), cat("")))),
+         edit(insertAfter(IfLParenLoc("ifstmt"), cat("\n#endif\n"))),
+         edit(addIfAtLeastOneDefined(
+             insertBefore(IfRParenLoc("ifstmt"), cat("")))),
+         edit(addIfAtMostOneDefined(
+             insertBefore(statementWithMacrosExpanded("ifstmt"), cat("")))),
+         // instrument else branch
+         ifBound("celse", InstrumentCStmt("celse", true),
+                 ifBound("else", InstrumentNonCStmt("else"),
+                         edit(addElseBranch(
+                             insertAfter(statement("ifstmt"), cat("")))))),
+         // instrument then branch
+         ifBound("cthen", InstrumentCStmt("cthen", true),
+                 ifBound("then", InstrumentNonCStmt("then"), noEdits())),
+         edit(insertAfter(IfRParenLoc("ifstmt"), cat("#endif\n"))),
+         ifBound("celse",
+                 flattenVector(
+                     {edit(addDeleteMacro(
+                          insertBefore(ElseLoc("ifstmt"), cat("")))),
+                      edit(insertBefore(statementWithMacrosExpanded("celse"),
+                                        cat("\n#endif\n")))}),
+                 ifBound("else",
+                         flattenVector({edit(addDeleteMacro(insertBefore(
+                                            ElseLoc("ifstmt"), cat("")))),
+                                        edit(insertBefore(
+                                            statementWithMacrosExpanded("else"),
+                                            cat("\n#endif\n")))}),
+                         noEdits()))});
     return makeRule(matcher, actions);
 }
 
@@ -342,10 +504,10 @@ auto instrumentSwitchCase() {
 Instrumenter::Instrumenter(
     std::map<std::string, clang::tooling::Replacements> &FileToReplacements)
     : FileToReplacements{FileToReplacements},
-      Rules{{instrumentStmtAfterReturnRule(), Replacements,
-             FileToNumberMarkerDecls},
+      Rules{//{instrumentStmtAfterReturnRule(), Replacements,
+            // FileToNumberMarkerDecls},
             {instrumentIfStmt(), Replacements, FileToNumberMarkerDecls},
-            {instrumentFunction(), Replacements, FileToNumberMarkerDecls},
+            //{instrumentFunction(), Replacements, FileToNumberMarkerDecls},
             {instrumentLoop(), Replacements, FileToNumberMarkerDecls},
             {instrumentSwitchCase(), Replacements, FileToNumberMarkerDecls}} {}
 
