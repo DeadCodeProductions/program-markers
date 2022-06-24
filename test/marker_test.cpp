@@ -1,16 +1,34 @@
 #include "test_tool.hpp"
 #include <catch2/catch.hpp>
 
-TEST_CASE("BranchInstrumenter if-else compound", "[if]") {
-    auto Code = R"code(int foo(int a){
-        if (a > 0){
+TEST_CASE("BranchInstrumenter if-else", "[if]") {
+    auto Code = std::string{R"code(int foo(int a){
+        if (a > 0))code"};
+
+    Code += GENERATE(
+        R"code({
         a = 1;
-        } else{
+        }
+        )code",
+        R"code(
+        a = 1;
+        )code");
+
+    Code += GENERATE(
+        R"code(else{
         a = 0;
         }
+        )code",
+        R"code(else
+        a = 0;
+        )code");
+
+    Code += R"code(
         return a;
     }
     )code";
+    Code = formatCode(Code);
+
     auto ExpectedCode = R"code(void DCEMarker0_(void);
     void DCEMarker1_(void);
     int foo(int a){
@@ -25,6 +43,7 @@ TEST_CASE("BranchInstrumenter if-else compound", "[if]") {
 
         )
         #endif
+
         #ifndef DeleteDCEMarkerBlock1_
 
         {
@@ -32,10 +51,13 @@ TEST_CASE("BranchInstrumenter if-else compound", "[if]") {
             a = 1;
         } 
         #endif
+
         #ifndef DeleteDCEMarkerBlock1_
 
         else
+
         #endif
+
         #ifndef DeleteDCEMarkerBlock0_
 
         {
@@ -43,6 +65,7 @@ TEST_CASE("BranchInstrumenter if-else compound", "[if]") {
             a = 0;
         }
         #endif
+        
         #endif
 
         return a;
@@ -53,50 +76,99 @@ TEST_CASE("BranchInstrumenter if-else compound", "[if]") {
     REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
 }
 
-TEST_CASE("BranchInstrumenter if-else nested with return", "[if]") {
-    auto Code = R"code(int foo(int a){
-        if (a > 0)
-        while(a--)
-            return 1;
-         else
-        a = 0;
-        
-        return a;
+TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
+    std::string Code = R"code(int foo(int a){
+      if (a > 0))code";
+
+    bool compoundThen = GENERATE(true, false);
+    if (compoundThen)
+        Code += R"code({)code";
+    Code += R"code(
+         while(a--))code";
+
+    Code += GENERATE(
+        R"code( {
+    return 1;
     }
-    )code";
+    )code",
+        R"code(
+    return 1;
+    )code");
+
+    if (compoundThen)
+        Code += R"code(}
+        )code";
+
+    Code += GENERATE(R"code( else
+                    a = 0;
+                )code",
+                     R"code( else {
+                    a = 0;
+                }
+                )code");
+
+    Code += R"code(return a;
+                    })code";
+    Code = formatCode(Code);
+
     auto ExpectedCode = R"code(void DCEMarker0_(void);
     void DCEMarker1_(void);
     void DCEMarker2_(void);
-    void DCEMarker3_(void);
-    void DCEMarker4_(void);
-    void DCEMarker5_(void);
-    int foo(int a){
-        DCEMarker0_();
-        if (a > 0){
+    int foo(int a) {
+        #if !defined(DeleteDCEMarkerBlock0_) || !defined(DeleteDCEMarkerBlock1_)
+
+        #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+
+        if (
+        #endif
+            a > 0
+        #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+
+        )
+        #endif
+
+        #ifndef DeleteDCEMarkerBlock1_
+
+        {
+            DCEMarker1_();
         #ifndef DeleteDCEMarkerBlock2_
 
-            DCEMarker2_();
-            while(a--){
-            #ifndef DeleteDCEMarkerBlock5_
+            while(
+        #endif
+            a--
+        #ifndef DeleteDCEMarkerBlock2_
 
-                DCEMarker5_();
+            )
+        #endif
+
+        #ifndef DeleteDCEMarkerBlock2_
+
+            {
+                DCEMarker2_();
                 return 1;
-            #endif
             }
-            DCEMarker4_();
         #endif
-        } else{
-        #ifndef DeleteDCEMarkerBlock3_
+        } 
+        #endif
 
-            DCEMarker3_();
-            a = 0;
+        #ifndef DeleteDCEMarkerBlock1_
+
+        else
+
         #endif
+        
+        #ifndef DeleteDCEMarkerBlock0_
+
+        {
+            DCEMarker0_();
+            a = 0;
         }
-        DCEMarker1_();
+        #endif
+
+        #endif
 
         return a;
-    }
-    )code";
+    })code";
 
     CAPTURE(Code);
     REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
@@ -114,35 +186,55 @@ TEST_CASE("BranchInstrumenter if-else nested with return in compound", "[if]") {
         return a;
     }
     )code";
+
     auto ExpectedCode = R"code(void DCEMarker0_(void);
     void DCEMarker1_(void);
     void DCEMarker2_(void);
-    void DCEMarker3_(void);
-    void DCEMarker4_(void);
-    void DCEMarker5_(void);
     int foo(int a){
-        DCEMarker0_();
-        if (a > 0){
-            #ifndef DeleteDCEMarkerBlock2_
+        #if !defined(DeleteDCEMarkerBlock0_) || !defined(DeleteDCEMarkerBlock1_)
 
-            DCEMarker2_();
-            while(a--){
-            #ifndef DeleteDCEMarkerBlock5_
+        #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
-                DCEMarker5_();
+        if (
+        #endif
+            a > 0
+        #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+
+        )
+        #endif
+
+        #ifndef DeleteDCEMarkerBlock1_
+
+        {
+            DCEMarker1_();
+        #ifndef DeleteDCEMarkerBlock2_
+
+            while(
+        #endif
+            a--
+        #ifndef DeleteDCEMarkerBlock2_
+            ){
+
+                DCEMarker2_();
                 return 1;
-            #endif
             }
-            DCEMarker4_();
         #endif
-        } else{
-        #ifndef DeleteDCEMarkerBlock3_
+        } 
+        #endif
 
-            DCEMarker3_();
-            a = 0;
+        #ifndef DeleteDCEMarkerBlock1_
+
+        else
+
         #endif
+        #ifndef DeleteDCEMarkerBlock0_
+
+        {
+            DCEMarker0_();
+            a = 0;
         }
-        DCEMarker1_();
+        #endif
+        #endif
 
         return a;
     }
@@ -163,19 +255,39 @@ TEST_CASE("BranchInstrumenter if with return macro", "[if]") {
     )code";
     auto ExpectedCode = R"code(void DCEMarker0_(void);
     void DCEMarker1_(void);
-    void DCEMarker2_(void);
     #define R return
 
     int foo(int a){
-        DCEMarker0_();
-        if (a > 0){
-        #ifndef DeleteDCEMarkerBlock2_
+        #if !defined(DeleteDCEMarkerBlock0_) || !defined(DeleteDCEMarkerBlock1_)
 
-            DCEMarker2_();
-            R 0;
+        #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+
+        if (
         #endif
+        a > 0
+        #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+
+            )
+        #endif
+        #ifndef DeleteDCEMarkerBlock1_
+        {
+
+            DCEMarker1_();
+            R 0;
         }
-        DCEMarker1_();
+        #endif
+
+        #ifndef DeleteDCEMarkerBlock1_
+        else
+        #endif
+
+        #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+        {
+            DCEMarker0_();
+        }
+
+        #endif
+        #endif
         return a;
     }
     )code";
@@ -196,19 +308,39 @@ TEST_CASE("BranchInstrumenter if-compound with return macro", "[if]") {
     )code";
     auto ExpectedCode = R"code(void DCEMarker0_(void);
     void DCEMarker1_(void);
-    void DCEMarker2_(void);
     #define R return 0;
 
     int foo(int a){
-        DCEMarker0_();
-        if (a > 0){
-        #ifndef DeleteDCEMarkerBlock2_
+        #if !defined(DeleteDCEMarkerBlock0_) || !defined(DeleteDCEMarkerBlock1_)
 
-        DCEMarker2_();
-        R
+        #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+
+        if (
         #endif
-        } 
-        DCEMarker1_();
+        a > 0
+        #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+
+            )
+        #endif
+        #ifndef DeleteDCEMarkerBlock1_
+        {
+
+            DCEMarker1_();
+            R;
+        }
+        #endif
+
+        #ifndef DeleteDCEMarkerBlock1_
+        else
+        #endif
+
+        #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+        {
+            DCEMarker0_();
+        }
+
+        #endif
+        #endif
         return a;
     }
     )code";

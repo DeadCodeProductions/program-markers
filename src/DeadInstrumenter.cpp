@@ -34,6 +34,7 @@ enum class EditMetadataKind {
     MarkerDecl,
     MarkerCall,
     MacroDisableBlockBegin,
+    MacroDisableBlockBeginPre,
     IfAtMostOneDefined,
     IfAtLeastOneDefined,
     NewElseBranch
@@ -84,6 +85,13 @@ void detail::RuleActionEditCollector::run(
                                       T.Replacement +
                                           "#ifndef DeleteDCEMarkerBlock" +
                                           std::to_string(N) + "_\n\n");
+        } else if (*Metadata == EditMetadataKind::MacroDisableBlockBeginPre) {
+            auto N =
+                FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)] - 1;
+            Replacements.emplace_back(*SM, T.Range,
+                                      "#ifndef DeleteDCEMarkerBlock" +
+                                          std::to_string(N) + "_\n\n" +
+                                          T.Replacement);
         } else if (*Metadata == EditMetadataKind::IfAtMostOneDefined) {
             auto N =
                 FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)];
@@ -167,6 +175,10 @@ ASTEdit addMarker(ASTEdit Edit) {
 ASTEdit addDeleteMacro(ASTEdit Edit) {
     return addMetadata(std::move(Edit),
                        EditMetadataKind::MacroDisableBlockBegin);
+}
+ASTEdit addDeleteMacroPre(ASTEdit Edit) {
+    return addMetadata(std::move(Edit),
+                       EditMetadataKind::MacroDisableBlockBeginPre);
 }
 
 ASTEdit addElseBranch(ASTEdit Edit) {
@@ -283,9 +295,9 @@ RangeSelector CStmtRBrace(std::string ID) {
 auto InstrumentCStmt(std::string id, bool with_macro = false) {
     if (with_macro)
         return flattenVector(
-            {edit(insertAfter(CStmtRBrace(id), cat("#endif\n"))),
+            {edit(insertAfter(CStmtRBrace(id), cat("\n#endif\n\n"))),
              edit(addMarker(insertBefore(statements(id), cat("")))),
-             edit(addDeleteMacro(insertBefore(CStmtLBrace(id), cat(""))))});
+             edit(addDeleteMacro(insertBefore(CStmtLBrace(id), cat("\n"))))});
     return edit(addMarker(insertBefore(statements(id), cat(""))));
 }
 
@@ -295,7 +307,7 @@ EditGenerator InstrumentNonCStmt(std::string id) {
                           edit(addDeleteMacro(insertBefore(
                               statementWithMacrosExpanded(id), cat("")))),
                           edit(insertAfter(statementWithMacrosExpanded(id),
-                                           cat("}\n#endif\n")))});
+                                           cat("}\n#endif\n\n")))});
     // cat("\n}")))});
 }
 
@@ -337,6 +349,50 @@ AST_MATCHER(IfStmt, ElseNotInMacroAndInMain) {
     auto ElseLoc = Node.getElseLoc();
     const auto &SM = Finder->getASTContext().getSourceManager();
     return !ElseLoc.isMacroID() && SM.isInMainFile(SM.getExpansionLoc(ElseLoc));
+}
+
+RangeSelector LParenLoc(std::string ID) {
+    return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+               -> Expected<CharSourceRange> {
+        Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
+        if (!Node) {
+            llvm::outs() << "ERROR";
+            return Node.takeError();
+        }
+        const auto &SM = *Result.SourceManager;
+        if (const auto *IfStmt_ = Node->get<IfStmt>()) {
+            return SM.getExpansionRange(IfStmt_->getLParenLoc());
+        }
+        if (const auto *ForLoop_ = Node->get<ForStmt>()) {
+            return SM.getExpansionRange(ForLoop_->getLParenLoc());
+        }
+        if (const auto *WhileLoop_ = Node->get<WhileStmt>()) {
+            return SM.getExpansionRange(WhileLoop_->getLParenLoc());
+        }
+        llvm_unreachable("LParenLoc::invalid node kind");
+    };
+}
+
+RangeSelector RParenLoc(std::string ID) {
+    return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+               -> Expected<CharSourceRange> {
+        Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
+        if (!Node) {
+            llvm::outs() << "ERROR";
+            return Node.takeError();
+        }
+        const auto &SM = *Result.SourceManager;
+        if (const auto *IfStmt_ = Node->get<IfStmt>()) {
+            return SM.getExpansionRange(IfStmt_->getRParenLoc());
+        }
+        if (const auto *ForLoop_ = Node->get<ForStmt>()) {
+            return SM.getExpansionRange(ForLoop_->getRParenLoc());
+        }
+        if (const auto *WhileLoop_ = Node->get<WhileStmt>()) {
+            return SM.getExpansionRange(WhileLoop_->getRParenLoc());
+        }
+        llvm_unreachable("LParenLoc::invalid node kind");
+    };
 }
 
 RangeSelector IfLParenLoc(std::string ID) {
@@ -413,13 +469,13 @@ auto instrumentIfStmt() {
                      {edit(addDeleteMacro(
                           insertBefore(ElseLoc("ifstmt"), cat("")))),
                       edit(insertBefore(statementWithMacrosExpanded("celse"),
-                                        cat("\n#endif\n")))}),
+                                        cat("\n\n#endif\n")))}),
                  ifBound("else",
                          flattenVector({edit(addDeleteMacro(insertBefore(
                                             ElseLoc("ifstmt"), cat("")))),
                                         edit(insertBefore(
                                             statementWithMacrosExpanded("else"),
-                                            cat("\n#endif\n")))}),
+                                            cat("\n#endif\n\n")))}),
                          noEdits()))});
     return makeRule(matcher, actions);
 }
@@ -450,7 +506,7 @@ AST_MATCHER(DoStmt, DoAndWhileNotMacroAndInMain) {
 
 auto instrumentLoop() {
     auto compoundMatcher =
-        mapAnyOf(forStmt, whileStmt, doStmt, cxxForRangeStmt)
+        mapAnyOf(forStmt, doStmt, cxxForRangeStmt)
             .with(inMainAndNotMacro,
                   hasBody(compoundStmt(inMainAndNotMacro).bind("body")));
     auto nonCompoundDoWhileMatcher =
@@ -462,13 +518,58 @@ auto instrumentLoop() {
             insertBefore(statementWithMacrosExpanded("body"), cat("{"))),
         insertBefore(doStmtWhile("dostmt"), cat("\n#endif\n}"))};
     auto nonCompoundLoopMatcher =
-        mapAnyOf(forStmt, whileStmt, cxxForRangeStmt)
+        mapAnyOf(forStmt, cxxForRangeStmt)
             .with(inMainAndNotMacro,
-                  hasBody(stmt(inMainAndNotMacro).bind("body")));
+                  hasBody(stmt(inMainAndNotMacro).bind("body")))
+            .bind("loop");
     return applyFirst(
         {makeRule(compoundMatcher, InstrumentCStmt("body", true)),
          makeRule(nonCompoundDoWhileMatcher, doWhileAction),
-         makeRule(nonCompoundLoopMatcher, InstrumentNonCStmt("body"))});
+         makeRule(nonCompoundLoopMatcher,
+                  flattenVector(
+                      {edit(addDeleteMacro(insertBefore(
+                           statementWithMacrosExpanded("loop"), cat("")))),
+                       edit(insertAfter(LParenLoc("loop"), cat("\n#endif"))),
+                       InstrumentNonCStmt("body")})
+
+                      )});
+}
+
+RangeSelector whileBegin(std::string ID) {
+    return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+               -> Expected<CharSourceRange> {
+        Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
+        if (!Node) {
+            llvm::outs() << "ERROR";
+            return Node.takeError();
+        }
+        const auto &SM = *Result.SourceManager;
+        return SM.getExpansionRange(
+            SourceRange(Node->get<WhileStmt>()->getWhileLoc()));
+    };
+}
+
+auto handleWhile() {
+    auto compoundMatcher =
+        whileStmt(inMainAndNotMacro,
+                  hasBody(compoundStmt(inMainAndNotMacro).bind("body")))
+            .bind("loop");
+    auto nonCompoundLoopMatcher =
+        whileStmt(inMainAndNotMacro,
+                  hasBody(stmt(inMainAndNotMacro).bind("body")))
+            .bind("loop");
+    auto macroActions = flattenVector(
+        {edit(addDeleteMacroPre(changeTo(whileBegin("loop"), cat("while")))),
+         edit(insertAfter(LParenLoc("loop"), cat("\n#endif\n"))),
+         edit(addDeleteMacro(insertBefore(RParenLoc("loop"), cat("\n")))),
+         edit(insertAfter(RParenLoc("loop"), cat("\n#endif\n\n")))
+
+        });
+    return applyFirst(
+        {makeRule(compoundMatcher,
+                  flattenVector({InstrumentCStmt("body", true), macroActions})),
+         makeRule(nonCompoundLoopMatcher,
+                  flattenVector({InstrumentNonCStmt("body"), macroActions}))});
 }
 
 RangeSelector SwitchCaseColonLoc(std::string ID) {
@@ -504,12 +605,15 @@ auto instrumentSwitchCase() {
 Instrumenter::Instrumenter(
     std::map<std::string, clang::tooling::Replacements> &FileToReplacements)
     : FileToReplacements{FileToReplacements},
-      Rules{//{instrumentStmtAfterReturnRule(), Replacements,
-            // FileToNumberMarkerDecls},
-            {instrumentIfStmt(), Replacements, FileToNumberMarkerDecls},
-            //{instrumentFunction(), Replacements, FileToNumberMarkerDecls},
-            {instrumentLoop(), Replacements, FileToNumberMarkerDecls},
-            {instrumentSwitchCase(), Replacements, FileToNumberMarkerDecls}} {}
+      Rules{
+          //{instrumentStmtAfterReturnRule(), Replacements,
+          // FileToNumberMarkerDecls},
+          {instrumentIfStmt(), Replacements, FileToNumberMarkerDecls},
+          //{instrumentFunction(), Replacements, FileToNumberMarkerDecls},
+          {handleWhile(), Replacements, FileToNumberMarkerDecls},
+          //{instrumentLoop(), Replacements, FileToNumberMarkerDecls},
+          //{instrumentSwitchCase(), Replacements, FileToNumberMarkerDecls}
+      } {}
 
 void Instrumenter::applyReplacements() {
     for (const auto &[File, NumberMarkerDecls] : FileToNumberMarkerDecls) {
