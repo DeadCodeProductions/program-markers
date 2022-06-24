@@ -308,7 +308,6 @@ EditGenerator InstrumentNonCStmt(std::string id) {
                               statementWithMacrosExpanded(id), cat("")))),
                           edit(insertAfter(statementWithMacrosExpanded(id),
                                            cat("}\n#endif\n\n")))});
-    // cat("\n}")))});
 }
 
 auto instrumentFunction() {
