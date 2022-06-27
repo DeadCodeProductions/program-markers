@@ -191,6 +191,67 @@ TEST_CASE("BranchInstrumenter if with return macro", "[if][macro]") {
 }
 
 TEST_CASE("BranchInstrumenter if with return macro 2", "[if][macro]") {
+    auto Code = std::string{R"code(#define R return 0
+
+    int foo(int a){
+        if (a > 0))code"};
+
+    Code += GENERATE(R"code(
+      R;
+    )code",
+                     R"code({
+      R;
+    }
+    )code");
+    Code +=
+        R"code(return a;
+    }
+    )code";
+    Code = formatCode(Code);
+
+    auto ExpectedCode = R"code(void DCEMarker0_(void);
+    void DCEMarker1_(void);
+    #define R return 0
+
+    int foo(int a){
+        #if !defined(DeleteDCEMarkerBlock0_) || !defined(DeleteDCEMarkerBlock1_)
+
+        #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+
+        if (
+        #endif
+        a > 0
+        #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+
+            )
+        #endif
+
+        #ifndef DeleteDCEMarkerBlock1_
+
+        {
+            DCEMarker1_();
+            R;
+        }
+        #endif
+
+        #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+
+        else {
+            DCEMarker0_();
+        }
+        #endif
+        #endif
+
+        return a;
+    }
+    )code";
+
+    CAPTURE(Code);
+    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+}
+
+
+TEST_CASE("BranchInstrumenter if with return macro 3", "[if][macro]") {
     auto Code = std::string{R"code(#define R return 0;
 
     int foo(int a){
@@ -204,7 +265,8 @@ TEST_CASE("BranchInstrumenter if with return macro 2", "[if][macro]") {
     }
     )code");
     Code +=
-        R"code(return a;
+        R"code(
+        return a;
     }
     )code";
     Code = formatCode(Code);

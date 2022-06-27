@@ -455,10 +455,11 @@ auto instrumentIfStmt() {
          edit(addIfAtMostOneDefined(
              insertBefore(statementWithMacrosExpanded("ifstmt"), cat("")))),
          // instrument else branch
-         ifBound("celse", InstrumentCStmt("celse", true),
-                 ifBound("else", InstrumentNonCStmt("else"),
-                         edit(addElseBranch(
-                             insertAfter(statement("ifstmt"), cat("")))))),
+         ifBound(
+             "celse", InstrumentCStmt("celse", true),
+             ifBound("else", InstrumentNonCStmt("else"),
+                     edit(addElseBranch(insertAfter(
+                         statementWithMacrosExpanded("ifstmt"), cat("")))))),
          // instrument then branch
          ifBound("cthen", InstrumentCStmt("cthen", true),
                  ifBound("then", InstrumentNonCStmt("then"), noEdits())),
