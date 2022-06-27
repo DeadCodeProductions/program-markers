@@ -35,6 +35,7 @@ enum class EditMetadataKind {
     MarkerCall,
     MacroDisableBlockBegin,
     MacroDisableBlockBeginPre,
+    IfPrologue,
     IfAtMostOneDefined,
     IfAtLeastOneDefined,
     NewElseBranch
@@ -92,6 +93,19 @@ void detail::RuleActionEditCollector::run(
                                       "#ifndef DeleteDCEMarkerBlock" +
                                           std::to_string(N) + "_\n\n" +
                                           T.Replacement);
+        } else if (*Metadata == EditMetadataKind::IfPrologue) {
+            auto N =
+                FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)];
+            auto text =
+                "#if !defined(DeleteDCEMarkerBlock" + std::to_string(N) +
+                "_) || "
+                "!defined(DeleteDCEMarkerBlock" +
+                std::to_string(N + 1) + "_)\n" +
+                "\n#if !defined(DeleteDCEMarkerBlock" + std::to_string(N) +
+                "_) && "
+                "!defined(DeleteDCEMarkerBlock" +
+                std::to_string(N + 1) + "_)\n\n" + T.Replacement;
+            Replacements.emplace_back(*SM, T.Range, text);
         } else if (*Metadata == EditMetadataKind::IfAtMostOneDefined) {
             auto N =
                 FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)];
@@ -191,6 +205,10 @@ ASTEdit addIfAtMostOneDefined(ASTEdit Edit) {
 
 ASTEdit addIfAtLeastOneDefined(ASTEdit Edit) {
     return addMetadata(std::move(Edit), EditMetadataKind::IfAtLeastOneDefined);
+}
+
+ASTEdit addIfPrologue(ASTEdit Edit) {
+    return addMetadata(std::move(Edit), EditMetadataKind::IfPrologue);
 }
 
 template <typename T>
@@ -433,6 +451,19 @@ RangeSelector ElseLoc(std::string ID) {
     };
 }
 
+RangeSelector IfLoc(std::string ID) {
+    return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+               -> Expected<CharSourceRange> {
+        Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
+        if (!Node) {
+            llvm::outs() << "ERROR";
+            return Node.takeError();
+        }
+        const auto &SM = *Result.SourceManager;
+        return SM.getExpansionRange(Node->get<IfStmt>()->getIfLoc());
+    };
+}
+
 auto instrumentIfStmt() {
     auto matcher =
         ifStmt(ConditionNotInMacroAndInMain(),
@@ -447,13 +478,12 @@ auto instrumentIfStmt() {
         {// ifdef magic
          edit(insertAfter(statementWithMacrosExpanded("ifstmt"),
                           cat("#endif\n"))),
-         edit(addIfAtLeastOneDefined(
-             insertBefore(statementWithMacrosExpanded("ifstmt"), cat("")))),
+         // edit(addIfAtLeastOneDefined(
+         // insertBefore(IfLoc("ifstmt"), cat("")))),
          edit(insertAfter(IfLParenLoc("ifstmt"), cat("\n#endif\n"))),
          edit(addIfAtLeastOneDefined(
              insertBefore(IfRParenLoc("ifstmt"), cat("")))),
-         edit(addIfAtMostOneDefined(
-             insertBefore(statementWithMacrosExpanded("ifstmt"), cat("")))),
+         edit(addIfPrologue(changeTo(IfLoc("ifstmt"), cat("if")))),
          // instrument else branch
          ifBound(
              "celse", InstrumentCStmt("celse", true),
@@ -475,7 +505,7 @@ auto instrumentIfStmt() {
                                             ElseLoc("ifstmt"), cat("")))),
                                         edit(insertBefore(
                                             statementWithMacrosExpanded("else"),
-                                            cat("\n#endif\n\n")))}),
+                                            cat("\n\n#endif\n\n")))}),
                          noEdits()))});
     return makeRule(matcher, actions);
 }
