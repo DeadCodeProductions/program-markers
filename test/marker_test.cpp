@@ -693,7 +693,6 @@ TEST_CASE("BranchInstrumenter if-else with semi return macro",
     REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
 }
 
-
 TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
     std::string Code = R"code(int foo(int a){
       if (a > 0))code";
@@ -842,13 +841,25 @@ TEST_CASE("BranchInstrumenter while stmt", "[while][loop]") {
 TEST_CASE("BranchInstrumenter for stmt nested if with return",
           "[for][if][nested][return]") {
 
-    auto Code = R"code(int foo(int a){
+    auto Code = std::string{R"code(int foo(int a){
         int b = 0;
-        for (int i = 0; i < a; ++i)
+        for (int i = 0; i < a; ++i))code"};
+
+    bool compoundFor = GENERATE(true, false);
+    if (compoundFor)
+        Code += R"code({)code";
+    Code += R"code(
             if (i == 3)
-                return b;
-            else 
-                ++b;
+            )code";
+    Code += GENERATE(R"code(return b;)code", R"code({return b;})code");
+    Code += R"code(
+            else
+            )code";
+    Code += GENERATE(R"code(++b;)code", R"code({++b;})code");
+
+    if (compoundFor)
+        Code += R"code(})code";
+    Code += R"code(
         return b;
     }
     )code";
@@ -856,33 +867,60 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return",
     auto ExpectedCode = R"code(void DCEMarker0_(void);
     void DCEMarker1_(void);
     void DCEMarker2_(void);
-    void DCEMarker3_(void);
-    void DCEMarker4_(void);
-    void DCEMarker5_(void);
     int foo(int a){
-        DCEMarker0_();
         int b = 0;
-        for (int i = 0; i < a; ++i){
+        #ifndef DeleteDCEMarkerBlock0_
+
+        for (
+        #endif
+        int i = 0; i < a;
+        #ifndef DeleteDCEMarkerBlock0_
+
+        ++i)
+        #endif
+
+        #ifndef DeleteDCEMarkerBlock0_
+
+        {
+            DCEMarker0_();
+        #if !defined(DeleteDCEMarkerBlock1_) || !defined(DeleteDCEMarkerBlock2_)
+
+        #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
+
+        if (
+        #endif
+            i == 3
+        #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
+
+        )
+        #endif
+
         #ifndef DeleteDCEMarkerBlock2_
 
-            DCEMarker2_();
-            if (i == 3){
-            #ifndef DeleteDCEMarkerBlock4_
-
-                DCEMarker4_();
+            {
+                DCEMarker2_();
                 return b;
-            #endif
-            } else {
-            #ifndef DeleteDCEMarkerBlock5_
-
-                DCEMarker5_();
-                ++b;
-            #endif
             }
-            DCEMarker3_();
+            #endif
+
+        #ifndef DeleteDCEMarkerBlock2_
+
+             else 
+
+        #endif
+
+        #ifndef DeleteDCEMarkerBlock1_
+
+             {
+                DCEMarker1_();
+                ++b;
+            }
+        #endif
+
         #endif
         }
-        DCEMarker1_();
+        #endif
+
         return b;
     }
     )code";
@@ -894,14 +932,20 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return",
 TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
           "[for][if][nested][return]") {
 
-    auto Code = R"code(int foo(int a){
+    auto Code = std::string{R"code(int foo(int a){
         int b = 0;
-        for (int i = 0; i < a; ++i){
+        for (int i = 0; i < a; ++i){)code"};
+    Code += R"code(
             if (i == 3)
-                return b;
-            else 
-                ++b;
-            ++b;
+            )code";
+    Code += GENERATE(R"code(return b;)code", R"code({return b;})code");
+    Code += R"code(
+            else
+            )code";
+    Code += GENERATE(R"code(++b;)code", R"code({++b;})code");
+
+    Code += R"code(
+        ++b;
         }
         return b;
     }
@@ -910,34 +954,62 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
     auto ExpectedCode = R"code(void DCEMarker0_(void);
     void DCEMarker1_(void);
     void DCEMarker2_(void);
-    void DCEMarker3_(void);
-    void DCEMarker4_(void);
-    void DCEMarker5_(void);
     int foo(int a){
-        DCEMarker0_();
         int b = 0;
-        for (int i = 0; i < a; ++i){
-        #ifndef DeleteDCEMarkerBlock2_
-       
-            DCEMarker2_();
-            if (i == 3){
-            #ifndef DeleteDCEMarkerBlock4_
+        #ifndef DeleteDCEMarkerBlock0_
 
-                DCEMarker4_();
-                return b;
-            #endif
-            } else {
-            #ifndef DeleteDCEMarkerBlock5_
-
-                DCEMarker5_();
-                ++b;
-            #endif
-            }
-            DCEMarker3_();
-            ++b;
+        for (
         #endif
+        int i = 0; i < a;
+        #ifndef DeleteDCEMarkerBlock0_
+
+        ++i)
+        #endif
+
+        #ifndef DeleteDCEMarkerBlock0_
+
+        {
+            DCEMarker0_();
+        #if !defined(DeleteDCEMarkerBlock1_) || !defined(DeleteDCEMarkerBlock2_)
+
+        #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
+
+        if (
+        #endif
+            i == 3
+        #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
+
+        )
+        #endif
+
+        #ifndef DeleteDCEMarkerBlock2_
+
+            {
+                DCEMarker2_();
+                return b;
+            }
+            #endif
+
+        #ifndef DeleteDCEMarkerBlock2_
+
+             else 
+
+        #endif
+
+        #ifndef DeleteDCEMarkerBlock1_
+
+             {
+                DCEMarker1_();
+                ++b;
+            }
+        #endif
+
+        #endif
+
+        ++b;
         }
-        DCEMarker1_();
+        #endif
+
         return b;
     }
     )code";
@@ -957,19 +1029,26 @@ TEST_CASE("BranchInstrumenter for stmt with return", "[for][return]") {
     )code";
 
     auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
-    void DCEMarker2_(void);
     int foo(int a){
-        DCEMarker0_();
         int b = 0;
-        for (int i = 0; i < a; ++i){
-       #ifndef DeleteDCEMarkerBlock2_
+        #ifndef DeleteDCEMarkerBlock0_
 
-            DCEMarker2_();
-            return i;
+        for (
         #endif
+        int i = 0; i < a; 
+        #ifndef DeleteDCEMarkerBlock0_
+
+        ++i)
+        #endif
+
+        #ifndef DeleteDCEMarkerBlock0_
+
+        {
+            DCEMarker0_();
+            return i;
         }
-        DCEMarker1_();
+        #endif
+
         return b;
     }
     )code";

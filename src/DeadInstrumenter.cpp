@@ -478,8 +478,6 @@ auto instrumentIfStmt() {
         {// ifdef magic
          edit(insertAfter(statementWithMacrosExpanded("ifstmt"),
                           cat("#endif\n"))),
-         // edit(addIfAtLeastOneDefined(
-         // insertBefore(IfLoc("ifstmt"), cat("")))),
          edit(insertAfter(IfLParenLoc("ifstmt"), cat("\n#endif\n"))),
          edit(addIfAtLeastOneDefined(
              insertBefore(IfRParenLoc("ifstmt"), cat("")))),
@@ -565,6 +563,62 @@ auto instrumentLoop() {
                       )});
 }
 
+RangeSelector forBegin(std::string ID) {
+    return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+               -> Expected<CharSourceRange> {
+        Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
+        if (!Node) {
+            llvm::outs() << "ERROR";
+            return Node.takeError();
+        }
+        const auto &SM = *Result.SourceManager;
+        return SM.getExpansionRange(
+            SourceRange(Node->get<ForStmt>()->getForLoc()));
+    };
+}
+
+auto SecondSemiForLoop(std::string ID) {
+    return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+               -> Expected<CharSourceRange> {
+        Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
+        if (!Node) {
+            llvm::outs() << "ERROR";
+            return Node.takeError();
+        }
+        const auto &SM = *Result.SourceManager;
+        if (const Expr *Inc = Node->get<ForStmt>()->getInc())
+            return SM.getExpansionRange(SourceRange(Inc->getBeginLoc()));
+
+        return SM.getExpansionRange(
+            SourceRange(Node->get<ForStmt>()->getRParenLoc()));
+    };
+}
+
+auto handleFor() {
+    auto compoundMatcher =
+        forStmt(inMainAndNotMacro,
+                hasBody(compoundStmt(inMainAndNotMacro).bind("body")))
+            .bind("loop");
+    auto nonCompoundLoopMatcher =
+        forStmt(inMainAndNotMacro,
+                hasBody(stmt(inMainAndNotMacro).bind("body")))
+            .bind("loop");
+
+    auto macroActions = flattenVector(
+        {edit(addDeleteMacroPre(changeTo(forBegin("loop"), cat("for")))),
+         edit(insertAfter(LParenLoc("loop"), cat("\n#endif\n"))),
+         edit(addDeleteMacro(
+             insertBefore(SecondSemiForLoop("loop"), cat("\n")))),
+         edit(insertAfter(RParenLoc("loop"), cat("\n#endif\n\n")))
+
+        });
+    return applyFirst(
+        {makeRule(compoundMatcher,
+                  flattenVector({InstrumentCStmt("body", true), macroActions})),
+         makeRule(nonCompoundLoopMatcher,
+                  flattenVector({InstrumentNonCStmt("body"), macroActions}))});
+}
+
 RangeSelector whileBegin(std::string ID) {
     return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
                -> Expected<CharSourceRange> {
@@ -641,6 +695,7 @@ Instrumenter::Instrumenter(
           {instrumentIfStmt(), Replacements, FileToNumberMarkerDecls},
           //{instrumentFunction(), Replacements, FileToNumberMarkerDecls},
           {handleWhile(), Replacements, FileToNumberMarkerDecls},
+          {handleFor(), Replacements, FileToNumberMarkerDecls},
           //{instrumentLoop(), Replacements, FileToNumberMarkerDecls},
           //{instrumentSwitchCase(), Replacements, FileToNumberMarkerDecls}
       } {}
