@@ -37,7 +37,7 @@ template <typename Tool> std::string runToolOnCode(llvm::StringRef Code) {
     if constexpr (std::is_same_v<Tool, dead::Instrumenter>)
         InstrumenterTool.applyReplacements();
     formatAndApplyAllReplacements(FileToReplacements, Context.Rewrite);
-    return formatCode(Context.getRewrittenText(ID));
+    return formatCode(formatCode(Context.getRewrittenText(ID)));
 }
 
 std::string runBranchInstrumenterOnCode(llvm::StringRef Code) {

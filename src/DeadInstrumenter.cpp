@@ -563,6 +563,49 @@ auto instrumentLoop() {
                       )});
 }
 
+RangeSelector doBegin(std::string ID) {
+    return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+               -> Expected<CharSourceRange> {
+        Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
+        if (!Node) {
+            llvm::outs() << "ERROR";
+            return Node.takeError();
+        }
+        const auto &SM = *Result.SourceManager;
+        return SM.getExpansionRange(
+            SourceRange(Node->get<DoStmt>()->getDoLoc()));
+    };
+}
+
+auto handleDoWhile() {
+    auto compoundMatcher =
+        doStmt(inMainAndNotMacro,
+               hasBody(compoundStmt(inMainAndNotMacro).bind("body")))
+            .bind("dostmt");
+    auto nonCompoundLoopMatcher =
+        doStmt(DoAndWhileNotMacroAndInMain(), hasBody(stmt().bind("body")))
+            .bind("dostmt");
+
+    auto macroActions = flattenVector(
+        {edit(addDeleteMacroPre(changeTo(doBegin("dostmt"), cat("do")))),
+         edit(insertAfter(statementWithMacrosExpanded("dostmt"),
+                          cat("\n#endif\n\n")))
+
+        });
+
+    auto doWhileAction = flattenVector(
+        {edit(addMarker(
+             insertBefore(statementWithMacrosExpanded("body"), cat("")))),
+         edit(insertBefore(statementWithMacrosExpanded("body"), cat("{"))),
+         edit(insertBefore(doStmtWhile("dostmt"), cat("}")))});
+
+    return applyFirst({makeRule(compoundMatcher,
+                                flattenVector({InstrumentCStmt("body", false),
+                                               macroActions})),
+                       makeRule(nonCompoundLoopMatcher,
+                                flattenVector({doWhileAction, macroActions}))});
+}
+
 RangeSelector forBegin(std::string ID) {
     return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
                -> Expected<CharSourceRange> {
@@ -696,6 +739,7 @@ Instrumenter::Instrumenter(
           //{instrumentFunction(), Replacements, FileToNumberMarkerDecls},
           {handleWhile(), Replacements, FileToNumberMarkerDecls},
           {handleFor(), Replacements, FileToNumberMarkerDecls},
+          {handleDoWhile(), Replacements, FileToNumberMarkerDecls},
           //{instrumentLoop(), Replacements, FileToNumberMarkerDecls},
           //{instrumentSwitchCase(), Replacements, FileToNumberMarkerDecls}
       } {}
