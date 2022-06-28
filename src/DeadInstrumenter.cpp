@@ -38,6 +38,7 @@ enum class EditMetadataKind {
     IfPrologue,
     IfAtMostOneDefined,
     IfAtLeastOneDefined,
+    IfAtLeastOneDefinedElse,
     NewElseBranch
 };
 std::string GetFilenameFromRange(const CharSourceRange &R,
@@ -127,6 +128,17 @@ void detail::RuleActionEditCollector::run(
                     "!defined(DeleteDCEMarkerBlock" +
                     std::to_string(N + 1) + "_)\n\n");
 
+        } else if (*Metadata == EditMetadataKind::IfAtLeastOneDefinedElse) {
+            auto N =
+                FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)];
+            Replacements.emplace_back(
+                *SM, T.Range,
+                T.Replacement + "\n#if !defined(DeleteDCEMarkerBlock" +
+                    std::to_string(N - 2) +
+                    "_) && "
+                    "!defined(DeleteDCEMarkerBlock" +
+                    std::to_string(N - 1) + "_)\n\n");
+
         } else if (*Metadata == EditMetadataKind::NewElseBranch) {
             auto N =
                 FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)]++;
@@ -205,6 +217,11 @@ ASTEdit addIfAtMostOneDefined(ASTEdit Edit) {
 
 ASTEdit addIfAtLeastOneDefined(ASTEdit Edit) {
     return addMetadata(std::move(Edit), EditMetadataKind::IfAtLeastOneDefined);
+}
+
+ASTEdit addIfAtLeastOneDefinedElse(ASTEdit Edit) {
+    return addMetadata(std::move(Edit),
+                       EditMetadataKind::IfAtLeastOneDefinedElse);
 }
 
 ASTEdit addIfPrologue(ASTEdit Edit) {
@@ -491,20 +508,21 @@ auto instrumentIfStmt() {
          // instrument then branch
          ifBound("cthen", InstrumentCStmt("cthen", true),
                  ifBound("then", InstrumentNonCStmt("then"), noEdits())),
-         edit(insertAfter(IfRParenLoc("ifstmt"), cat("#endif\n"))),
-         ifBound("celse",
-                 flattenVector(
-                     {edit(addDeleteMacro(
-                          insertBefore(ElseLoc("ifstmt"), cat("")))),
-                      edit(insertBefore(statementWithMacrosExpanded("celse"),
-                                        cat("\n\n#endif\n")))}),
-                 ifBound("else",
-                         flattenVector({edit(addDeleteMacro(insertBefore(
-                                            ElseLoc("ifstmt"), cat("")))),
-                                        edit(insertBefore(
-                                            statementWithMacrosExpanded("else"),
+         edit(insertAfter(IfRParenLoc("ifstmt"), cat("#else\n\n;\n#endif\n"))),
+         ifBound(
+             "celse",
+             flattenVector(
+                 {edit(addIfAtLeastOneDefinedElse(
+                      insertBefore(ElseLoc("ifstmt"), cat("")))),
+                  edit(insertBefore(statementWithMacrosExpanded("celse"),
+                                    cat("\n\n#endif\n")))}),
+             ifBound("else",
+                     flattenVector(
+                         {edit(addIfAtLeastOneDefinedElse(
+                              insertBefore(ElseLoc("ifstmt"), cat("")))),
+                          edit(insertBefore(statementWithMacrosExpanded("else"),
                                             cat("\n\n#endif\n\n")))}),
-                         noEdits()))});
+                     noEdits()))});
     return makeRule(matcher, actions);
 }
 
