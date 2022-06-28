@@ -1421,31 +1421,51 @@ TEST_CASE("BranchInstrumenter switch", "[switch][return]") {
     void DCEMarker3_(void);
     void DCEMarker4_(void);
     void DCEMarker5_(void);
-    void DCEMarker6_(void);
-    void DCEMarker7_(void);
     int foo(int a){
-        DCEMarker0_();
         switch(a){
+#ifndef DeleteDCEMarkerBlock0_
+
         case 1: 
-            DCEMarker2_();
+            DCEMarker0_();
             a = 2;
             break;
+
+#endif
+#ifndef DeleteDCEMarkerBlock1_
+
         case 2:
-          DCEMarker3_();
+          DCEMarker1_();
+
+#endif
+#ifndef DeleteDCEMarkerBlock5_
+
         case 3:
-           DCEMarker7_();
+           DCEMarker5_();
            break;
+
+#endif
+#ifndef DeleteDCEMarkerBlock2_
+
         case 4:
-          DCEMarker4_();
+          DCEMarker2_();
           return 3;
+
+#endif
+#ifndef DeleteDCEMarkerBlock3_
+
         case 5:
-          DCEMarker5_();
+          DCEMarker3_();
           {a = 5;}
+
+#endif
+#ifndef DeleteDCEMarkerBlock4_
+
         default:
-          DCEMarker6_();
+          DCEMarker4_();
           a = 42;
+
+#endif
         }
-        DCEMarker1_();
         return a;
     }
     )code";

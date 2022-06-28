@@ -720,10 +720,45 @@ AST_MATCHER(SwitchCase, colonNotInMacroAndInMain) {
            SM.isInMainFile(SM.getExpansionLoc(ColonLoc));
 }
 
-auto instrumentSwitchCase() {
-    // TODO: Add disabling macros
-    auto matcher = switchCase(colonNotInMacroAndInMain()).bind("stmt");
-    auto action = addMarker(insertAfter(SwitchCaseColonLoc("stmt"), cat("")));
+AST_MATCHER_P(SwitchCase, hasNextSwitchCase,
+              ast_matchers::internal::Matcher<SwitchCase>, InnerMatcher) {
+    const auto *Next = Node.getNextSwitchCase();
+    return (Next != nullptr && InnerMatcher.matches(*Next, Finder, Builder));
+}
+
+auto handleSwitchCase() {
+    auto matcher =
+        switchCase(optionally(hasNextSwitchCase(switchCase().bind("next"))),
+                   colonNotInMacroAndInMain())
+            .bind("stmt");
+    auto action = flattenVector(
+        {edit(addMarker(insertAfter(SwitchCaseColonLoc("stmt"), cat("")))),
+         edit(addDeleteMacroPre(
+             insertBefore(statementWithMacrosExpanded("stmt"), cat("")))),
+         ifBound("next",
+                 edit(insertBefore(statementWithMacrosExpanded("stmt"),
+                                   cat("\n#endif\n"))),
+                 noEdits())});
+    return makeRule(matcher, action);
+}
+
+RangeSelector SwitchStmtEndLoc(std::string ID) {
+    return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+               -> Expected<CharSourceRange> {
+        Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
+        if (!Node) {
+            llvm::outs() << "ERROR";
+            return Node.takeError();
+        }
+        const auto &SM = *Result.SourceManager;
+        const auto *SS = Node->get<SwitchStmt>();
+        return SM.getExpansionRange(SS->getEndLoc());
+    };
+}
+
+auto handleSwitch() {
+    auto matcher = switchStmt(inMainAndNotMacro).bind("stmt");
+    auto action = insertBefore(SwitchStmtEndLoc("stmt"), cat("\n#endif\n"));
     return makeRule(matcher, action);
 }
 
@@ -732,17 +767,15 @@ auto instrumentSwitchCase() {
 Instrumenter::Instrumenter(
     std::map<std::string, clang::tooling::Replacements> &FileToReplacements)
     : FileToReplacements{FileToReplacements},
-      Rules{
-          //{instrumentStmtAfterReturnRule(), Replacements,
-          // FileToNumberMarkerDecls},
-          {instrumentIfStmt(), Replacements, FileToNumberMarkerDecls},
-          //{instrumentFunction(), Replacements, FileToNumberMarkerDecls},
-          {handleWhile(), Replacements, FileToNumberMarkerDecls},
-          {handleFor(), Replacements, FileToNumberMarkerDecls},
-          {handleDoWhile(), Replacements, FileToNumberMarkerDecls},
-          //{instrumentLoop(), Replacements, FileToNumberMarkerDecls},
-          //{instrumentSwitchCase(), Replacements, FileToNumberMarkerDecls}
-      } {}
+      Rules{//{instrumentStmtAfterReturnRule(), Replacements,
+            // FileToNumberMarkerDecls},
+            {instrumentIfStmt(), Replacements, FileToNumberMarkerDecls},
+            //{instrumentFunction(), Replacements, FileToNumberMarkerDecls},
+            {handleWhile(), Replacements, FileToNumberMarkerDecls},
+            {handleFor(), Replacements, FileToNumberMarkerDecls},
+            {handleDoWhile(), Replacements, FileToNumberMarkerDecls},
+            {handleSwitch(), Replacements, FileToNumberMarkerDecls},
+            {handleSwitchCase(), Replacements, FileToNumberMarkerDecls}} {}
 
 void Instrumenter::applyReplacements() {
     for (const auto &[File, NumberMarkerDecls] : FileToNumberMarkerDecls) {
