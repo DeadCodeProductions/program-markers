@@ -98,7 +98,7 @@ void detail::RuleActionEditCollector::run(
             auto N =
                 FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)];
             auto text =
-                "#if !defined(DeleteDCEMarkerBlock" + std::to_string(N) +
+                "\n#if !defined(DeleteDCEMarkerBlock" + std::to_string(N) +
                 "_) || "
                 "!defined(DeleteDCEMarkerBlock" +
                 std::to_string(N + 1) + "_)\n" +
@@ -110,13 +110,13 @@ void detail::RuleActionEditCollector::run(
         } else if (*Metadata == EditMetadataKind::IfAtMostOneDefined) {
             auto N =
                 FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)];
-            Replacements.emplace_back(*SM, T.Range,
-                                      T.Replacement +
-                                          "#if !defined(DeleteDCEMarkerBlock" +
-                                          std::to_string(N) +
-                                          "_) || "
-                                          "!defined(DeleteDCEMarkerBlock" +
-                                          std::to_string(N + 1) + "_)\n");
+            Replacements.emplace_back(
+                *SM, T.Range,
+                T.Replacement + "\n#if !defined(DeleteDCEMarkerBlock" +
+                    std::to_string(N) +
+                    "_) || "
+                    "!defined(DeleteDCEMarkerBlock" +
+                    std::to_string(N + 1) + "_)\n");
         } else if (*Metadata == EditMetadataKind::IfAtLeastOneDefined) {
             auto N =
                 FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)];
@@ -144,7 +144,7 @@ void detail::RuleActionEditCollector::run(
                 FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)]++;
             Replacements.emplace_back(
                 *SM, T.Range,
-                T.Replacement + "#if !defined(DeleteDCEMarkerBlock" +
+                T.Replacement + "\n#if !defined(DeleteDCEMarkerBlock" +
                     std::to_string(N) +
                     "_) && "
                     "!defined(DeleteDCEMarkerBlock" +
@@ -508,7 +508,8 @@ auto instrumentIfStmt() {
          // instrument then branch
          ifBound("cthen", InstrumentCStmt("cthen", true),
                  ifBound("then", InstrumentNonCStmt("then"), noEdits())),
-         edit(insertAfter(IfRParenLoc("ifstmt"), cat("#else\n\n;\n#endif\n"))),
+         edit(
+             insertAfter(IfRParenLoc("ifstmt"), cat("\n#else\n\n;\n#endif\n"))),
          ifBound(
              "celse",
              flattenVector(
@@ -788,7 +789,9 @@ RangeSelector SwitchStmtEndLoc(std::string ID) {
 }
 
 auto handleSwitch() {
-    auto matcher = switchStmt(inMainAndNotMacro).bind("stmt");
+    auto matcher =
+        switchStmt(inMainAndNotMacro, has(switchCase(inMainAndNotMacro)))
+            .bind("stmt");
     auto action = insertBefore(SwitchStmtEndLoc("stmt"), cat("\n#endif\n"));
     return makeRule(matcher, action);
 }

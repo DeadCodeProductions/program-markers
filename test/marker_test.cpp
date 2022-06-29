@@ -1542,6 +1542,20 @@ TEST_CASE("BranchInstrumenter switch", "[switch][return]") {
     REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
 }
 
+TEST_CASE("BranchInstrumenter empty switch", "[switch]") {
+    auto Code = R"code(int foo(int a){
+        switch(a){
+        }
+        return a;
+    }
+    )code";
+
+    CAPTURE(Code);
+    REQUIRE(formatCode(Code) == runBranchInstrumenterOnCode(Code));
+}
+
+
+
 TEST_CASE("BranchInstrumenter switch if and macro", "[if][switch][macro]") {
     auto Code = R"code(#define TEST bar
 
