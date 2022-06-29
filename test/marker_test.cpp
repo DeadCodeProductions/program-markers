@@ -914,6 +914,8 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return",
         #ifndef DeleteDCEMarkerBlock0_
 
         for (
+        #else
+        {
         #endif
         int i = 0; i < a;
         #ifndef DeleteDCEMarkerBlock0_
@@ -963,9 +965,9 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return",
         #endif
 
         #endif
-        }
-        #endif
 
+        #endif
+        }
         return b;
     }
     )code";
@@ -1004,6 +1006,8 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
         #ifndef DeleteDCEMarkerBlock0_
 
         for (
+        #else
+        {
         #endif
         int i = 0; i < a;
         #ifndef DeleteDCEMarkerBlock0_
@@ -1055,9 +1059,9 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
         #endif
 
         ++b;
-        }
-        #endif
 
+        #endif
+        }
         return b;
     }
     )code";
@@ -1082,6 +1086,8 @@ TEST_CASE("BranchInstrumenter for stmt with return", "[for][return]") {
         #ifndef DeleteDCEMarkerBlock0_
 
         for (
+        #else
+        {
         #endif
         int i = 0; i < a; 
         #ifndef DeleteDCEMarkerBlock0_
@@ -1094,9 +1100,8 @@ TEST_CASE("BranchInstrumenter for stmt with return", "[for][return]") {
         {
             DCEMarker0_();
             return i;
-        }
         #endif
-
+        }
         return b;
     }
     )code";

@@ -667,17 +667,30 @@ auto handleFor() {
 
     auto macroActions = flattenVector(
         {edit(addDeleteMacroPre(changeTo(forBegin("loop"), cat("for")))),
-         edit(insertAfter(LParenLoc("loop"), cat("\n#endif\n"))),
+         edit(insertAfter(LParenLoc("loop"), cat("\n#else\n{\n#endif\n"))),
          edit(addDeleteMacro(
              insertBefore(SecondSemiForLoop("loop"), cat("\n")))),
          edit(insertAfter(RParenLoc("loop"), cat("\n#endif\n\n")))
 
         });
     return applyFirst(
-        {makeRule(compoundMatcher,
-                  flattenVector({InstrumentCStmt("body", true), macroActions})),
+        {makeRule(
+             compoundMatcher,
+             flattenVector(
+                 {edit(insertBefore(CStmtRBrace("body"), cat("\n#endif\n\n"))),
+                  edit(addMarker(insertBefore(statements("body"), cat("")))),
+                  edit(addDeleteMacro(
+                      insertBefore(CStmtLBrace("body"), cat("\n")))),
+                  macroActions})),
          makeRule(nonCompoundLoopMatcher,
-                  flattenVector({InstrumentNonCStmt("body"), macroActions}))});
+                  flattenVector(
+                      {edit(addMarker(insertBefore(
+                           statementWithMacrosExpanded("body"), cat("{")))),
+                       edit(addDeleteMacro(insertBefore(
+                           statementWithMacrosExpanded("body"), cat("")))),
+                       edit(insertAfter(statementWithMacrosExpanded("body"),
+                                        cat("\n#endif\n}"))),
+                       macroActions}))});
 }
 
 RangeSelector whileBegin(std::string ID) {
