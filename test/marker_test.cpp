@@ -879,6 +879,72 @@ TEST_CASE("BranchInstrumenter while stmt", "[while][loop]") {
     CAPTURE(Code);
     REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
 }
+TEST_CASE("BranchInstrumenter nested for stmt",
+          "[for][if][nested][return]") {
+
+    auto Code = std::string{R"code(int foo(int a){
+        for (;;))code"};
+
+    bool compoundFor = GENERATE(true, false);
+    if (compoundFor)
+        Code += R"code({)code";
+
+    Code += R"code(for(;;))code";
+    Code += GENERATE(R"code(++a;)code", R"code({++a;})code");
+    if (compoundFor)
+        Code += R"code(})code";
+    Code += R"code(
+    }
+    )code";
+
+    auto ExpectedCode = R"code(void DCEMarker0_(void);
+    void DCEMarker1_(void);
+    int foo(int a){
+        #ifndef DeleteDCEMarkerBlock0_
+
+        for (
+        #else
+        {
+        #endif
+        ;;
+        #ifndef DeleteDCEMarkerBlock0_
+
+        )
+        #endif
+
+        #ifndef DeleteDCEMarkerBlock0_
+
+        {
+            DCEMarker0_();
+        #if !defined(DeleteDCEMarkerBlock1_)
+
+        for (
+        #else
+        {
+        #endif
+        ;;
+        #ifndef DeleteDCEMarkerBlock1_
+
+        )
+        #endif
+
+        #ifndef DeleteDCEMarkerBlock1_
+
+            {
+                DCEMarker1_();
+                ++a;
+            #endif
+            }
+        #endif
+        }
+    }
+    )code";
+
+    CAPTURE(Code);
+    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+}
+
+
 
 TEST_CASE("BranchInstrumenter for stmt nested if with return",
           "[for][if][nested][return]") {
