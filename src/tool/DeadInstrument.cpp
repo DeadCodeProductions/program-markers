@@ -40,6 +40,22 @@ template <typename InstrTool> int runToolOnCode(RefactoringTool &Tool) {
     return Ret;
 }
 
+bool formatAndApplyAllReplacements2(
+    const std::map<std::string, Replacements> &FileToReplaces,
+    Rewriter &Rewrite, StringRef Style = "file") {
+    SourceManager &SM = Rewrite.getSourceMgr();
+    FileManager &Files = SM.getFileManager();
+
+    bool Result = true;
+    for (const auto &FileAndReplaces : groupReplacementsByFile(
+             Rewrite.getSourceMgr().getFileManager(), FileToReplaces)) {
+        auto &CurReplaces = FileAndReplaces.second;
+
+        Result = applyAllReplacements(CurReplaces, Rewrite) && Result;
+    }
+    return Result;
+}
+
 bool applyReplacements(RefactoringTool &Tool) {
     LangOptions DefaultLangOptions;
     IntrusiveRefCntPtr<DiagnosticOptions> DiagOpts = new DiagnosticOptions();
@@ -51,10 +67,19 @@ bool applyReplacements(RefactoringTool &Tool) {
     SourceManager Sources(Diagnostics, FileMgr);
 
     Rewriter Rewrite(Sources, DefaultLangOptions);
-    if (!formatAndApplyAllReplacements(Tool.getReplacements(), Rewrite)) {
+
+    bool Result = true;
+    for (const auto &FileAndReplaces : groupReplacementsByFile(
+             Rewrite.getSourceMgr().getFileManager(), Tool.getReplacements())) {
+        auto &CurReplaces = FileAndReplaces.second;
+
+        Result = applyAllReplacements(CurReplaces, Rewrite) && Result;
+    }
+    if (!Result) {
         llvm::errs() << "Failed applying all replacements.\n";
         return false;
     }
+
     return !Rewrite.overwriteChangedFiles();
 }
 
