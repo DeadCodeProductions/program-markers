@@ -78,20 +78,20 @@ void detail::RuleActionEditCollector::run(
             auto N =
                 FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)]++;
             Replacements.emplace_back(*SM, T.Range,
-                                      T.Replacement + "DCEMarker" +
-                                          std::to_string(N) + "_();");
+                                      T.Replacement + "\n\nDCEMarker" +
+                                          std::to_string(N) + "_();\n\n");
         } else if (*Metadata == EditMetadataKind::MacroDisableBlockBegin) {
             auto N =
                 FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)] - 1;
             Replacements.emplace_back(*SM, T.Range,
                                       T.Replacement +
-                                          "#ifndef DeleteDCEMarkerBlock" +
+                                          "\n\n#ifndef DeleteDCEMarkerBlock" +
                                           std::to_string(N) + "_\n\n");
         } else if (*Metadata == EditMetadataKind::MacroDisableBlockBeginPre) {
             auto N =
                 FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)] - 1;
             Replacements.emplace_back(*SM, T.Range,
-                                      "#ifndef DeleteDCEMarkerBlock" +
+                                      "\n\n#ifndef DeleteDCEMarkerBlock" +
                                           std::to_string(N) + "_\n\n" +
                                           T.Replacement);
         } else if (*Metadata == EditMetadataKind::IfPrologue) {
@@ -332,7 +332,7 @@ auto InstrumentCStmt(std::string id, bool with_macro = false) {
         return flattenVector(
             {edit(insertAfter(CStmtRBrace(id), cat("\n#endif\n\n"))),
              edit(addMarker(insertBefore(statements(id), cat("")))),
-             edit(addDeleteMacro(insertBefore(CStmtLBrace(id), cat("\n"))))});
+             edit(addDeleteMacro(insertBefore(CStmtLBrace(id), cat("\n\n"))))});
     return edit(addMarker(insertBefore(statements(id), cat(""))));
 }
 
@@ -340,7 +340,7 @@ EditGenerator InstrumentNonCStmt(std::string id) {
     return flattenVector({edit(addMarker(insertBefore(
                               statementWithMacrosExpanded(id), cat("{")))),
                           edit(addDeleteMacro(insertBefore(
-                              statementWithMacrosExpanded(id), cat("")))),
+                              statementWithMacrosExpanded(id), cat("\n\n")))),
                           edit(insertAfter(statementWithMacrosExpanded(id),
                                            cat("}\n#endif\n\n")))});
 }
@@ -494,7 +494,7 @@ auto instrumentIfStmt() {
     auto actions = flattenVector(
         {// ifdef magic
          edit(insertAfter(statementWithMacrosExpanded("ifstmt"),
-                          cat("#endif\n"))),
+                          cat("#endif\n\n"))),
          edit(insertAfter(IfLParenLoc("ifstmt"), cat("\n#endif\n"))),
          edit(addIfAtLeastOneDefined(
              insertBefore(IfRParenLoc("ifstmt"), cat("")))),
@@ -671,7 +671,7 @@ auto handleFor() {
          edit(insertAfter(LParenLoc("loop"), cat("\n#else\n{\n#endif\n"))),
          edit(addDeleteMacro(
              insertBefore(SecondSemiForLoop("loop"), cat("\n")))),
-         edit(insertAfter(RParenLoc("loop"), cat("\n#endif\n\n")))
+         edit(insertAfter(RParenLoc("loop"), cat("\n\n#endif\n\n")))
 
         });
     return applyFirst(
@@ -690,7 +690,7 @@ auto handleFor() {
                        edit(addDeleteMacro(insertBefore(
                            statementWithMacrosExpanded("body"), cat("")))),
                        edit(insertAfter(statementWithMacrosExpanded("body"),
-                                        cat("\n#endif\n}"))),
+                                        cat("\n\n#endif\n}"))),
                        macroActions}))});
 }
 
@@ -790,7 +790,9 @@ RangeSelector SwitchStmtEndLoc(std::string ID) {
 
 auto handleSwitch() {
     auto matcher =
-        switchStmt(inMainAndNotMacro, has(switchCase(inMainAndNotMacro)))
+        switchStmt(
+            inMainAndNotMacro,
+            has(compoundStmt(has(switchCase(colonNotInMacroAndInMain())))))
             .bind("stmt");
     auto action = insertBefore(SwitchStmtEndLoc("stmt"), cat("\n#endif\n"));
     return makeRule(matcher, action);
