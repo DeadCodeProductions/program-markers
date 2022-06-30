@@ -1749,6 +1749,47 @@ TEST_CASE("BranchInstrumenter switch", "[switch][return]") {
     REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
 }
 
+TEST_CASE("BranchInstrumenter cascaded switch", "[switch]") {
+
+    auto Code = R"code(int foo(int a){
+            switch (a) {
+            default:
+            case 1:
+                break;
+            }
+        }
+    )code";
+
+    auto ExpectedCode = R"code(void DCEMarker0_(void);
+                        void DCEMarker1_(void);
+                        void foo(int a) {
+                            switch (a) {
+
+                            #ifndef DeleteDCEMarkerBlock0_
+
+                            default: 
+
+                                DCEMarker0_();
+
+                            #endif
+
+                            #ifndef DeleteDCEMarkerBlock1_
+
+                            case 1:
+
+                                DCEMarker1_();
+
+                                break;
+
+                            #endif
+                            }
+                        }
+    )code";
+
+    CAPTURE(Code);
+    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+}
+
 TEST_CASE("BranchInstrumenter empty switch", "[switch]") {
     auto Code = R"code(int foo(int a){
         switch(a){
