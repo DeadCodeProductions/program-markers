@@ -744,12 +744,14 @@ RangeSelector SwitchCaseColonLoc(std::string ID) {
     };
 }
 
-AST_MATCHER(SwitchCase, colonNotInMacroAndInMain) {
+AST_MATCHER(SwitchCase, colonAndKeywordNotInMacroAndInMain) {
     (void)Builder;
     auto ColonLoc = Node.getColonLoc();
+    auto KeywordLoc = Node.getKeywordLoc();
     const auto &SM = Finder->getASTContext().getSourceManager();
-    return !ColonLoc.isMacroID() &&
-           SM.isInMainFile(SM.getExpansionLoc(ColonLoc));
+    return !ColonLoc.isMacroID() && !KeywordLoc.isMacroID() &&
+           SM.isInMainFile(SM.getExpansionLoc(ColonLoc)) &&
+           SM.isInMainFile(SM.getExpansionLoc(KeywordLoc));
 }
 
 AST_MATCHER_P(SwitchCase, hasNextSwitchCase,
@@ -763,8 +765,9 @@ auto handleSwitchCase() {
         switchStmt(
             inMainAndNotMacro,
             has(compoundStmt(
-                has(switchCase(colonNotInMacroAndInMain()).bind("firstcase")))),
-            forEachSwitchCase(switchCase(colonNotInMacroAndInMain(),
+                has(switchCase(colonAndKeywordNotInMacroAndInMain())
+                        .bind("firstcase")))),
+            forEachSwitchCase(switchCase(colonAndKeywordNotInMacroAndInMain(),
                                          unless(equalsBoundNode("firstcase")))
                                   .bind("case")))
             .bind("stmt");
@@ -795,10 +798,10 @@ RangeSelector SwitchStmtEndLoc(std::string ID) {
 
 auto handleSwitch() {
     auto matcher =
-        switchStmt(
-            inMainAndNotMacro,
-            has(compoundStmt(
-                has(switchCase(colonNotInMacroAndInMain()).bind("firstcase")))))
+        switchStmt(inMainAndNotMacro,
+                   has(compoundStmt(
+                       has(switchCase(colonAndKeywordNotInMacroAndInMain())
+                               .bind("firstcase")))))
             .bind("stmt");
     auto actions = {
         addMarker(insertAfter(SwitchCaseColonLoc("firstcase"), cat(""))),
