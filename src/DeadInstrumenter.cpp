@@ -760,18 +760,23 @@ AST_MATCHER_P(SwitchCase, hasNextSwitchCase,
 
 auto handleSwitchCase() {
     auto matcher =
-        switchCase(optionally(hasNextSwitchCase(switchCase().bind("next"))),
-                   colonNotInMacroAndInMain())
+        switchStmt(
+            inMainAndNotMacro,
+            has(compoundStmt(
+                has(switchCase(colonNotInMacroAndInMain()).bind("firstcase")))),
+            forEachSwitchCase(switchCase(colonNotInMacroAndInMain(),
+                                         unless(equalsBoundNode("firstcase")))
+                                  .bind("case")))
             .bind("stmt");
-    auto action = flattenVector(
-        {edit(addMarker(insertAfter(SwitchCaseColonLoc("stmt"), cat("")))),
-         edit(addDeleteMacroPre(
-             insertBefore(statementWithMacrosExpanded("stmt"), cat("")))),
-         ifBound("next",
-                 edit(insertBefore(statementWithMacrosExpanded("stmt"),
-                                   cat("\n#endif\n"))),
-                 noEdits())});
-    return makeRule(matcher, action);
+    auto actions = {
+        // insertBefore(SwitchStmtEndLoc("stmt"), cat("\n#endif\n")),
+        // addDeleteMacroPre(insertBefore(
+        // statementWithMacrosExpanded("firstcase"), cat(""))),
+        addMarker(insertAfter(SwitchCaseColonLoc("case"), cat(""))),
+        addDeleteMacroPre(
+            insertBefore(statementWithMacrosExpanded("case"), cat(""))),
+        insertBefore(statementWithMacrosExpanded("case"), cat("\n#endif\n"))};
+    return makeRule(matcher, actions);
 }
 
 RangeSelector SwitchStmtEndLoc(std::string ID) {
@@ -792,10 +797,15 @@ auto handleSwitch() {
     auto matcher =
         switchStmt(
             inMainAndNotMacro,
-            has(compoundStmt(has(switchCase(colonNotInMacroAndInMain())))))
+            has(compoundStmt(
+                has(switchCase(colonNotInMacroAndInMain()).bind("firstcase")))))
             .bind("stmt");
-    auto action = insertBefore(SwitchStmtEndLoc("stmt"), cat("\n#endif\n"));
-    return makeRule(matcher, action);
+    auto actions = {
+        addMarker(insertAfter(SwitchCaseColonLoc("firstcase"), cat(""))),
+        insertBefore(SwitchStmtEndLoc("stmt"), cat("\n#endif\n")),
+        addDeleteMacroPre(
+            insertBefore(statementWithMacrosExpanded("firstcase"), cat("")))};
+    return makeRule(matcher, actions);
 }
 
 } // namespace
