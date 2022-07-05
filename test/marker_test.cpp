@@ -959,6 +959,8 @@ TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
 
             )
 
+        #else
+        ;
         #endif
 
         #ifndef DeleteDCEMarkerBlock2_
@@ -1036,6 +1038,8 @@ TEST_CASE("BranchInstrumenter while stmt", "[while][loop]") {
 
             )
 
+        #else
+        ;
         #endif
 
         #ifndef DeleteDCEMarkerBlock0_
@@ -1780,6 +1784,8 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
 
         ) 
 
+      #else
+      ;
       #endif
 
       #ifndef DeleteDCEMarkerBlock0_

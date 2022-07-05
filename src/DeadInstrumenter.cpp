@@ -721,7 +721,7 @@ auto handleWhile() {
         {edit(addDeleteMacroPre(changeTo(whileBegin("loop"), cat("while")))),
          edit(insertAfter(LParenLoc("loop"), cat("\n\n#endif\n\n"))),
          edit(addDeleteMacro(insertBefore(RParenLoc("loop"), cat("\n\n")))),
-         edit(insertAfter(RParenLoc("loop"), cat("\n\n#endif\n\n")))
+         edit(insertAfter(RParenLoc("loop"), cat("\n\n#else\n;\n#endif\n\n")))
 
         });
     return applyFirst(
