@@ -1,5 +1,13 @@
+#include "print_diff.hpp"
 #include "test_tool.hpp"
 #include <catch2/catch.hpp>
+
+void compare_code(const std::string &code1, const std::string &code2) {
+    auto diff = code1 != code2;
+    if (diff)
+        print_diff(code1, code2);
+    REQUIRE(!diff);
+}
 
 TEST_CASE("BranchInstrumenter if without else", "[if]") {
     auto Code = std::string{R"code(int foo(int a){
@@ -8,13 +16,14 @@ TEST_CASE("BranchInstrumenter if without else", "[if]") {
         R"code(
                 return 1;)code",
         R"code({
+
         return 1; 
+
         })code");
     Code += R"code(       
      return 0;
     }
     )code";
-    Code = formatCode(Code);
 
     auto ExpectedCode = R"code(void DCEMarker0_(void);
     void DCEMarker1_(void);
@@ -25,11 +34,15 @@ TEST_CASE("BranchInstrumenter if without else", "[if]") {
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         if (
+
         #endif
+
         a > 0
+
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         )
+
         #else
 
             ;
@@ -42,7 +55,9 @@ TEST_CASE("BranchInstrumenter if without else", "[if]") {
             DCEMarker1_();
 
             return 1;
+
         }
+
         #endif
 
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -51,6 +66,7 @@ TEST_CASE("BranchInstrumenter if without else", "[if]") {
             DCEMarker0_();
         }
         #endif
+
         #endif
 
         return 0;
@@ -58,7 +74,7 @@ TEST_CASE("BranchInstrumenter if without else", "[if]") {
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter if-else", "[if]") {
@@ -68,6 +84,7 @@ TEST_CASE("BranchInstrumenter if-else", "[if]") {
     Code += GENERATE(
         R"code({
         a = 1;
+
         }
         )code",
         R"code(
@@ -98,11 +115,15 @@ TEST_CASE("BranchInstrumenter if-else", "[if]") {
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         if (
+
         #endif
+
             a > 0
+
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         )
+
         #else
 
             ;
@@ -115,7 +136,9 @@ TEST_CASE("BranchInstrumenter if-else", "[if]") {
             DCEMarker1_();
 
             a = 1;
+
         } 
+
         #endif
 
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -132,6 +155,7 @@ TEST_CASE("BranchInstrumenter if-else", "[if]") {
 
             a = 0;
         }
+
         #endif
         
         #endif
@@ -141,7 +165,7 @@ TEST_CASE("BranchInstrumenter if-else", "[if]") {
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter if with return macro", "[if][macro]") {
@@ -155,13 +179,13 @@ TEST_CASE("BranchInstrumenter if with return macro", "[if][macro]") {
     )code",
                      R"code({
       R 0;
+
     }
     )code");
     Code +=
         R"code(       return a;
     }
     )code";
-    Code = formatCode(Code);
 
     auto ExpectedCode = R"code(void DCEMarker0_(void);
     void DCEMarker1_(void);
@@ -174,11 +198,15 @@ TEST_CASE("BranchInstrumenter if with return macro", "[if][macro]") {
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         if (
+
         #endif
+
         a > 0
+
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
             )
+
         #else
 
             ;
@@ -191,7 +219,9 @@ TEST_CASE("BranchInstrumenter if with return macro", "[if][macro]") {
             DCEMarker1_();
 
             R 0;
+
         }
+
         #endif
 
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -200,6 +230,7 @@ TEST_CASE("BranchInstrumenter if with return macro", "[if][macro]") {
             DCEMarker0_();
         }
         #endif
+
         #endif
 
         return a;
@@ -207,7 +238,7 @@ TEST_CASE("BranchInstrumenter if with return macro", "[if][macro]") {
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter if with return macro 2", "[if][macro]") {
@@ -221,13 +252,14 @@ TEST_CASE("BranchInstrumenter if with return macro 2", "[if][macro]") {
     )code",
                      R"code({
       R;
+
     }
+
     )code");
     Code +=
         R"code(return a;
     }
     )code";
-    Code = formatCode(Code);
 
     auto ExpectedCode = R"code(void DCEMarker0_(void);
     void DCEMarker1_(void);
@@ -240,11 +272,15 @@ TEST_CASE("BranchInstrumenter if with return macro 2", "[if][macro]") {
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         if (
+
         #endif
+
         a > 0
+
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
             )
+
         #else
 
             ;
@@ -257,7 +293,9 @@ TEST_CASE("BranchInstrumenter if with return macro 2", "[if][macro]") {
             DCEMarker1_();
 
             R;
+
         }
+
         #endif
 
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -266,6 +304,7 @@ TEST_CASE("BranchInstrumenter if with return macro 2", "[if][macro]") {
             DCEMarker0_();
         }
         #endif
+
         #endif
 
         return a;
@@ -273,7 +312,7 @@ TEST_CASE("BranchInstrumenter if with return macro 2", "[if][macro]") {
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter if with return macro 3", "[if][macro]") {
@@ -287,6 +326,7 @@ TEST_CASE("BranchInstrumenter if with return macro 3", "[if][macro]") {
     )code",
                      R"code({
       R
+
     }
     )code");
     Code +=
@@ -294,7 +334,6 @@ TEST_CASE("BranchInstrumenter if with return macro 3", "[if][macro]") {
         return a;
     }
     )code";
-    Code = formatCode(Code);
 
     auto ExpectedCode = R"code(void DCEMarker0_(void);
     void DCEMarker1_(void);
@@ -307,11 +346,15 @@ TEST_CASE("BranchInstrumenter if with return macro 3", "[if][macro]") {
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         if (
+
         #endif
+
         a > 0
+
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
             )
+
         #else
 
             ;
@@ -324,7 +367,9 @@ TEST_CASE("BranchInstrumenter if with return macro 3", "[if][macro]") {
             DCEMarker1_();
 
             R
+
         }
+
         #endif
 
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -333,6 +378,7 @@ TEST_CASE("BranchInstrumenter if with return macro 3", "[if][macro]") {
             DCEMarker0_();
         }
         #endif
+
         #endif
 
         return a;
@@ -340,7 +386,7 @@ TEST_CASE("BranchInstrumenter if with return macro 3", "[if][macro]") {
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter nested if with macro", "[if][nested][macro]") {
@@ -355,7 +401,9 @@ TEST_CASE("BranchInstrumenter nested if with macro", "[if][nested][macro]") {
 
     Code += R"code(if (a==1) )code";
 
-    Code += GENERATE(R"code(A)code", R"code({A})code");
+    Code += GENERATE(R"code(A)code", R"code({A
+
+    })code");
     Code += R"code(
         else
         )code";
@@ -381,11 +429,15 @@ TEST_CASE("BranchInstrumenter nested if with macro", "[if][nested][macro]") {
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         if (
+
             #endif
+
         a > 0
+
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         )
+
         #else
 
             ;
@@ -402,11 +454,15 @@ TEST_CASE("BranchInstrumenter nested if with macro", "[if][nested][macro]") {
             #if !defined(DeleteDCEMarkerBlock2_) && !defined(DeleteDCEMarkerBlock3_)
 
                 if (
+
             #endif
+
                     a==1
+
             #if !defined(DeleteDCEMarkerBlock2_) && !defined(DeleteDCEMarkerBlock3_)
 
                 ) 
+
         #else
 
             ;
@@ -419,7 +475,9 @@ TEST_CASE("BranchInstrumenter nested if with macro", "[if][nested][macro]") {
                           DCEMarker3_();
 
                           A
+
                       }
+
             #endif
             
             #if !defined(DeleteDCEMarkerBlock2_) && !defined(DeleteDCEMarkerBlock3_)
@@ -436,11 +494,13 @@ TEST_CASE("BranchInstrumenter nested if with macro", "[if][nested][macro]") {
 
                     a = 2;
                 }
+
             #endif
 
         #endif
 
         }
+
     #endif
 
     #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -449,6 +509,7 @@ TEST_CASE("BranchInstrumenter nested if with macro", "[if][nested][macro]") {
             DCEMarker0_();
         }
         #endif
+
         #endif
 
         return 0;
@@ -456,8 +517,8 @@ TEST_CASE("BranchInstrumenter nested if with macro", "[if][nested][macro]") {
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(formatCode(ExpectedCode)) ==
-            formatCode(runBranchInstrumenterOnCode(Code)));
+    compare_code(formatCode(formatCode(ExpectedCode)),
+                 formatCode(runBranchInstrumenterOnCode(Code)));
 }
 
 TEST_CASE("BranchInstrumenter nested if with return", "[if][return][nested]") {
@@ -472,7 +533,9 @@ TEST_CASE("BranchInstrumenter nested if with return", "[if][return][nested]") {
     Code += R"code(if (a>=0) 
     )code";
 
-    Code += GENERATE(R"code(return 1;)code", R"code({return 1;})code");
+    Code += GENERATE(R"code(return 1;)code", R"code({return 1;
+
+    })code");
     if (compoundThen)
         Code += R"code(} )code";
     Code += R"code(   
@@ -491,11 +554,15 @@ TEST_CASE("BranchInstrumenter nested if with return", "[if][return][nested]") {
       #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         if (
+
             #endif
+
         a >= 0
+
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         )
+
         #else
 
             ;
@@ -512,11 +579,15 @@ TEST_CASE("BranchInstrumenter nested if with return", "[if][return][nested]") {
             #if !defined(DeleteDCEMarkerBlock2_) && !defined(DeleteDCEMarkerBlock3_)
 
               if (
+
                   #endif
+
               a >= 0
+
               #if !defined(DeleteDCEMarkerBlock2_) && !defined(DeleteDCEMarkerBlock3_)
 
               )
+
             #else
 
             ;
@@ -529,7 +600,9 @@ TEST_CASE("BranchInstrumenter nested if with return", "[if][return][nested]") {
                 DCEMarker3_();
 
                 return 1;
+                
               }
+
               #endif
 
             #if !defined(DeleteDCEMarkerBlock2_) && !defined(DeleteDCEMarkerBlock3_)
@@ -538,9 +611,11 @@ TEST_CASE("BranchInstrumenter nested if with return", "[if][return][nested]") {
                     DCEMarker2_();
                 }
             #endif
+
             #endif
 
                 }
+
             #endif
 
     #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -549,6 +624,7 @@ TEST_CASE("BranchInstrumenter nested if with return", "[if][return][nested]") {
             DCEMarker0_();
         }
     #endif
+
     #endif
 
         return 0;
@@ -556,7 +632,7 @@ TEST_CASE("BranchInstrumenter nested if with return", "[if][return][nested]") {
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter if return macro and comment",
@@ -578,11 +654,15 @@ TEST_CASE("BranchInstrumenter if return macro and comment",
       #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         if (
+
             #endif
+
         1
+
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         )
+
         #else
 
             ;
@@ -595,7 +675,9 @@ TEST_CASE("BranchInstrumenter if return macro and comment",
         DCEMarker1_();
 
         return X /* comment */;
+
     }
+
         #endif
 
     #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -604,11 +686,12 @@ TEST_CASE("BranchInstrumenter if return macro and comment",
             DCEMarker0_();
         }
     #endif
+
     #endif
     })code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter if return macro", "[loop][if][macro][return]") {
@@ -629,11 +712,15 @@ TEST_CASE("BranchInstrumenter if return macro", "[loop][if][macro][return]") {
       #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         if (
+
             #endif
+
         1
+
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         )
+
         #else
 
             ;
@@ -646,7 +733,9 @@ TEST_CASE("BranchInstrumenter if return macro", "[loop][if][macro][return]") {
         DCEMarker1_();
 
         return BUG;
+
     }
+
         #endif
 
     #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -655,11 +744,12 @@ TEST_CASE("BranchInstrumenter if return macro", "[loop][if][macro][return]") {
             DCEMarker0_();
         }
     #endif
+
     #endif
     })code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter if with semi return macro",
@@ -681,11 +771,15 @@ TEST_CASE("BranchInstrumenter if with semi return macro",
       #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         if (
+
             #endif
+
         1
+
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         )
+
         #else
 
             ;
@@ -698,7 +792,9 @@ TEST_CASE("BranchInstrumenter if with semi return macro",
         DCEMarker1_();
 
         return BUG
+
     }
+
         #endif
 
     #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -707,11 +803,12 @@ TEST_CASE("BranchInstrumenter if with semi return macro",
             DCEMarker0_();
         }
     #endif
+
     #endif
     })code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter if-else with semi return macro",
@@ -735,11 +832,15 @@ TEST_CASE("BranchInstrumenter if-else with semi return macro",
       #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         if (
+
             #endif
+
         1
+
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         )
+
         #else
 
             ;
@@ -752,7 +853,9 @@ TEST_CASE("BranchInstrumenter if-else with semi return macro",
         DCEMarker1_();
 
         return BUG
+
     }
+
         #endif
 
     #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -769,13 +872,14 @@ TEST_CASE("BranchInstrumenter if-else with semi return macro",
 
             return;
         }
+
     #endif
 
     #endif
     })code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
@@ -823,11 +927,15 @@ TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         if (
+
         #endif
+
             a > 0
+
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
         )
+
         #else
 
             ;
@@ -842,12 +950,15 @@ TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
         #ifndef DeleteDCEMarkerBlock2_
 
             while(
+
         #endif
+
             a--
 
         #ifndef DeleteDCEMarkerBlock2_
 
             )
+
         #endif
 
         #ifndef DeleteDCEMarkerBlock2_
@@ -858,9 +969,11 @@ TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
 
                 return 1;
             }
+
         #endif
 
         } 
+
         #endif
 
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -877,6 +990,7 @@ TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
 
             a = 0;
         }
+
         #endif
 
         #endif
@@ -885,7 +999,7 @@ TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
     })code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter while stmt", "[while][loop]") {
@@ -913,12 +1027,15 @@ TEST_CASE("BranchInstrumenter while stmt", "[while][loop]") {
         #ifndef DeleteDCEMarkerBlock0_
 
             while(
+
         #endif
+
             true
 
         #ifndef DeleteDCEMarkerBlock0_
 
             )
+
         #endif
 
         #ifndef DeleteDCEMarkerBlock0_
@@ -928,7 +1045,9 @@ TEST_CASE("BranchInstrumenter while stmt", "[while][loop]") {
                 DCEMarker0_();
 
                 return 0;
+
             }
+
         #endif
 
         return b;
@@ -936,7 +1055,7 @@ TEST_CASE("BranchInstrumenter while stmt", "[while][loop]") {
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 TEST_CASE("BranchInstrumenter nested for stmt", "[for][if][nested][return]") {
 
@@ -952,9 +1071,12 @@ TEST_CASE("BranchInstrumenter nested for stmt", "[for][if][nested][return]") {
     )code";
     Code += GENERATE(R"code(++a;)code", R"code({++a;})code");
     if (compoundFor)
-        Code += R"code(})code";
+        Code += R"code(}
+
+        )code";
     Code += R"code(
     }
+
     )code";
     Code = formatCode(Code);
 
@@ -965,9 +1087,11 @@ TEST_CASE("BranchInstrumenter nested for stmt", "[for][if][nested][return]") {
         #ifndef DeleteDCEMarkerBlock0_
 
         for (
+
         #else
         {
         #endif
+
         ;;
 
         #ifndef DeleteDCEMarkerBlock0_
@@ -985,9 +1109,11 @@ TEST_CASE("BranchInstrumenter nested for stmt", "[for][if][nested][return]") {
         #ifndef DeleteDCEMarkerBlock1_
 
         for (
+
         #else
         {
         #endif
+
         ;;
 
         #ifndef DeleteDCEMarkerBlock1_
@@ -1013,8 +1139,8 @@ TEST_CASE("BranchInstrumenter nested for stmt", "[for][if][nested][return]") {
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) ==
-            formatCode(runBranchInstrumenterOnCode(Code)));
+    compare_code(formatCode(ExpectedCode),
+                 formatCode(runBranchInstrumenterOnCode(Code)));
 }
 
 TEST_CASE("BranchInstrumenter for stmt nested if with return",
@@ -1030,14 +1156,18 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return",
     Code += R"code(
             if (i == 3)
             )code";
-    Code += GENERATE(R"code(return b;)code", R"code({return b;})code");
+    Code += GENERATE(R"code(return b;)code", R"code({return b;
+
+    })code");
     Code += R"code(
             else
             )code";
     Code += GENERATE(R"code(++b;)code", R"code({++b;})code");
 
     if (compoundFor)
-        Code += R"code(})code";
+        Code += R"code(}
+
+        )code";
     Code += R"code(
         return b;
     }
@@ -1052,9 +1182,11 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return",
         #ifndef DeleteDCEMarkerBlock0_
 
         for (
+
         #else
         {
         #endif
+
         int i = 0; i < a;
 
         #ifndef DeleteDCEMarkerBlock0_
@@ -1074,11 +1206,15 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return",
         #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
 
         if (
+
         #endif
+
             i == 3
+
         #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
 
         )
+
         #else
 
             ;
@@ -1091,7 +1227,9 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return",
                 DCEMarker2_();
 
                 return b;
+
             }
+
             #endif
 
         #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
@@ -1108,18 +1246,20 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return",
 
                 ++b;
             }
+
         #endif
 
         #endif
 
         #endif
         }
+
         return b;
     }
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
@@ -1131,7 +1271,9 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
     Code += R"code(
             if (i == 3)
             )code";
-    Code += GENERATE(R"code(return b;)code", R"code({return b;})code");
+    Code += GENERATE(R"code(return b;)code", R"code({return b;
+
+    })code");
     Code += R"code(
             else
             )code";
@@ -1153,9 +1295,11 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
         #ifndef DeleteDCEMarkerBlock0_
 
         for (
+
         #else
         {
         #endif
+
         int i = 0; i < a;
 
         #ifndef DeleteDCEMarkerBlock0_
@@ -1175,11 +1319,15 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
         #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
 
         if (
+
         #endif
+
             i == 3
+
         #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
 
         )
+
         #else
 
             ;
@@ -1192,7 +1340,9 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
                 DCEMarker2_();
 
                 return b;
+
             }
+
             #endif
 
         #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
@@ -1209,6 +1359,7 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
 
                 ++b;
             }
+
         #endif
 
         #endif
@@ -1222,7 +1373,7 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter for stmt with return", "[for][return]") {
@@ -1242,9 +1393,11 @@ TEST_CASE("BranchInstrumenter for stmt with return", "[for][return]") {
         #ifndef DeleteDCEMarkerBlock0_
 
         for (
+
         #else
         {
         #endif
+
         int i = 0; i < a; 
 
         #ifndef DeleteDCEMarkerBlock0_
@@ -1263,12 +1416,13 @@ TEST_CASE("BranchInstrumenter for stmt with return", "[for][return]") {
 
         #endif
         }
+
         return b;
     }
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter do while stmt with return", "[do][return]") {
@@ -1277,7 +1431,14 @@ TEST_CASE("BranchInstrumenter do while stmt with return", "[do][return]") {
         int b = 0;
         do 
         )code"};
-    Code += GENERATE(R"code(return b;)code", R"code({return b;})code");
+    Code += GENERATE(R"code(return b;)code", R"code(
+    {
+
+    return b;
+
+    }
+
+    )code");
     Code += R"code(while(b<10);
         return b;
     }
@@ -1289,12 +1450,18 @@ TEST_CASE("BranchInstrumenter do while stmt with return", "[do][return]") {
 
         #ifndef DeleteDCEMarkerBlock0_
 
-        do {
+        do 
+
+        {
         
           DCEMarker0_();
 
           return b;
-        } while(b<10);
+
+        } 
+
+        while(b<10);
+
         #endif
 
         return b;
@@ -1302,7 +1469,7 @@ TEST_CASE("BranchInstrumenter do while stmt with return", "[do][return]") {
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter do while and if with return",
@@ -1313,14 +1480,20 @@ TEST_CASE("BranchInstrumenter do while and if with return",
 
     bool compoundDo = GENERATE(true, false);
     if (compoundDo)
-        Code += R"code({)code";
+        Code += R"code(
+
+        {)code";
     Code += R"code(
             if (a + 1 == 2)
              )code";
-    Code += GENERATE(R"code(return X;)code", R"code({return X;})code");
+    Code += GENERATE(R"code(return X;)code", R"code({return X;
+
+    })code");
     if (compoundDo)
         Code += R"code(
-        })code";
+        }
+
+        )code";
     Code += R"code(
          while (++a);
         return 0;
@@ -1334,7 +1507,9 @@ TEST_CASE("BranchInstrumenter do while and if with return",
 
           #ifndef DeleteDCEMarkerBlock0_
 
-          do {
+          do 
+
+          {
 
             DCEMarker0_();
 
@@ -1343,11 +1518,15 @@ TEST_CASE("BranchInstrumenter do while and if with return",
             #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
 
             if (
+
                 #endif
+
             a + 1 == 2
+
             #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
 
             )
+
             #else
 
             ;
@@ -1360,7 +1539,9 @@ TEST_CASE("BranchInstrumenter do while and if with return",
             DCEMarker2_();
 
             return X;
+
             }
+
             #endif
 
             #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
@@ -1369,15 +1550,19 @@ TEST_CASE("BranchInstrumenter do while and if with return",
                 DCEMarker1_();
             }
             #endif
+
             #endif
 
-          } while (++a);
+          } 
+
+          while (++a);
+
           #endif
 
           return 0;
     })code";
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter do while and if else with return",
@@ -1391,8 +1576,15 @@ TEST_CASE("BranchInstrumenter do while and if else with return",
 
     Code += R"code(
                 do )code";
-    Code += GENERATE(R"code(--a;)code", R"code({--a;})code");
+    Code += GENERATE(R"code(--a;)code", R"code(
+
+    {
+
+    --a;
+
+    })code");
     Code += R"code(
+
         while(a);
         )code";
 
@@ -1419,11 +1611,15 @@ TEST_CASE("BranchInstrumenter do while and if else with return",
             #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
             if (
+
                 #endif
+
             a
+
             #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
             )
+
             #else
 
             ;
@@ -1437,15 +1633,22 @@ TEST_CASE("BranchInstrumenter do while and if else with return",
 
               #ifndef DeleteDCEMarkerBlock2_
 
-              do {
+              do 
+
+              {
 
                 DCEMarker2_();
 
                 --a;
-              } while (a);
+
+              } 
+
+              while (a);
+
               #endif
 
             }
+
             #endif
 
             #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -1462,6 +1665,7 @@ TEST_CASE("BranchInstrumenter do while and if else with return",
 
                 return 1;
             }
+
             #endif
 
             #endif
@@ -1470,7 +1674,7 @@ TEST_CASE("BranchInstrumenter do while and if else with return",
     })code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter if dowhile with nested macro",
@@ -1484,7 +1688,9 @@ TEST_CASE("BranchInstrumenter if dowhile with nested macro",
     void foo() {
        if (1)
        )code"};
-    Code += GENERATE(R"code(bar;)code", R"code({bar;})code");
+    Code += GENERATE(R"code(bar;)code", R"code({bar;
+
+    })code");
     Code += R"code(   })code";
 
     auto ExpectedCode = R"code(void DCEMarker0_(void);
@@ -1501,11 +1707,15 @@ TEST_CASE("BranchInstrumenter if dowhile with nested macro",
             #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
             if (
+
                 #endif
+
             1
+
             #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
 
             )
+
             #else
 
             ;
@@ -1518,7 +1728,9 @@ TEST_CASE("BranchInstrumenter if dowhile with nested macro",
                 DCEMarker1_();
 
               bar; 
+
             }
+
             #endif
 
             #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -1528,11 +1740,12 @@ TEST_CASE("BranchInstrumenter if dowhile with nested macro",
                 DCEMarker0_();
             }
             #endif
+
             #endif
     })code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
@@ -1558,12 +1771,15 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
       #ifndef DeleteDCEMarkerBlock0_
 
         while (
+
       #endif
+
         1
 
       #ifndef DeleteDCEMarkerBlock0_
 
         ) 
+
       #endif
 
       #ifndef DeleteDCEMarkerBlock0_
@@ -1572,6 +1788,7 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
 
         DCEMarker0_();
         }
+
       #endif
 
 #if !defined(DeleteDCEMarkerBlock1_) || !defined(DeleteDCEMarkerBlock2_)
@@ -1579,11 +1796,15 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
 #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
 
   if (
+
   #endif
+
         1
+
   #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
 
   )
+
         #else
 
             ;
@@ -1596,6 +1817,7 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
       DCEMarker2_();
 
     }
+
   #endif
 
 #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
@@ -1604,6 +1826,7 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
       DCEMarker1_();
     }
   #endif
+
   #endif
 
   #ifndef DeleteDCEMarkerBlock3_
@@ -1613,6 +1836,7 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
         DCEMarker3_();
 
         } while(1);
+
       #endif
 
 #if !defined(DeleteDCEMarkerBlock4_) || !defined(DeleteDCEMarkerBlock5_)
@@ -1620,11 +1844,15 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
 #if !defined(DeleteDCEMarkerBlock4_) && !defined(DeleteDCEMarkerBlock5_)
 
   if (
+
   #endif
+
         1
+
   #if !defined(DeleteDCEMarkerBlock4_) && !defined(DeleteDCEMarkerBlock5_)
 
   )
+
         #else
 
             ;
@@ -1637,7 +1865,9 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
       DCEMarker5_();
 
       ;
+
     }
+
   #endif
 
 #if !defined(DeleteDCEMarkerBlock4_) && !defined(DeleteDCEMarkerBlock5_)
@@ -1646,11 +1876,12 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
       DCEMarker4_();
     }
   #endif
+
   #endif
     })code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter switch", "[switch][return]") {
@@ -1746,7 +1977,7 @@ TEST_CASE("BranchInstrumenter switch", "[switch][return]") {
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter cascaded switch", "[switch]") {
@@ -1827,7 +2058,7 @@ TEST_CASE("BranchInstrumenter cascaded switch", "[switch]") {
 )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter empty switch", "[switch]") {
@@ -1839,7 +2070,7 @@ TEST_CASE("BranchInstrumenter empty switch", "[switch]") {
     )code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(Code) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(Code), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter switch if and macro", "[if][switch][macro]") {
@@ -1887,11 +2118,15 @@ TEST_CASE("BranchInstrumenter switch if and macro", "[if][switch][macro]") {
                             #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
 
                               if (
+
                               #endif
+
                                     a
+
                               #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
 
                               )
+
                                     #else
 
                                         ;
@@ -1904,7 +2139,9 @@ TEST_CASE("BranchInstrumenter switch if and macro", "[if][switch][macro]") {
                                 DCEMarker2_();
 
                                 a = 1;
+
                                 }
+
                             #endif
 
                               #if !defined(DeleteDCEMarkerBlock1_) && !defined(DeleteDCEMarkerBlock2_)
@@ -1913,10 +2150,11 @@ TEST_CASE("BranchInstrumenter switch if and macro", "[if][switch][macro]") {
                                   DCEMarker1_();
                               }
                             #endif
+
                             #endif
                         })code";
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
 TEST_CASE("BranchInstrumenter switch if with return and macro",
@@ -1945,11 +2183,15 @@ TEST_CASE("BranchInstrumenter switch if with return and macro",
             #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
             
               if (
+
               #endif
+
                     1
+
               #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
             
               )
+
               #else
             
                   ;
@@ -1973,7 +2215,9 @@ TEST_CASE("BranchInstrumenter switch if with return and macro",
 
               #endif
             }
+
         } 
+
         #endif
 
         #if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
@@ -1993,11 +2237,15 @@ TEST_CASE("BranchInstrumenter switch if with return and macro",
               #if !defined(DeleteDCEMarkerBlock3_) && !defined(DeleteDCEMarkerBlock4_)
 
             if (
+
               #endif
+
                       1
+
               #if !defined(DeleteDCEMarkerBlock3_) && !defined(DeleteDCEMarkerBlock4_)
 
                 )
+
               #else
 
                     ;
@@ -2010,7 +2258,9 @@ TEST_CASE("BranchInstrumenter switch if with return and macro",
             DCEMarker4_();
 
             return FFFF;
+
             }
+
         #endif
 
         #if !defined(DeleteDCEMarkerBlock3_) && !defined(DeleteDCEMarkerBlock4_)
@@ -2019,14 +2269,16 @@ TEST_CASE("BranchInstrumenter switch if with return and macro",
                 DCEMarker3_();
               }
           #endif
+
         #endif
         }
+
         #endif
         
         #endif
     })code";
 
     CAPTURE(Code);
-    REQUIRE(formatCode(ExpectedCode) == runBranchInstrumenterOnCode(Code));
+    compare_code(formatCode(ExpectedCode), runBranchInstrumenterOnCode(Code));
 }
 
