@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.19)
-project(BranchInstrumenter LANGUAGES CXX)
+project(BranchInstrumenter LANGUAGES CXX C)
 
 find_package(LLVM REQUIRED CONFIG)
 
@@ -10,8 +10,8 @@ find_package(Clang REQUIRED CONFIG)
 message(STATUS "Using ClangConfig.cmake in ${Clang_DIR}")
 
 
-if(NOT "13" VERSION_EQUAL "${LLVM_VERSION_MAJOR}")
-  message(FATAL_ERROR "Found LLVM ${LLVM_VERSION_MAJOR}, but need LLVM 12")
+if(NOT "13" VERSION_LESS_EQUAL "${LLVM_VERSION_MAJOR}")
+  message(FATAL_ERROR "Found LLVM ${LLVM_VERSION_MAJOR}, but need LLVM 14")
 endif()
 
 
