@@ -79,7 +79,7 @@ def download_and_build(no_questions: bool = False) -> str:
     print("Downloanding and building dead-instrumenter")
     print(f"It will be installed under {Path.home()/'.local/bin'}")
     if not no_questions and not binary_question(
-        "Build Prequisites: cmake, make, clang/llvm 13, git. Are they satisfied?"
+        "Build Prequisites: cmake, make, clang/llvm 13/14, git. Are they satisfied?"
     ):
         raise DeadInstrumenterConfigError(
             "Please install the necessary build prerequisites."

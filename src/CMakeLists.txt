@@ -1,5 +1,16 @@
 add_library(DeadInstrumentlib DeadInstrumenter.cpp)
-target_include_directories(DeadInstrumentlib PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(DeadInstrumentlib PUBLIC clang-cpp LLVM)
+target_include_directories(DeadInstrumentlib PUBLIC ${CLANG_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
+
+if(CLANG_LINK_CLANG_DYLIB)
+    target_link_libraries(DeadInstrumentlib PUBLIC LLVM)
+    clang_target_link_libraries(DeadInstrumentlib PUBLIC)
+else()
+    llvm_map_components_to_libnames(llvm_libs support core)
+    target_link_libraries(DeadInstrumentlib PUBLIC ${llvm_libs}
+                                                   clangASTMatchers
+                                                   clangTransformer
+                                                   clangTooling)
+endif(CLANG_LINK_CLANG_DYLIB)
+
 
 add_subdirectory(tool)
