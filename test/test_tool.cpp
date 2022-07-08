@@ -1,4 +1,5 @@
 #include "test_tool.hpp"
+#include "print_diff.hpp"
 
 #include <DeadInstrumenter.hpp>
 
@@ -23,6 +24,13 @@ std::string formatCode(llvm::StringRef Code) {
     return *ChangedCode;
 }
 
+void compare_code(const std::string &code1, const std::string &code2) {
+    auto diff = code1 != code2;
+    if (diff)
+        print_diff(code1, code2);
+    REQUIRE(!diff);
+}
+
 template <typename Tool> std::string runToolOnCode(llvm::StringRef Code) {
     clang::RewriterTestContext Context;
     clang::FileID ID = Context.createInMemoryFile("input.cc", Code);
@@ -37,10 +45,12 @@ template <typename Tool> std::string runToolOnCode(llvm::StringRef Code) {
     if constexpr (std::is_same_v<Tool, dead::Instrumenter>)
         InstrumenterTool.applyReplacements();
     formatAndApplyAllReplacements(FileToReplacements, Context.Rewrite);
-    return formatCode(Context.getRewrittenText(ID));
+    return formatCode(formatCode(Context.getRewrittenText(ID)));
 }
 
-std::string runBranchInstrumenterOnCode(llvm::StringRef Code) {
+std::string runBranchInstrumenterOnCode(llvm::StringRef Code,
+                                        bool emit_disable_macros) {
+    dead::detail::setEmitDisableMacros(emit_disable_macros);
     return runToolOnCode<dead::Instrumenter>(Code);
 }
 

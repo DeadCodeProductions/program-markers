@@ -33,21 +33,72 @@ dead-instrument test.c --
 cat test.c
 void DCEMarker0_(void);
 void DCEMarker1_(void);
-void DCEMarker2_(void);
 int foo(int a) {
   if (a == 0) {
-    DCEMarker0_();
+    DCEMarker1_();
     return 1;
   } else {
-    DCEMarker1_();
+    DCEMarker0_();
     a = 5;
   }
-  DCEMarker2_();
 
   return a;
 }
 ```
+It is also possible to emit macros used for disabling parts of the code that have found to be dead:
+```
+./dead-instrument --emit-disable-macros test.c --
 
+
+cat test.c
+void DCEMarker0_(void);
+void DCEMarker1_(void);
+int foo(int a) {
+#if !defined(DeleteDCEMarkerBlock0_) || !defined(DeleteDCEMarkerBlock1_)
+#if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+    if (
+#endif
+        a == 0
+#if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+    )
+#else
+        ;
+#endif
+#ifndef DeleteDCEMarkerBlock1_
+    {
+
+        DCEMarker1_();
+        return 1;
+    }
+#endif
+#if !defined(DeleteDCEMarkerBlock0_) && !defined(DeleteDCEMarkerBlock1_)
+    else
+
+#endif
+
+#ifndef DeleteDCEMarkerBlock0_
+    {
+        DCEMarker0_();
+        a = 5;
+    }
+#endif
+#endif
+    return a;
+}
+
+
+gcc -E -P -DDeleteDCEMarkerBlock0_ test.c  | clang-format                                                                      disabled_dead_code_macros_squashed
+void DCEMarker0_(void);
+void DCEMarker1_(void);
+int foo(int a) {
+  a == 0;
+  {
+    DCEMarker1_();
+    return 1;
+  }
+  return a;
+}
+```
 
 
 #### Python wrapper
