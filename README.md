@@ -3,7 +3,7 @@
 
 #### Build
 
-Prerequisites: `cmake`, `make`, `clang/llvm` 13.
+Prerequisites: `cmake`, `make`, `clang/llvm` 13/14.
 
 ```
 mkdir build
