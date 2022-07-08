@@ -29,6 +29,7 @@ def find_include_paths(clang: str, file: Path, flags: list[str]) -> list[str]:
 def instrument_program(
     file: Path,
     flags: list[str] = [],
+    emit_disable_macros: bool = False,
     instrumenter: Optional[Path] = None,
     clang: Optional[Path] = None,
 ) -> str:
@@ -37,6 +38,8 @@ def instrument_program(
     Args:
         file (Path): Path to code file to be instrumented.
         flags (list[str]): list of user provided clang flags
+        emit_disable_macros (bool): Whether to include disabling macros in the
+        instrumented program
         instrumenter (Path): Path to the instrumenter executable., if not
                              provided will use what's specified in
         clang (Path): Path to the clang executable.
@@ -54,6 +57,8 @@ def instrument_program(
     cmd = [str(instrumenter_resolved), str(file)]
     for path in includes:
         cmd.append(f"--extra-arg=-isystem{str(path)}")
+    if emit_disable_macros:
+        cmd.append("--emit-disable-macros")
     cmd.append("--")
 
     subprocess.run(cmd, capture_output=True, check=True)

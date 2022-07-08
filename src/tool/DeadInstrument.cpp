@@ -13,7 +13,6 @@ using namespace clang::tooling;
 using namespace clang::ast_matchers;
 
 namespace {
-cl::OptionCategory DeadInstrOptions("dead-instrument options");
 
 enum class ToolMode { MakeGlobalsStaticOnly, InstrumentBranches };
 
@@ -24,7 +23,8 @@ cl::opt<ToolMode>
                         "Only make globals static"),
              clEnumValN(ToolMode::InstrumentBranches, "instrument",
                         "Only canonicalize and instrument branches (default)")),
-         cl::init(ToolMode::InstrumentBranches), cl::cat(DeadInstrOptions));
+         cl::init(ToolMode::InstrumentBranches),
+         cl::cat(dead::DeadInstrOptions));
 
 template <typename InstrTool> int runToolOnCode(RefactoringTool &Tool) {
     InstrTool Instr(Tool.getReplacements());
@@ -51,10 +51,19 @@ bool applyReplacements(RefactoringTool &Tool) {
     SourceManager Sources(Diagnostics, FileMgr);
 
     Rewriter Rewrite(Sources, DefaultLangOptions);
-    if (!formatAndApplyAllReplacements(Tool.getReplacements(), Rewrite)) {
+
+    bool Result = true;
+    for (const auto &FileAndReplaces : groupReplacementsByFile(
+             Rewrite.getSourceMgr().getFileManager(), Tool.getReplacements())) {
+        auto &CurReplaces = FileAndReplaces.second;
+
+        Result = applyAllReplacements(CurReplaces, Rewrite) && Result;
+    }
+    if (!Result) {
         llvm::errs() << "Failed applying all replacements.\n";
         return false;
     }
+
     return !Rewrite.overwriteChangedFiles();
 }
 
@@ -62,7 +71,7 @@ bool applyReplacements(RefactoringTool &Tool) {
 
 int main(int argc, const char **argv) {
     auto ExpectedParser =
-        CommonOptionsParser::create(argc, argv, DeadInstrOptions);
+        CommonOptionsParser::create(argc, argv, dead::DeadInstrOptions);
     if (!ExpectedParser) {
         llvm::errs() << ExpectedParser.takeError();
         return 1;
