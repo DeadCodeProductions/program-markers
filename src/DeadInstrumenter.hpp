@@ -6,10 +6,15 @@
 #include <clang/Tooling/Core/Replacement.h>
 #include <clang/Tooling/Transformer/RewriteRule.h>
 #include <clang/Tooling/Transformer/Stencil.h>
+#include <llvm/Support/CommandLine.h>
 
 namespace dead {
 
+extern llvm::cl::OptionCategory DeadInstrOptions;
+
 namespace detail {
+void setEmitDisableMacros(bool);
+
 class RuleActionCallback
     : public clang::ast_matchers::MatchFinder::MatchCallback {
   public:
@@ -55,7 +60,6 @@ class GlobalStaticMaker {
     void registerMatchers(clang::ast_matchers::MatchFinder &Finder);
 
   private:
-    std::map<std::string, clang::tooling::Replacements> &FileToReplacements;
     detail::RuleActionCallback Rule;
 };
 
