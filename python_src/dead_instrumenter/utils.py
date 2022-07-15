@@ -12,16 +12,34 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Iterator, Optional
 
-from dead_instrumenter import TARGET_BRANCH
+from dead_instrumenter import TARGET_VERSION
 
 
 class DeadInstrumenterConfigError(Exception):
     pass
 
 
+class DeadInstrumenterVersionError(Exception):
+    pass
+
+
 def check_executable(path: str) -> None:
     if not shutil.which(path):
         raise DeadInstrumenterConfigError(f"{path} does not exist or is not executable")
+
+
+def check_version(dead_path: str) -> None:
+    if (
+        version := str(
+            subprocess.run(
+                shlex.split(f"{dead_path} --version"), capture_output=True
+            ).stdout
+        ).strip()
+        != TARGET_VERSION
+    ):
+        raise DeadInstrumenterVersionError(
+            f"Expected {TARGET_VERSION} but found {version}"
+        )
 
 
 class Config:
@@ -89,7 +107,7 @@ def download_and_build(no_questions: bool = False) -> str:
         with pushd(tdir):
             subprocess.run(
                 shlex.split(
-                    f"git clone --depth 1 --single-branch --branch {TARGET_BRANCH}"
+                    f"git clone --depth 1 --single-branch --branch {TARGET_VERSION}"
                     " https://github.com/DeadCodeProductions/dead_instrumenter.git"
                 ),
                 check=True,
@@ -166,4 +184,5 @@ def find_binary(binary: Binary, no_questions: bool = False) -> str:
         return config.clang_path
     else:
         assert binary == Binary.INSTRUMENTER
+        check_version(config.instrumenter_path)
         return config.instrumenter_path

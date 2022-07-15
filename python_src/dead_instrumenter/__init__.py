@@ -1,1 +1,1 @@
-TARGET_BRANCH = "main"
+TARGET_VERSION = "v0.0.2"
