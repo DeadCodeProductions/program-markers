@@ -12,16 +12,32 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Iterator, Optional
 
-from dead_instrumenter import TARGET_BRANCH
+from dead_instrumenter import TARGET_VERSION
 
 
 class DeadInstrumenterConfigError(Exception):
     pass
 
 
+class DeadInstrumenterVersionError(Exception):
+    pass
+
+
 def check_executable(path: str) -> None:
     if not shutil.which(path):
         raise DeadInstrumenterConfigError(f"{path} does not exist or is not executable")
+
+
+def check_version(dead_path: str) -> None:
+    version = (
+        subprocess.run(shlex.split(f"{dead_path} --version"), capture_output=True)
+        .stdout.decode("utf-8")
+        .strip()
+    )
+    if version != TARGET_VERSION:
+        raise DeadInstrumenterVersionError(
+            f"Expected {TARGET_VERSION} but found {version}"
+        )
 
 
 class Config:
@@ -89,7 +105,7 @@ def download_and_build(no_questions: bool = False) -> str:
         with pushd(tdir):
             subprocess.run(
                 shlex.split(
-                    f"git clone --depth 1 --single-branch --branch {TARGET_BRANCH}"
+                    f"git clone --depth 1 --single-branch --branch {TARGET_VERSION}"
                     " https://github.com/DeadCodeProductions/dead_instrumenter.git"
                 ),
                 check=True,
@@ -158,12 +174,19 @@ def find_binary(binary: Binary, no_questions: bool = False) -> str:
     if config_path.exists():
         config = Config.load(config_path)
     else:
-        config = make_config(
-            Path.home() / ".config/dead/instrumenter.json", no_questions
-        )
+        config_path = Path.home() / ".config/dead/instrumenter.json"
+        config = make_config(config_path, no_questions)
 
     if binary == Binary.CLANG:
         return config.clang_path
     else:
         assert binary == Binary.INSTRUMENTER
+        try:
+            check_version(config.instrumenter_path)
+        except DeadInstrumenterVersionError as E:
+            print(
+                f"{E}, update or delete {config_path} and/or {config.instrumenter_path}"
+            )
+            exit(1)
+
         return config.instrumenter_path

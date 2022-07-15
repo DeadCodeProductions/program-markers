@@ -3,6 +3,8 @@
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Refactoring.h>
 
+#include <llvm/Support/CommandLine.h>
+#include <llvm/Support/raw_ostream.h>
 #include <type_traits>
 
 #include <DeadInstrumenter.hpp>
@@ -67,9 +69,12 @@ bool applyReplacements(RefactoringTool &Tool) {
     return !Rewrite.overwriteChangedFiles();
 }
 
+void versionPrinter(llvm::raw_ostream &S) { S << "v0.0.2\n"; }
+
 } // namespace
 
 int main(int argc, const char **argv) {
+    cl::SetVersionPrinter(versionPrinter);
     auto ExpectedParser =
         CommonOptionsParser::create(argc, argv, dead::DeadInstrOptions);
     if (!ExpectedParser) {
@@ -77,6 +82,7 @@ int main(int argc, const char **argv) {
         return 1;
     }
     CommonOptionsParser &OptionsParser = ExpectedParser.get();
+
     const auto &Compilations = OptionsParser.getCompilations();
     const auto &Files = OptionsParser.getSourcePathList();
     RefactoringTool Tool(Compilations, Files);
