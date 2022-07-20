@@ -53,13 +53,6 @@ enum class EditMetadataKind {
     IfAtLeastOneDefinedElse,
     NewElseBranch
 };
-std::string GetFilenameFromRange(const CharSourceRange &R,
-                                 const SourceManager &SM) {
-    const std::pair<FileID, unsigned> DecomposedLocation =
-        SM.getDecomposedLoc(SM.getSpellingLoc(R.getBegin()));
-    const FileEntry *Entry = SM.getFileEntryForID(DecomposedLocation.first);
-    return std::string(Entry ? Entry->getName() : "");
-}
 
 auto TwoDeleteMacrosTemplate(int N1, int N2, StringRef Op) {
     return ("\n\n#if !defined(DeleteBlockDCEMarker" + std::to_string(N1) +
@@ -829,47 +822,6 @@ auto globalizeRule() {
                     insertBefore(node("global"), cat(" static ")));
 }
 } // namespace
-
-void detail::RuleActionCallback::run(
-    const clang::ast_matchers::MatchFinder::MatchResult &Result) {
-    if (Result.Context->getDiagnostics().hasErrorOccurred()) {
-        llvm::errs() << "An error has occured.\n";
-        return;
-    }
-    Expected<SmallVector<transformer::Edit, 1>> Edits =
-        findSelectedCase(Result, Rule).Edits(Result);
-    if (!Edits) {
-        llvm::errs() << "Rewrite failed: " << llvm::toString(Edits.takeError())
-                     << "\n";
-        return;
-    }
-    auto SM = Result.SourceManager;
-    for (const auto &T : *Edits) {
-        assert(T.Kind == transformer::EditKind::Range);
-        auto R = tooling::Replacement(*SM, T.Range, T.Replacement);
-        auto &Replacements = FileToReplacements[std::string(R.getFilePath())];
-        auto Err = Replacements.add(R);
-        if (Err) {
-            auto NewOffset = Replacements.getShiftedCodePosition(R.getOffset());
-            auto NewLength = Replacements.getShiftedCodePosition(
-                                 R.getOffset() + R.getLength()) -
-                             NewOffset;
-            if (NewLength == R.getLength()) {
-                R = Replacement(R.getFilePath(), NewOffset, NewLength,
-                                R.getReplacementText());
-                Replacements = Replacements.merge(tooling::Replacements(R));
-            } else {
-                llvm_unreachable(llvm::toString(std::move(Err)).c_str());
-            }
-        }
-    }
-}
-
-void detail::RuleActionCallback::registerMatchers(
-    clang::ast_matchers::MatchFinder &Finder) {
-    for (auto &Matcher : buildMatchers(Rule))
-        Finder.addDynamicMatcher(Matcher, this);
-}
 
 GlobalStaticMaker::GlobalStaticMaker(
     std::map<std::string, clang::tooling::Replacements> &FileToReplacements)
