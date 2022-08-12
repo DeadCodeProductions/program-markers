@@ -8,7 +8,7 @@
 #include <type_traits>
 
 #include <DeadInstrumenter.hpp>
-#include <ValueRangeTagger.hpp>
+#include <ValueTagger.hpp>
 
 using namespace llvm;
 using namespace clang;
@@ -25,7 +25,7 @@ cl::opt<ToolMode>
              clEnumValN(ToolMode::MakeGlobalsStaticOnly, "globals",
                         "Only make globals static"),
              clEnumValN(ToolMode::TagVariables, "tag-variables",
-                        "Tag variables for value range analysis testing"),
+                        "Tag variables for value testing"),
              clEnumValN(ToolMode::InstrumentBranches, "instrument",
                         "Only canonicalize and instrument branches (default)")),
          cl::init(ToolMode::InstrumentBranches),
@@ -42,6 +42,9 @@ template <typename InstrTool> int runToolOnCode(RefactoringTool &Tool) {
     if constexpr (std::is_same_v<InstrTool, dead::Instrumenter>)
         if (!Ret)
             Instr.applyReplacements();
+    if constexpr (std::is_same_v<InstrTool, protag::ValueTagger>)
+        if (!Ret)
+            Instr.emitTagDefinitions();
     return Ret;
 }
 
@@ -98,7 +101,7 @@ int main(int argc, const char **argv) {
         Result = runToolOnCode<dead::Instrumenter>(Tool);
         break;
     case ToolMode::TagVariables:
-        Result = runToolOnCode<protag::ValueRangeTagger>(Tool);
+        Result = runToolOnCode<protag::ValueTagger>(Tool);
         break;
     }
     if (Result) {

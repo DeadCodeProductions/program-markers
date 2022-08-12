@@ -1,8 +1,10 @@
-#include "ValueRangeTagger.hpp"
+#include "ValueTagger.hpp"
 
 #include <clang/ASTMatchers/ASTMatchers.h>
 #include <clang/Tooling/Transformer/RewriteRule.h>
 #include <clang/Tooling/Transformer/Stencil.h>
+
+#include <sstream>
 #include <string>
 
 using namespace clang;
@@ -11,14 +13,14 @@ using namespace transformer;
 
 namespace protag {
 
-detail::ValueRangeTaggerCallback::ValueRangeTaggerCallback(
+detail::ValueTaggerCallback::ValueTaggerCallback(
     RewriteRule Rule,
     std::map<std::string, clang::tooling::Replacements> &FileToReplacements,
-    std::map<std::string, int> &FileToNumberValueRangeTrackers)
+    std::map<std::string, int> &FileToNumberValueTrackers)
     : Rule{Rule}, FileToReplacements{FileToReplacements},
-      FileToNumberValueRangeTrackers{FileToNumberValueRangeTrackers} {}
+      FileToNumberValueTrackers{FileToNumberValueTrackers} {}
 
-void detail::ValueRangeTaggerCallback::run(
+void detail::ValueTaggerCallback::run(
     const clang::ast_matchers::MatchFinder::MatchResult &Result) {
     if (Result.Context->getDiagnostics().hasErrorOccurred()) {
         llvm::errs() << "An error has occured.\n";
@@ -35,9 +37,9 @@ void detail::ValueRangeTaggerCallback::run(
     for (const auto &T : *Edits) {
         assert(T.Kind == transformer::EditKind::Range);
         auto FilePath = dead::GetFilenameFromRange(T.Range, *SM);
-        auto N = FileToNumberValueRangeTrackers[FilePath]++;
+        auto N = FileToNumberValueTrackers[FilePath]++;
         auto R = tooling::Replacement(
-            *SM, T.Range, "(ValueRangeTag" + std::to_string(N) + T.Replacement);
+            *SM, T.Range, "ValueTag" + std::to_string(N) + "_" + T.Replacement);
         auto &Replacements = FileToReplacements[FilePath];
         auto Err = Replacements.add(R);
         if (Err) {
@@ -57,7 +59,7 @@ void detail::ValueRangeTaggerCallback::run(
     }
 }
 
-void detail::ValueRangeTaggerCallback::registerMatchers(
+void detail::ValueTaggerCallback::registerMatchers(
     clang::ast_matchers::MatchFinder &Finder) {
     for (auto &Matcher : transformer::detail::buildMatchers(Rule))
         Finder.addDynamicMatcher(
@@ -69,7 +71,8 @@ namespace {
 
 auto handleLocalVars() {
     auto matcher = expr(
-        declRefExpr(to(varDecl(anyOf(hasLocalStorage(), hasGlobalStorage()))))
+        declRefExpr(to(varDecl(hasType(asString("int")),
+                               anyOf(hasLocalStorage(), hasGlobalStorage()))))
             .bind("varref"),
         hasAncestor(compoundStmt()),
         unless(hasParent(memberExpr())), // hack to avoid member expressions
@@ -79,23 +82,38 @@ auto handleLocalVars() {
         unless(hasParent(
             unaryOperator(hasAnyOperatorName("++", "--"),
                           hasUnaryOperand(equalsBoundNode("varref"))))));
-    return makeRule(
-        matcher, changeTo(node("varref"),
-                          cat("(", node("varref"), "),", node("varref"), ")")));
+    return makeRule(matcher,
+                    changeTo(node("varref"), cat("(", node("varref"), ")")));
 }
 
 } // namespace
 
-ValueRangeTagger::ValueRangeTagger(
+ValueTagger::ValueTagger(
     std::map<std::string, clang::tooling::Replacements> &FileToReplacements)
-    : Callbacks{detail::ValueRangeTaggerCallback{
-          handleLocalVars(), FileToReplacements,
-          FileToNumberValueRangeTrackers}} {}
+    : FileToReplacements{FileToReplacements},
+      Callbacks{detail::ValueTaggerCallback{
+          handleLocalVars(), FileToReplacements, FileToNumberValueTrackers}} {}
 
-void ValueRangeTagger::registerMatchers(
-    clang::ast_matchers::MatchFinder &Finder) {
+void ValueTagger::registerMatchers(clang::ast_matchers::MatchFinder &Finder) {
     for (auto &Callback : Callbacks)
         Callback.registerMatchers(Finder);
+}
+
+void ValueTagger::emitTagDefinitions() {
+    for (const auto &[File, NTrackers] : FileToNumberValueTrackers) {
+        std::stringstream ss;
+        auto gen = [i = 0]() mutable {
+            auto N = i++;
+            return "int ValueTag" + std::to_string(N) +
+                   "_(int v){\nprintf(\"ValueTag" + std::to_string(N) +
+                   "_%d\",v);\nreturn v;\n}";
+        };
+        std::generate_n(std::ostream_iterator<std::string>(ss), NTrackers, gen);
+        auto Decls = "#include <stdio.h>\n\n" + ss.str();
+        auto R = clang::tooling::Replacement(File, 0, 0, Decls);
+        if (auto Err = FileToReplacements[File].add(R))
+            llvm_unreachable(llvm::toString(std::move(Err)).c_str());
+    }
 }
 
 } // namespace protag

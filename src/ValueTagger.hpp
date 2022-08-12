@@ -9,13 +9,13 @@
 namespace protag {
 
 namespace detail {
-class ValueRangeTaggerCallback
+class ValueTaggerCallback
     : public clang::ast_matchers::MatchFinder::MatchCallback {
   public:
-    ValueRangeTaggerCallback(
+    ValueTaggerCallback(
         clang::transformer::RewriteRule Rule,
         std::map<std::string, clang::tooling::Replacements> &FileToReplacements,
-        std::map<std::string, int> &FileToNumberValueRangeTrackers);
+        std::map<std::string, int> &FileToNumberValueTrackers);
     void
     run(const clang::ast_matchers::MatchFinder::MatchResult &Result) override;
     void registerMatchers(clang::ast_matchers::MatchFinder &Finder);
@@ -23,22 +23,25 @@ class ValueRangeTaggerCallback
   private:
     clang::transformer::RewriteRule Rule;
     std::map<std::string, clang::tooling::Replacements> &FileToReplacements;
-    std::map<std::string, int> &FileToNumberValueRangeTrackers;
+    std::map<std::string, int> &FileToNumberValueTrackers;
 };
 
 } // namespace detail
 
-class ValueRangeTagger {
+class ValueTagger {
   public:
-    ValueRangeTagger(std::map<std::string, clang::tooling::Replacements>
-                         &FileToReplacements);
-    ValueRangeTagger(const ValueRangeTagger &) = delete;
-    ValueRangeTagger(ValueRangeTagger &&) = delete;
+    ValueTagger(std::map<std::string, clang::tooling::Replacements>
+                    &FileToReplacements);
+    ValueTagger(const ValueTagger &) = delete;
+    ValueTagger(ValueTagger &&) = delete;
 
     void registerMatchers(clang::ast_matchers::MatchFinder &Finder);
 
+    void emitTagDefinitions();
+
   private:
-    std::vector<detail::ValueRangeTaggerCallback> Callbacks;
-    std::map<std::string, int> FileToNumberValueRangeTrackers;
+    std::map<std::string, clang::tooling::Replacements> &FileToReplacements;
+    std::vector<detail::ValueTaggerCallback> Callbacks;
+    std::map<std::string, int> FileToNumberValueTrackers;
 };
 } // namespace protag
