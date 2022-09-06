@@ -121,8 +121,8 @@ void detail::RuleActionEditCollector::run(
         switch (*Metadata) {
         case EditMetadataKind::MarkerCall: {
             auto N = GetMarkerN()++;
-            UpdateReplacements(T.Replacement + "\n\nDCEMarker" +
-                               std::to_string(N) + "_();\n\n");
+            UpdateReplacements(T.Replacement + "\n\nDCEMARKERMACRO" +
+                               std::to_string(N) + "_\n\n");
             break;
         }
         case EditMetadataKind::MacroDisableBlockBegin: {
@@ -160,7 +160,7 @@ void detail::RuleActionEditCollector::run(
                 T.Replacement +
                 (EmitDisableMacros ? GetAtLeastOneDefinedText(N, N + 1)
                                    : std::string{"\n\n"}) +
-                " else {\nDCEMarker" + std::to_string(N) + "_();\n}" +
+                " else {\nDCEMARKERMACRO" + std::to_string(N) + "_\n}" +
                 (EmitDisableMacros ? "\n#endif" : "") + "\n\n");
             break;
         }
@@ -783,7 +783,13 @@ void Instrumenter::applyReplacements() {
     for (const auto &[File, NumberMarkerDecls] : FileToNumberMarkerDecls) {
         std::stringstream ss;
         auto gen = [i = 0]() mutable {
-            return "void DCEMarker" + std::to_string(i++) + "_(void);\n";
+            auto m = i++;
+            return "#ifdef DeleteDCEMarker" + std::to_string(m) + "_\n" +
+                   "#define DCEMARKERMACRO" + std::to_string(m) + "_ ;\n" +
+                   "#else\n" + "#define DCEMARKERMACRO" + std::to_string(m) +
+                   "_ DCEMarker" + std::to_string(m) + "_();\n" +
+                   "void DCEMarker" + std::to_string(m) + "_(void);\n" +
+                   "#endif\n";
         };
         std::generate_n(std::ostream_iterator<std::string>(ss),
                         NumberMarkerDecls, gen);
