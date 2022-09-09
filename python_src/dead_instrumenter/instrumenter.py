@@ -1,78 +1,195 @@
+from __future__ import annotations
+
 import shlex
+import re
 import subprocess
+from sys import stderr
 from itertools import chain
 from pathlib import Path
 from typing import Optional
+from dataclasses import dataclass
 
 from dead_instrumenter.utils import Binary, find_binary
 
+from ccbuilder import CompilerProject
+from diopter.compiler import (
+    CompileError,
+    ClangTool,
+    ClangToolMode,
+    SourceProgram,
+    CompilerExe,
+    CompilationSetting,
+)
 
-def find_include_paths(clang: str, file: Path, flags: list[str]) -> list[str]:
-    cmd = [clang, str(file), "-c", "-o/dev/null", "-v", *flags]
-    result = subprocess.run(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=True
-    )
-    assert result.returncode == 0
-    output = result.stdout.decode("utf-8").split("\n")
-    start = (
-        next(
-            i
-            for i, line in enumerate(output)
-            if "#include <...> search starts here:" in line
+
+@dataclass(frozen=True, kw_only=True)
+class InstrumentedProgram(SourceProgram):
+    markers: tuple[str, ...] = tuple()
+    marker_prefix: str = "DCEMarker"
+
+    def find_alive_markers(
+        self, compilation_setting: CompilationSetting
+    ) -> tuple[str, ...]:
+        alive_regex = re.compile(f".*[call|jmp].*{self.marker_prefix}([0-9]+)_.*")
+        asm = compilation_setting.get_asm_from_program(self)
+        alive_markers = set()
+        for line in asm.split("\n"):
+            m = alive_regex.match(line.strip())
+            if m:
+                alive_markers.add(f"{self.marker_prefix}{m.group(1)}_")
+        return tuple(alive_markers)
+
+    def find_dead_markers(
+        self, compilation_setting: CompilationSetting
+    ) -> tuple[str, ...]:
+        return tuple(
+            set(self.markers) - set(self.find_alive_markers(compilation_setting))
         )
-        + 1
-    )
-    end = next(i for i, line in enumerate(output) if "End of search list." in line)
-    return [output[i].strip() for i in range(start, end)]
+
+    def disable_markers(self, markers: tuple[str, ...]) -> InstrumentedProgram:
+        new_macro_defs: list[str] = []
+        for marker in markers:
+            assert marker in self.markers, f"{marker} not in {self.markers}"
+            macro = "Delete" + marker
+            assert macro in self.available_macros
+            new_macro_defs.append(macro)
+
+        return InstrumentedProgram(
+            code=self.code,
+            language=self.language,
+            available_macros=self.available_macros,
+            defined_macros=tuple(set(self.defined_macros) | set(new_macro_defs)),
+            include_paths=self.include_paths,
+            system_include_paths=self.system_include_paths,
+            flags=self.flags,
+            markers=self.markers,
+        )
+
+    def disable_markers_and_blocks(
+        self, markers: tuple[str, ...]
+    ) -> InstrumentedProgram:
+        new_macro_defs: list[str] = []
+        for marker in markers:
+            assert marker in self.markers
+            # XXX: an instrumented program does not necesarily have DeleteBLock macros
+            # the code should check this (it's harmless but why define additional macros)
+            macro1 = "DeleteBlock" + marker
+            macro2 = "Delete" + marker
+            assert macro1 in self.available_macros
+            assert macro2 in self.available_macros
+            new_macro_defs.extend((macro1, macro2))
+
+        return InstrumentedProgram(
+            code=self.code,
+            language=self.language,
+            available_macros=self.available_macros,
+            defined_macros=tuple(set(self.defined_macros) | set(new_macro_defs)),
+            include_paths=self.include_paths,
+            system_include_paths=self.system_include_paths,
+            flags=self.flags,
+            markers=self.markers,
+        )
+
+    def disable_all_markers(self) -> InstrumentedProgram:
+        return InstrumentedProgram(
+            code=self.code,
+            language=self.language,
+            available_macros=self.available_macros,
+            defined_macros=tuple(
+                set(self.defined_macros)
+                | set("Delete" + marker for marker in self.markers)
+            ),
+            include_paths=self.include_paths,
+            system_include_paths=self.system_include_paths,
+            flags=self.flags,
+            markers=self.markers,
+        )
+
+
+def find_all_markers(
+    code: str,
+    marker_prefix: str,
+) -> tuple[str, ...]:
+    marker_regex = re.compile(rf".*void.*{marker_prefix}([0-9]+)_\(void\);.*")
+    all_markers = set()
+    for line in code.split("\n"):
+        m = marker_regex.match(line.strip())
+        if m:
+            all_markers.add(f"{marker_prefix}{m.group(1)}_")
+    return tuple(all_markers)
+
+
+def get_instrumenter(
+    instrumenter: Optional[ClangTool] = None, clang: Optional[CompilerExe] = None
+) -> ClangTool:
+    if not instrumenter:
+        if not clang:
+            clang = CompilerExe(
+                CompilerProject.LLVM, Path(find_binary(Binary.CLANG)), "system"
+            )
+
+        instrumenter = ClangTool.init_with_paths_from_llvm(
+            Path(find_binary(Binary.INSTRUMENTER)), clang
+        )
+    return instrumenter
 
 
 def instrument_program(
-    file: Path,
-    flags: list[str] = [],
+    program: SourceProgram,
     emit_disable_macros: bool = False,
-    instrumenter: Optional[Path] = None,
-    clang: Optional[Path] = None,
-) -> str:
+    instrumenter: Optional[ClangTool] = None,
+    clang: Optional[CompilerExe] = None,
+) -> InstrumentedProgram:
     """Instrument a given file i.e. put markers in the file.
 
     Args:
-        file (Path): Path to code file to be instrumented.
-        flags (list[str]): list of user provided clang flags
-        emit_disable_macros (bool): Whether to include disabling macros in the
-        instrumented program
-        instrumenter (Path): Path to the instrumenter executable., if not
-                             provided will use what's specified in
-        clang (Path): Path to the clang executable.
+        program (Source): The program to be instrumented.
+        emit_disable_macros (bool): Whether to include disabling macros in the instrumented program (only for InstrumenterMode.DCEMarkers)
+        instrumenter (ClangTool): The instrumenter
+        clang (CompilerExe): Which clang to use for searching the standard include paths
     Returns:
         str: Marker prefix. Here: 'DCEMarker'
     """
 
-    instrumenter_resolved = (
-        find_binary(Binary.INSTRUMENTER) if not instrumenter else instrumenter
-    )
+    instrumenter_resolved = get_instrumenter(instrumenter, clang)
 
-    clang_resolved = find_binary(Binary.CLANG) if not clang else str(clang)
-    includes = find_include_paths(clang_resolved, file, flags)
-
-    cmd = [str(instrumenter_resolved), str(file)]
-    for path in includes:
-        cmd.append(f"--extra-arg=-isystem{str(path)}")
-    if emit_disable_macros:
-        cmd.append("--emit-disable-macros")
+    flags = []
     prefix = "DCEMarker"
-    cmd.append("--")
+    flags.append("--mode=instrument")
+    if emit_disable_macros:
+        flags.append("--emit-disable-macros")
 
-    subprocess.run(cmd, capture_output=True, check=True)
+    try:
+        instrumented_code = instrumenter_resolved.run_on_program(
+            program, flags, ClangToolMode.READ_MODIFIED_FILE
+        )
+    except CompileError as e:
+        print(e, file=stderr)
+        exit(1)
 
-    return "DCEMarker"
+    markers = find_all_markers(instrumented_code, prefix)
+    macros = ["DeleteBlock" + marker for marker in markers] + [
+        "Delete" + marker for marker in markers
+    ]
+
+    return InstrumentedProgram(
+        code=instrumented_code,
+        language=program.language,
+        available_macros=program.available_macros + tuple(macros),
+        defined_macros=program.defined_macros,
+        include_paths=program.include_paths,
+        system_include_paths=program.system_include_paths,
+        flags=program.flags,
+        markers=markers,
+        marker_prefix=prefix,
+    )
 
 
 def annotate_with_static(
-    file: Path,
-    flags: list[str] = [],
-    instrumenter: Optional[Path] = None,
-    clang: Optional[Path] = None,
-) -> None:
+    program: SourceProgram,
+    instrumenter: Optional[ClangTool] = None,
+    clang: Optional[CompilerExe] = None,
+) -> SourceProgram:
     """Turn all globals in the given file into static globals.
 
     Args:
@@ -85,18 +202,19 @@ def annotate_with_static(
         None:
     """
 
-    instrumenter_resolved = (
-        find_binary(Binary.INSTRUMENTER) if not instrumenter else instrumenter
+    instrumenter_resolved = get_instrumenter(instrumenter, clang)
+    flags = ["--mode=globals"]
+
+    modified_source = instrumenter_resolved.run_on_program(
+        program, flags, ClangToolMode.READ_MODIFIED_FILE
     )
 
-    clang_resolved = find_binary(Binary.CLANG) if not clang else str(clang)
-    includes = find_include_paths(clang_resolved, file, flags)
-
-    cmd = [str(instrumenter_resolved), "--mode", "globals", str(file)]
-    for path in includes:
-        cmd.append(f"--extra-arg=-isystem{str(path)}")
-    cmd.append("--")
-
-    subprocess.run(cmd, capture_output=True, check=True)
-
-    return
+    return SourceProgram(
+        code=modified_source,
+        language=program.language,
+        available_macros=program.available_macros,
+        defined_macros=program.defined_macros,
+        include_paths=program.include_paths,
+        system_include_paths=program.system_include_paths,
+        flags=program.flags,
+    )
