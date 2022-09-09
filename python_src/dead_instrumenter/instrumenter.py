@@ -59,6 +59,7 @@ def instrument_program(
         cmd.append(f"--extra-arg=-isystem{str(path)}")
     if emit_disable_macros:
         cmd.append("--emit-disable-macros")
+    prefix = "DCEMarker"
     cmd.append("--")
 
     subprocess.run(cmd, capture_output=True, check=True)
