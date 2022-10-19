@@ -9,9 +9,6 @@ from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass
 
-from dead_instrumenter.utils import Binary, find_binary
-
-from ccbuilder import CompilerProject
 from diopter.compiler import (
     CompileError,
     ClangTool,
@@ -124,12 +121,9 @@ def get_instrumenter(
 ) -> ClangTool:
     if not instrumenter:
         if not clang:
-            clang = CompilerExe(
-                CompilerProject.LLVM, Path(find_binary(Binary.CLANG)), "system"
-            )
-
+            clang = CompilerExe.get_system_clang()
         instrumenter = ClangTool.init_with_paths_from_llvm(
-            Path(find_binary(Binary.INSTRUMENTER)), clang
+            Path(__file__).parent / "dead-instrument", clang
         )
     return instrumenter
 
