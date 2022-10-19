@@ -1,7 +1,7 @@
 `dead-instrument` is the instrumenter used in [DEAD](https://github.com/DeadCodeProductions/dead).
 
 
-#### Build
+#### To build just the clang tool
 
 Prerequisites: `cmake`, `make`, `clang/llvm` 13/14.
 
@@ -106,5 +106,24 @@ int foo(int a) {
 `pip install dead-instrumenter`
 
 
-To use the instrumenter in python import `from dead_instrumenter.instrumenter import instrument_program`. 
-Calling `instrument_program(filename: Path) -> str` will instrument `filename` at the file-level and return the prefix for the markers (default: `DCEMarker`).
+To use the instrumenter in python import `from dead_instrumenter.instrumenter import instrument_program`: `instrument_program(program: diopter.SourceProgram) -> InstrumentedProgram`. 
+
+
+#### Building the python wrapper
+
+##### Local build
+
+```
+./build_python_wheel_local.sh #this will build the current branch
+pip install .
+```
+
+#### Docker based build
+
+```
+docker run --rm -e REVISION=REV -v `pwd`:/io theodort/manylinux-with-llvm:latest /io/build_python_wheel_docker.sh
+```
+
+This will build multiple wheels for `REV` with multiple python versions.
+The output is stored in the `wheelhouse` directory.
+The docker image is based on https://github.com/thetheodor/manylinux-with-llvm.
