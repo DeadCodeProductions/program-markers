@@ -2693,3 +2693,82 @@ void DCEMarker4_(void);
                  runBranchInstrumenterOnCode(Code, true));
 }
 
+TEST_CASE("BranchInstrumenter switch macro from LLVM(with disable macros)",
+          "[switch][macro]") {
+
+    auto Code =
+        R"code(#define MODRMTYPES                                                             \
+    ENUM_ENTRY(MODRM_ONEENTRY)                                                 \
+    ENUM_ENTRY(MODRM_SPLITRM)                                                  \
+    ENUM_ENTRY(MODRM_SPLITMISC)                                                \
+    ENUM_ENTRY(MODRM_SPLITREG)                                                 \
+    ENUM_ENTRY(MODRM_FULL)
+
+#define ENUM_ENTRY(n) n,
+enum ModRMDecisionType { MODRMTYPES MODRM_max };
+#undef ENUM_ENTRY
+
+
+void dummy();
+
+static const char *stringForDecisionType(enum ModRMDecisionType dt) {
+#define ENUM_ENTRY(n)                                                          \
+    case n:                                                                    \
+        return #n;
+    switch (dt) {
+
+    default:
+        dummy();
+        MODRMTYPES
+    };
+#undef ENUM_ENTRY
+})code";
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+#define MODRMTYPES                                                             \
+    ENUM_ENTRY(MODRM_ONEENTRY)                                                 \
+    ENUM_ENTRY(MODRM_SPLITRM)                                                  \
+    ENUM_ENTRY(MODRM_SPLITMISC)                                                \
+    ENUM_ENTRY(MODRM_SPLITREG)                                                 \
+    ENUM_ENTRY(MODRM_FULL)
+
+#define ENUM_ENTRY(n) n,
+enum ModRMDecisionType { MODRMTYPES MODRM_max };
+#undef ENUM_ENTRY
+
+
+void dummy();
+
+static const char *stringForDecisionType(enum ModRMDecisionType dt) {
+#define ENUM_ENTRY(n)                                                          \
+    case n:                                                                    \
+        return #n;
+    switch (dt) {
+
+    
+
+#ifndef DeleteBlockDCEMarker0_
+
+default:
+
+DCEMARKERMACRO0_
+
+
+        dummy();
+
+#endif
+
+        MODRMTYPES
+};
+#undef ENUM_ENTRY
+}
+)code";
+
+    CAPTURE(Code);
+    compare_code(formatCode(ExpectedCode),
+                 runBranchInstrumenterOnCode(Code, true));
+}
