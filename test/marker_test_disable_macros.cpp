@@ -17,8 +17,18 @@ TEST_CASE("BranchInstrumenter if without else (with disable macros)", "[if]") {
     }
     )code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
     int foo(int a){
 
         #if !defined(DeleteBlockDCEMarker0_) || !defined(DeleteBlockDCEMarker1_)
@@ -44,7 +54,7 @@ TEST_CASE("BranchInstrumenter if without else (with disable macros)", "[if]") {
 
         {
 
-            DCEMarker1_();
+            DCEMARKERMACRO1_
 
             return 1;
 
@@ -55,7 +65,7 @@ TEST_CASE("BranchInstrumenter if without else (with disable macros)", "[if]") {
         #if !defined(DeleteBlockDCEMarker0_) && !defined(DeleteBlockDCEMarker1_)
 
         else {
-            DCEMarker0_();
+            DCEMARKERMACRO0_
         }
         #endif
 
@@ -99,8 +109,18 @@ TEST_CASE("BranchInstrumenter if-else (with disable macros)", "[if]") {
     )code";
     Code = formatCode(Code);
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
     int foo(int a){
 
         #if !defined(DeleteBlockDCEMarker0_) || !defined(DeleteBlockDCEMarker1_)
@@ -126,7 +146,7 @@ TEST_CASE("BranchInstrumenter if-else (with disable macros)", "[if]") {
 
         {
 
-            DCEMarker1_();
+            DCEMARKERMACRO1_
 
             a = 1;
 
@@ -144,7 +164,7 @@ TEST_CASE("BranchInstrumenter if-else (with disable macros)", "[if]") {
 
         {
 
-            DCEMarker0_();
+            DCEMARKERMACRO0_
 
             a = 0;
         }
@@ -182,8 +202,18 @@ TEST_CASE("BranchInstrumenter if with return macro (with disable macros)",
     }
     )code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
     #define R return
 
     int foo(int a){
@@ -211,7 +241,7 @@ TEST_CASE("BranchInstrumenter if with return macro (with disable macros)",
 
         {
 
-            DCEMarker1_();
+            DCEMARKERMACRO1_
 
             R 0;
 
@@ -222,7 +252,7 @@ TEST_CASE("BranchInstrumenter if with return macro (with disable macros)",
         #if !defined(DeleteBlockDCEMarker0_) && !defined(DeleteBlockDCEMarker1_)
 
         else {
-            DCEMarker0_();
+            DCEMARKERMACRO0_
         }
         #endif
 
@@ -258,8 +288,18 @@ TEST_CASE("BranchInstrumenter if with return macro 2 (with disable macros)",
     }
     )code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
     #define R return 0
 
     int foo(int a){
@@ -287,7 +327,7 @@ TEST_CASE("BranchInstrumenter if with return macro 2 (with disable macros)",
 
         {
 
-            DCEMarker1_();
+            DCEMARKERMACRO1_
 
             R;
 
@@ -298,7 +338,7 @@ TEST_CASE("BranchInstrumenter if with return macro 2 (with disable macros)",
         #if !defined(DeleteBlockDCEMarker0_) && !defined(DeleteBlockDCEMarker1_)
 
         else {
-            DCEMarker0_();
+            DCEMARKERMACRO0_
         }
         #endif
 
@@ -334,8 +374,18 @@ TEST_CASE("BranchInstrumenter if with return macro 3 (with disable macros)",
     }
     )code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
     #define R return 0;
 
     int foo(int a){
@@ -363,7 +413,7 @@ TEST_CASE("BranchInstrumenter if with return macro 3 (with disable macros)",
 
         {
 
-            DCEMarker1_();
+            DCEMARKERMACRO1_
 
             R
 
@@ -374,7 +424,7 @@ TEST_CASE("BranchInstrumenter if with return macro 3 (with disable macros)",
         #if !defined(DeleteBlockDCEMarker0_) && !defined(DeleteBlockDCEMarker1_)
 
         else {
-            DCEMarker0_();
+            DCEMARKERMACRO0_
         }
         #endif
 
@@ -418,10 +468,30 @@ TEST_CASE("BranchInstrumenter nested if with macro (with disable macros)",
 
     Code = formatCode(Code);
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
-    void DCEMarker2_(void);
-    void DCEMarker3_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
+    #ifdef DeleteDCEMarker2_
+#define DCEMARKERMACRO2_ ;
+#else
+#define DCEMARKERMACRO2_ DCEMarker2_();
+void DCEMarker2_(void);
+#endif
+    #ifdef DeleteDCEMarker3_
+#define DCEMARKERMACRO3_ ;
+#else
+#define DCEMARKERMACRO3_ DCEMarker3_();
+void DCEMarker3_(void);
+#endif
     #define A a = 1;
     int foo(int a){
 
@@ -448,7 +518,7 @@ TEST_CASE("BranchInstrumenter nested if with macro (with disable macros)",
 
         {
 
-            DCEMarker1_();
+            DCEMARKERMACRO1_
 
             #if !defined(DeleteBlockDCEMarker2_) || !defined(DeleteBlockDCEMarker3_)
 
@@ -473,7 +543,7 @@ TEST_CASE("BranchInstrumenter nested if with macro (with disable macros)",
 
                       {
 
-                          DCEMarker3_();
+                          DCEMARKERMACRO3_
 
                           A
 
@@ -491,7 +561,7 @@ TEST_CASE("BranchInstrumenter nested if with macro (with disable macros)",
 
                 {
 
-                    DCEMarker2_();
+                    DCEMARKERMACRO2_
 
                     a = 2;
                 }
@@ -507,7 +577,7 @@ TEST_CASE("BranchInstrumenter nested if with macro (with disable macros)",
     #if !defined(DeleteBlockDCEMarker0_) && !defined(DeleteBlockDCEMarker1_)
 
         else {
-            DCEMarker0_();
+            DCEMARKERMACRO0_
         }
         #endif
 
@@ -545,10 +615,30 @@ TEST_CASE("BranchInstrumenter nested if with return (with disable macros)",
     }
     )code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
-    void DCEMarker2_(void);
-    void DCEMarker3_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
+    #ifdef DeleteDCEMarker2_
+#define DCEMARKERMACRO2_ ;
+#else
+#define DCEMARKERMACRO2_ DCEMarker2_();
+void DCEMarker2_(void);
+#endif
+    #ifdef DeleteDCEMarker3_
+#define DCEMARKERMACRO3_ ;
+#else
+#define DCEMARKERMACRO3_ DCEMarker3_();
+void DCEMarker3_(void);
+#endif
     int foo(int a){
 
       #if !defined(DeleteBlockDCEMarker0_) || !defined(DeleteBlockDCEMarker1_)
@@ -574,7 +664,7 @@ TEST_CASE("BranchInstrumenter nested if with return (with disable macros)",
 
         {
 
-            DCEMarker1_();
+            DCEMARKERMACRO1_
 
             #if !defined(DeleteBlockDCEMarker2_) || !defined(DeleteBlockDCEMarker3_)
 
@@ -599,7 +689,7 @@ TEST_CASE("BranchInstrumenter nested if with return (with disable macros)",
 
               {
 
-                DCEMarker3_();
+                DCEMARKERMACRO3_
 
                 return 1;
                 
@@ -610,7 +700,7 @@ TEST_CASE("BranchInstrumenter nested if with return (with disable macros)",
             #if !defined(DeleteBlockDCEMarker2_) && !defined(DeleteBlockDCEMarker3_)
 
                 else {
-                    DCEMarker2_();
+                    DCEMARKERMACRO2_
                 }
             #endif
 
@@ -623,7 +713,7 @@ TEST_CASE("BranchInstrumenter nested if with return (with disable macros)",
     #if !defined(DeleteBlockDCEMarker0_) && !defined(DeleteBlockDCEMarker1_)
 
         else {
-            DCEMarker0_();
+            DCEMARKERMACRO0_
         }
     #endif
 
@@ -648,8 +738,18 @@ TEST_CASE(
         return X /* comment */;
     })code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
     #define X 0
     int foo() {
 
@@ -676,7 +776,7 @@ TEST_CASE(
 
     {
 
-        DCEMarker1_();
+        DCEMARKERMACRO1_
 
         return X /* comment */;
 
@@ -687,7 +787,7 @@ TEST_CASE(
     #if !defined(DeleteBlockDCEMarker0_) && !defined(DeleteBlockDCEMarker1_)
 
         else {
-            DCEMarker0_();
+            DCEMARKERMACRO0_
         }
     #endif
 
@@ -708,8 +808,18 @@ TEST_CASE("BranchInstrumenter if return macro (with disable macros)",
         return BUG;
     })code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
     #define BUG
     void foo() {
 
@@ -736,7 +846,7 @@ TEST_CASE("BranchInstrumenter if return macro (with disable macros)",
 
     {
 
-        DCEMarker1_();
+        DCEMARKERMACRO1_
 
         return BUG;
 
@@ -747,7 +857,7 @@ TEST_CASE("BranchInstrumenter if return macro (with disable macros)",
     #if !defined(DeleteBlockDCEMarker0_) && !defined(DeleteBlockDCEMarker1_)
 
         else {
-            DCEMarker0_();
+            DCEMARKERMACRO0_
         }
     #endif
 
@@ -768,8 +878,18 @@ TEST_CASE("BranchInstrumenter if with semi return macro (with disable macros)",
         return BUG
     })code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
     #define BUG ;
     void foo() {
 
@@ -796,7 +916,7 @@ TEST_CASE("BranchInstrumenter if with semi return macro (with disable macros)",
 
     {
 
-        DCEMarker1_();
+        DCEMARKERMACRO1_
 
         return BUG
 
@@ -807,7 +927,7 @@ TEST_CASE("BranchInstrumenter if with semi return macro (with disable macros)",
     #if !defined(DeleteBlockDCEMarker0_) && !defined(DeleteBlockDCEMarker1_)
 
         else {
-            DCEMarker0_();
+            DCEMARKERMACRO0_
         }
     #endif
 
@@ -831,8 +951,18 @@ TEST_CASE(
         return;
     })code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
     #define BUG ;
     void foo() {
 
@@ -859,7 +989,7 @@ TEST_CASE(
 
     {
 
-        DCEMarker1_();
+        DCEMARKERMACRO1_
 
         return BUG
 
@@ -877,7 +1007,7 @@ TEST_CASE(
 
         {
 
-            DCEMarker0_();
+            DCEMARKERMACRO0_
 
             return;
         }
@@ -928,9 +1058,24 @@ TEST_CASE("BranchInstrumenter if-else nested with while (with disable macros)",
                     })code";
     Code = formatCode(Code);
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
-    void DCEMarker2_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
+    #ifdef DeleteDCEMarker2_
+#define DCEMARKERMACRO2_ ;
+#else
+#define DCEMARKERMACRO2_ DCEMarker2_();
+void DCEMarker2_(void);
+#endif
     int foo(int a) {
 
         #if !defined(DeleteBlockDCEMarker0_) || !defined(DeleteBlockDCEMarker1_)
@@ -956,7 +1101,7 @@ TEST_CASE("BranchInstrumenter if-else nested with while (with disable macros)",
 
         {
 
-            DCEMarker1_();
+            DCEMARKERMACRO1_
 
         #ifndef DeleteBlockDCEMarker2_
 
@@ -978,7 +1123,7 @@ TEST_CASE("BranchInstrumenter if-else nested with while (with disable macros)",
 
             {
 
-                DCEMarker2_();
+                DCEMARKERMACRO2_
 
                 return 1;
             }
@@ -999,7 +1144,7 @@ TEST_CASE("BranchInstrumenter if-else nested with while (with disable macros)",
 
         {
         
-            DCEMarker0_();
+            DCEMARKERMACRO0_
 
             a = 0;
         }
@@ -1035,7 +1180,12 @@ TEST_CASE("BranchInstrumenter while stmt (with disable macros)",
     }
     )code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
     int foo(int a){
         int b = 0;
 
@@ -1059,7 +1209,7 @@ TEST_CASE("BranchInstrumenter while stmt (with disable macros)",
 
             {
 
-                DCEMarker0_();
+                DCEMARKERMACRO0_
 
                 return 0;
 
@@ -1100,8 +1250,18 @@ TEST_CASE("BranchInstrumenter nested for stmt (with disable macros)",
     )code";
     Code = formatCode(Code);
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
     int foo(int a){
 
         #ifndef DeleteBlockDCEMarker0_
@@ -1124,7 +1284,7 @@ TEST_CASE("BranchInstrumenter nested for stmt (with disable macros)",
 
         {
 
-            DCEMarker0_();
+            DCEMARKERMACRO0_
 
         #ifndef DeleteBlockDCEMarker1_
 
@@ -1146,7 +1306,7 @@ TEST_CASE("BranchInstrumenter nested for stmt (with disable macros)",
 
             {
 
-                DCEMarker1_();
+                DCEMARKERMACRO1_
 
                 ++a;
 
@@ -1194,9 +1354,24 @@ TEST_CASE(
     }
     )code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
-    void DCEMarker2_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
+    #ifdef DeleteDCEMarker2_
+#define DCEMARKERMACRO2_ ;
+#else
+#define DCEMARKERMACRO2_ DCEMarker2_();
+void DCEMarker2_(void);
+#endif
     int foo(int a){
         int b = 0;
 
@@ -1220,7 +1395,7 @@ TEST_CASE(
 
         {
 
-            DCEMarker0_();
+            DCEMARKERMACRO0_
 
         #if !defined(DeleteBlockDCEMarker1_) || !defined(DeleteBlockDCEMarker2_)
 
@@ -1245,7 +1420,7 @@ TEST_CASE(
 
             {
 
-                DCEMarker2_();
+                DCEMARKERMACRO2_
 
                 return b;
 
@@ -1263,7 +1438,7 @@ TEST_CASE(
 
              {
 
-                DCEMarker1_();
+                DCEMARKERMACRO1_
 
                 ++b;
             }
@@ -1309,9 +1484,24 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt "
     }
     )code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
-    void DCEMarker2_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
+    #ifdef DeleteDCEMarker2_
+#define DCEMARKERMACRO2_ ;
+#else
+#define DCEMARKERMACRO2_ DCEMarker2_();
+void DCEMarker2_(void);
+#endif
     int foo(int a){
         int b = 0;
 
@@ -1335,7 +1525,7 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt "
 
         {
 
-            DCEMarker0_();
+            DCEMARKERMACRO0_
 
         #if !defined(DeleteBlockDCEMarker1_) || !defined(DeleteBlockDCEMarker2_)
 
@@ -1360,7 +1550,7 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt "
 
             {
 
-                DCEMarker2_();
+                DCEMARKERMACRO2_
 
                 return b;
 
@@ -1378,7 +1568,7 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt "
 
              {
 
-                DCEMarker1_();
+                DCEMARKERMACRO1_
 
                 ++b;
             }
@@ -1411,7 +1601,12 @@ TEST_CASE("BranchInstrumenter for stmt with return (with disable macros)",
     }
     )code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
     int foo(int a){
         int b = 0;
 
@@ -1435,7 +1630,7 @@ TEST_CASE("BranchInstrumenter for stmt with return (with disable macros)",
 
         {
 
-            DCEMarker0_();
+            DCEMARKERMACRO0_
 
             return i;
 
@@ -1471,7 +1666,12 @@ TEST_CASE("BranchInstrumenter do while stmt with return (with disable macros)",
     }
     )code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
     int foo(int a){
         int b = 0;
 
@@ -1481,7 +1681,7 @@ TEST_CASE("BranchInstrumenter do while stmt with return (with disable macros)",
 
         {
         
-          DCEMarker0_();
+          DCEMARKERMACRO0_
 
           return b;
 
@@ -1528,9 +1728,24 @@ TEST_CASE(
         return 0;
     })code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-        void DCEMarker1_(void);
-        void DCEMarker2_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+        #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
+        #ifdef DeleteDCEMarker2_
+#define DCEMARKERMACRO2_ ;
+#else
+#define DCEMARKERMACRO2_ DCEMarker2_();
+void DCEMarker2_(void);
+#endif
         #define X 1
         int foo(int a) {
 
@@ -1540,7 +1755,7 @@ TEST_CASE(
 
           {
 
-            DCEMarker0_();
+            DCEMARKERMACRO0_
 
             #if !defined(DeleteBlockDCEMarker1_) || !defined(DeleteBlockDCEMarker2_)
 
@@ -1565,7 +1780,7 @@ TEST_CASE(
 
             {
 
-            DCEMarker2_();
+            DCEMARKERMACRO2_
 
             return X;
 
@@ -1576,7 +1791,7 @@ TEST_CASE(
             #if !defined(DeleteBlockDCEMarker1_) && !defined(DeleteBlockDCEMarker2_)
 
             else {
-                DCEMarker1_();
+                DCEMARKERMACRO1_
             }
             #endif
 
@@ -1632,9 +1847,24 @@ TEST_CASE(
 
     Code = formatCode(Code);
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-        void DCEMarker1_(void);
-        void DCEMarker2_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+        #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
+        #ifdef DeleteDCEMarker2_
+#define DCEMARKERMACRO2_ ;
+#else
+#define DCEMARKERMACRO2_ DCEMarker2_();
+void DCEMarker2_(void);
+#endif
         int foo(int a) {
 
             #if !defined(DeleteBlockDCEMarker0_) || !defined(DeleteBlockDCEMarker1_)
@@ -1660,7 +1890,7 @@ TEST_CASE(
 
             {
 
-                DCEMarker1_();
+                DCEMARKERMACRO1_
 
               #ifndef DeleteBlockDCEMarker2_
 
@@ -1668,7 +1898,7 @@ TEST_CASE(
 
               {
 
-                DCEMarker2_();
+                DCEMARKERMACRO2_
 
                 --a;
 
@@ -1692,7 +1922,7 @@ TEST_CASE(
 
             {
 
-                DCEMarker0_();
+                DCEMARKERMACRO0_
 
                 return 1;
             }
@@ -1726,8 +1956,18 @@ TEST_CASE(
     })code");
     Code += R"code(   })code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-        void DCEMarker1_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+        #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
         #define M
         #define bar    \
         do  {          \
@@ -1758,7 +1998,7 @@ TEST_CASE(
 
             {
 
-                DCEMarker1_();
+                DCEMARKERMACRO1_
 
               bar; 
 
@@ -1770,7 +2010,7 @@ TEST_CASE(
 
             else
             {
-                DCEMarker0_();
+                DCEMARKERMACRO0_
             }
             #endif
 
@@ -1794,12 +2034,42 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace (with "
         if (1);
     })code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
-    void DCEMarker2_(void);
-    void DCEMarker3_(void);
-    void DCEMarker4_(void);
-    void DCEMarker5_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
+    #ifdef DeleteDCEMarker2_
+#define DCEMARKERMACRO2_ ;
+#else
+#define DCEMARKERMACRO2_ DCEMarker2_();
+void DCEMarker2_(void);
+#endif
+    #ifdef DeleteDCEMarker3_
+#define DCEMARKERMACRO3_ ;
+#else
+#define DCEMARKERMACRO3_ DCEMarker3_();
+void DCEMarker3_(void);
+#endif
+    #ifdef DeleteDCEMarker4_
+#define DCEMARKERMACRO4_ ;
+#else
+#define DCEMARKERMACRO4_ DCEMarker4_();
+void DCEMarker4_(void);
+#endif
+    #ifdef DeleteDCEMarker5_
+#define DCEMARKERMACRO5_ ;
+#else
+#define DCEMARKERMACRO5_ DCEMarker5_();
+void DCEMarker5_(void);
+#endif
 
     void foo() {
 
@@ -1823,7 +2093,7 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace (with "
 
         {
 
-        DCEMarker0_();
+        DCEMARKERMACRO0_
         }
 
       #endif
@@ -1851,7 +2121,7 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace (with "
 
   {
 
-      DCEMarker2_();
+      DCEMARKERMACRO2_
 
     }
 
@@ -1860,7 +2130,7 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace (with "
 #if !defined(DeleteBlockDCEMarker1_) && !defined(DeleteBlockDCEMarker2_)
 
   else {
-      DCEMarker1_();
+      DCEMARKERMACRO1_
     }
   #endif
 
@@ -1870,7 +2140,7 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace (with "
 
         do {
 
-        DCEMarker3_();
+        DCEMARKERMACRO3_
 
         } while(1);
 
@@ -1899,7 +2169,7 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace (with "
 
   {
 
-      DCEMarker5_();
+      DCEMARKERMACRO5_
 
       ;
 
@@ -1910,7 +2180,7 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace (with "
 #if !defined(DeleteBlockDCEMarker4_) && !defined(DeleteBlockDCEMarker5_)
 
   else {
-      DCEMarker4_();
+      DCEMARKERMACRO4_
     }
   #endif
 
@@ -1943,12 +2213,42 @@ TEST_CASE("BranchInstrumenter switch (with disable macros)",
         return a;
     }
     )code";
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-    void DCEMarker1_(void);
-    void DCEMarker2_(void);
-    void DCEMarker3_(void);
-    void DCEMarker4_(void);
-    void DCEMarker5_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+    #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
+    #ifdef DeleteDCEMarker2_
+#define DCEMARKERMACRO2_ ;
+#else
+#define DCEMARKERMACRO2_ DCEMarker2_();
+void DCEMarker2_(void);
+#endif
+    #ifdef DeleteDCEMarker3_
+#define DCEMARKERMACRO3_ ;
+#else
+#define DCEMARKERMACRO3_ DCEMarker3_();
+void DCEMarker3_(void);
+#endif
+    #ifdef DeleteDCEMarker4_
+#define DCEMARKERMACRO4_ ;
+#else
+#define DCEMARKERMACRO4_ DCEMarker4_();
+void DCEMarker4_(void);
+#endif
+    #ifdef DeleteDCEMarker5_
+#define DCEMARKERMACRO5_ ;
+#else
+#define DCEMARKERMACRO5_ DCEMarker5_();
+void DCEMarker5_(void);
+#endif
     int foo(int a){
         switch(a){
 
@@ -1956,7 +2256,7 @@ TEST_CASE("BranchInstrumenter switch (with disable macros)",
 
         case 1: 
 
-            DCEMarker0_();
+            DCEMARKERMACRO0_
 
             a = 2;
             break;
@@ -1967,7 +2267,7 @@ TEST_CASE("BranchInstrumenter switch (with disable macros)",
 
         case 2:
 
-          DCEMarker5_();
+          DCEMARKERMACRO5_
 
 #endif
 
@@ -1975,7 +2275,7 @@ TEST_CASE("BranchInstrumenter switch (with disable macros)",
 
         case 3:
 
-           DCEMarker4_();
+           DCEMARKERMACRO4_
 
            break;
 
@@ -1985,7 +2285,7 @@ TEST_CASE("BranchInstrumenter switch (with disable macros)",
 
         case 4:
 
-          DCEMarker3_();
+          DCEMARKERMACRO3_
 
           return 3;
 
@@ -1995,7 +2295,7 @@ TEST_CASE("BranchInstrumenter switch (with disable macros)",
 
         case 5:
 
-          DCEMarker2_();
+          DCEMARKERMACRO2_
 
           {a = 5;}
 
@@ -2005,7 +2305,7 @@ TEST_CASE("BranchInstrumenter switch (with disable macros)",
 
         default:
 
-          DCEMarker1_();
+          DCEMARKERMACRO1_
 
           a = 42;
 
@@ -2039,11 +2339,36 @@ TEST_CASE("BranchInstrumenter cascaded switch (with disable macros)",
         }
     )code";
 
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-                  void DCEMarker1_(void);
-                  void DCEMarker2_(void);
-                  void DCEMarker3_(void);
-                  void DCEMarker4_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+                  #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
+                  #ifdef DeleteDCEMarker2_
+#define DCEMARKERMACRO2_ ;
+#else
+#define DCEMARKERMACRO2_ DCEMarker2_();
+void DCEMarker2_(void);
+#endif
+                  #ifdef DeleteDCEMarker3_
+#define DCEMARKERMACRO3_ ;
+#else
+#define DCEMARKERMACRO3_ DCEMarker3_();
+void DCEMarker3_(void);
+#endif
+                  #ifdef DeleteDCEMarker4_
+#define DCEMARKERMACRO4_ ;
+#else
+#define DCEMARKERMACRO4_ DCEMarker4_();
+void DCEMarker4_(void);
+#endif
                   int foo(int a) {
                     switch (a) {
 
@@ -2051,7 +2376,7 @@ TEST_CASE("BranchInstrumenter cascaded switch (with disable macros)",
 
                   case 0:
 
-                    DCEMarker0_();
+                    DCEMARKERMACRO0_
 
                     a = 1;
                       break;
@@ -2062,7 +2387,7 @@ TEST_CASE("BranchInstrumenter cascaded switch (with disable macros)",
 
                   default:
 
-                    DCEMarker2_();
+                    DCEMARKERMACRO2_
 
 #endif
 
@@ -2070,7 +2395,7 @@ TEST_CASE("BranchInstrumenter cascaded switch (with disable macros)",
 
                   case 1:
 
-                    DCEMarker4_();
+                    DCEMARKERMACRO4_
 
 #endif
 
@@ -2078,7 +2403,7 @@ TEST_CASE("BranchInstrumenter cascaded switch (with disable macros)",
 
                   case 2:
 
-                    DCEMarker3_();
+                    DCEMARKERMACRO3_
 
                     a = 2;
                       break;
@@ -2089,7 +2414,7 @@ TEST_CASE("BranchInstrumenter cascaded switch (with disable macros)",
 
                   case 3:
 
-                    DCEMarker1_();
+                    DCEMARKERMACRO1_
 
                     break;
 
@@ -2132,9 +2457,24 @@ TEST_CASE("BranchInstrumenter switch if and macro (with disable macros)",
                             if (a)
                                 a = 1;
                         })code";
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-                        void DCEMarker1_(void);
-                        void DCEMarker2_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+                        #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
+                        #ifdef DeleteDCEMarker2_
+#define DCEMARKERMACRO2_ ;
+#else
+#define DCEMARKERMACRO2_ DCEMarker2_();
+void DCEMarker2_(void);
+#endif
                         #define TEST bar
 
                         int bar();
@@ -2146,7 +2486,7 @@ TEST_CASE("BranchInstrumenter switch if and macro (with disable macros)",
 
                             case 1:
 
-                                DCEMarker0_();
+                                DCEMARKERMACRO0_
 
                                 TEST();
 
@@ -2179,7 +2519,7 @@ TEST_CASE("BranchInstrumenter switch if and macro (with disable macros)",
 
                             {
 
-                                DCEMarker2_();
+                                DCEMARKERMACRO2_
 
                                 a = 1;
 
@@ -2190,7 +2530,7 @@ TEST_CASE("BranchInstrumenter switch if and macro (with disable macros)",
                               #if !defined(DeleteBlockDCEMarker1_) && !defined(DeleteBlockDCEMarker2_)
 
                               else {
-                                  DCEMarker1_();
+                                  DCEMARKERMACRO1_
                               }
                             #endif
 
@@ -2215,11 +2555,36 @@ TEST_CASE(
         else if (1)
             return FFFF;
     })code";
-    auto ExpectedCode = R"code(void DCEMarker0_(void);
-                        void DCEMarker1_(void);
-                        void DCEMarker2_(void);
-                        void DCEMarker3_(void);
-                        void DCEMarker4_(void);
+    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+                        #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
+                        #ifdef DeleteDCEMarker2_
+#define DCEMARKERMACRO2_ ;
+#else
+#define DCEMARKERMACRO2_ DCEMarker2_();
+void DCEMarker2_(void);
+#endif
+                        #ifdef DeleteDCEMarker3_
+#define DCEMARKERMACRO3_ ;
+#else
+#define DCEMARKERMACRO3_ DCEMarker3_();
+void DCEMarker3_(void);
+#endif
+                        #ifdef DeleteDCEMarker4_
+#define DCEMARKERMACRO4_ ;
+#else
+#define DCEMARKERMACRO4_ DCEMarker4_();
+void DCEMarker4_(void);
+#endif
 #define FFFF 1
     int foo() {
 
@@ -2246,7 +2611,7 @@ TEST_CASE(
 
         {
 
-          DCEMarker1_();
+          DCEMARKERMACRO1_
 
           switch (1) {
 
@@ -2254,7 +2619,7 @@ TEST_CASE(
         
             default:
 
-              DCEMarker2_();
+              DCEMARKERMACRO2_
 
               return FFFF;
 
@@ -2275,7 +2640,7 @@ TEST_CASE(
 
         {
 
-          DCEMarker0_();
+          DCEMARKERMACRO0_
 
           #if !defined(DeleteBlockDCEMarker3_) || !defined(DeleteBlockDCEMarker4_)
 
@@ -2300,7 +2665,7 @@ TEST_CASE(
 
             {
 
-            DCEMarker4_();
+            DCEMARKERMACRO4_
 
             return FFFF;
 
@@ -2311,7 +2676,7 @@ TEST_CASE(
         #if !defined(DeleteBlockDCEMarker3_) && !defined(DeleteBlockDCEMarker4_)
 
             else {
-                DCEMarker3_();
+                DCEMARKERMACRO3_
               }
           #endif
 
