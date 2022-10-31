@@ -1,0 +1,23 @@
+on: [ push ]
+name: Run C++ tests
+jobs:
+  catchpp:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt remove clang-13
+          sudo apt-get install ninja-build catch2 clang-14 libclang-14-dev libclang-cpp14-dev
+      - name: Build and run tests
+        run: |
+          mkdir build
+          cd build 
+          cmake .. -GNinja -DBUILD_TESTING=ON -DCMAKE_MODULE_PATH=/usr/lib/cmake/clang-14
+          ninja
+      - name: Run tests
+        run: |
+          cd build
+          ctest
