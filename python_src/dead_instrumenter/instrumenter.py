@@ -1,10 +1,7 @@
 from __future__ import annotations
 
-import shlex
 import re
-import subprocess
 from sys import stderr
-from itertools import chain
 from pathlib import Path
 from typing import Optional
 from dataclasses import dataclass
@@ -69,7 +66,7 @@ class InstrumentedProgram(SourceProgram):
         for marker in markers:
             assert marker in self.markers
             # XXX: an instrumented program does not necesarily have DeleteBLock macros
-            # the code should check this (it's harmless but why define additional macros)
+            # the code should check this (it's harmless but why define more macros)
             macro1 = "DeleteBlock" + marker
             macro2 = "Delete" + marker
             assert macro1 in self.available_macros
@@ -134,15 +131,19 @@ def instrument_program(
     instrumenter: Optional[ClangTool] = None,
     clang: Optional[CompilerExe] = None,
 ) -> InstrumentedProgram:
-    """Instrument a given file i.e. put markers in the file.
+    """Instrument a given program i.e. put markers in the file.
 
     Args:
-        program (Source): The program to be instrumented.
-        emit_disable_macros (bool): Whether to include disabling macros in the instrumented program (only for InstrumenterMode.DCEMarkers)
-        instrumenter (ClangTool): The instrumenter
-        clang (CompilerExe): Which clang to use for searching the standard include paths
+        program (Source):
+            The program to be instrumented.
+        emit_disable_macros (bool):
+            Whether to include disabling macros in the instrumented program
+        instrumenter (ClangTool):
+            The instrumenter
+        clang (CompilerExe):
+            Which clang to use for searching the standard include paths
     Returns:
-        str: Marker prefix. Here: 'DCEMarker'
+        InstrumentedProgram: The instrumented version of program
     """
 
     instrumenter_resolved = get_instrumenter(instrumenter, clang)
