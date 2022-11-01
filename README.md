@@ -100,13 +100,15 @@ int foo(int a) {
 }
 ```
 
+Passing  `--ignore-functions-with-macros` to `dead-instrument` will cause it to ignore any functions that contain macro expansions.
+
 
 #### Python wrapper
 
 `pip install dead-instrumenter`
 
 
-To use the instrumenter in python import `from dead_instrumenter.instrumenter import instrument_program`: `instrument_program(program: diopter.SourceProgram) -> InstrumentedProgram`. 
+To use the instrumenter in python import `from dead_instrumenter.instrumenter import instrument_program`: `instrument_program(program: diopter.SourceProgram, emit_disable_macros: bool, ignore_functions_with_macros: bool) -> InstrumentedProgram`. 
 
 
 #### Building the python wrapper

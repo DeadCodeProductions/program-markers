@@ -43,6 +43,11 @@ cl::opt<bool>
                                "markers that have been found to be dead."),
                       cl::init(false), cl::cat(DeadInstrOptions));
 
+cl::opt<bool> IgnoreFunctionsWithMacros(
+    "ignore-functions-with-macros",
+    cl::desc("Do not instrument code in functions that contain macros."),
+    cl::init(true), cl::cat(DeadInstrOptions));
+
 enum class EditMetadataKind {
     MarkerDecl,
     MarkerCall,
@@ -83,6 +88,9 @@ auto GetDeleteMacroIfDefText(int N) {
 } // namespace
 
 void detail::setEmitDisableMacros(bool val) { EmitDisableMacros = val; }
+void detail::setIgnoreFunctionsWithMacros(bool val) {
+    IgnoreFunctionsWithMacros = val;
+}
 
 void detail::RuleActionEditCollector::run(
     const clang::ast_matchers::MatchFinder::MatchResult &Result) {
@@ -463,9 +471,36 @@ RangeSelector IfLoc(std::string ID) {
     };
 }
 
+AST_MATCHER(FunctionDecl, containsMacroExpansions) {
+    (void)Builder;
+    const auto &SM = Finder->getASTContext().getSourceManager();
+    auto StartLoc = Node.getBeginLoc();
+    auto EndLoc = Node.getEndLoc();
+    for (unsigned I = 0, E = SM.local_sloc_entry_size(); I != E; ++I) {
+        const auto &Entry = SM.getLocalSLocEntry(I);
+        if (!Entry.isExpansion())
+            continue;
+        const auto &ExpInfo = Entry.getExpansion();
+        if (ExpInfo.isMacroBodyExpansion() || ExpInfo.isMacroArgExpansion() ||
+            ExpInfo.isFunctionMacroExpansion()) {
+            auto Loc = Entry.getExpansion().getExpansionLocStart();
+            if (StartLoc < Loc && Loc < EndLoc)
+                return true;
+        }
+    }
+    return false;
+}
+
+auto isNotInFunctionWithMacrosMatcher() {
+    if (not IgnoreFunctionsWithMacros)
+        return hasAncestor(functionDecl());
+    return hasAncestor(functionDecl(unless(containsMacroExpansions())));
+}
+
 auto handleIfStmt() {
     auto matcher =
-        ifStmt(ConditionNotInMacroAndInMain(),
+        ifStmt(isNotInFunctionWithMacrosMatcher(),
+               ConditionNotInMacroAndInMain(),
                optionally(hasElse(
                    anyOf(compoundStmt(inMainAndNotMacro).bind("celse"),
                          stmt(hasParent(ifStmt(ElseNotInMacroAndInMain())))
@@ -552,11 +587,12 @@ RangeSelector doBegin(std::string ID) {
 
 auto handleDoWhile() {
     auto compoundMatcher =
-        doStmt(inMainAndNotMacro,
+        doStmt(isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
                hasBody(compoundStmt(inMainAndNotMacro).bind("body")))
             .bind("dostmt");
     auto nonCompoundLoopMatcher =
-        doStmt(DoAndWhileNotMacroAndInMain(), hasBody(stmt().bind("body")))
+        doStmt(isNotInFunctionWithMacrosMatcher(),
+               DoAndWhileNotMacroAndInMain(), hasBody(stmt().bind("body")))
             .bind("dostmt");
 
     auto macroActions =
@@ -613,11 +649,11 @@ auto SecondSemiForLoop(std::string ID) {
 
 auto handleFor() {
     auto compoundMatcher =
-        forStmt(inMainAndNotMacro,
+        forStmt(isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
                 hasBody(compoundStmt(inMainAndNotMacro).bind("body")))
             .bind("loop");
     auto nonCompoundLoopMatcher =
-        forStmt(inMainAndNotMacro,
+        forStmt(isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
                 hasBody(stmt(inMainAndNotMacro).bind("body")))
             .bind("loop");
     auto macroActions =
@@ -667,11 +703,11 @@ RangeSelector whileBegin(std::string ID) {
 
 auto handleWhile() {
     auto compoundMatcher =
-        whileStmt(inMainAndNotMacro,
+        whileStmt(isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
                   hasBody(compoundStmt(inMainAndNotMacro).bind("body")))
             .bind("loop");
     auto nonCompoundLoopMatcher =
-        whileStmt(inMainAndNotMacro,
+        whileStmt(isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
                   hasBody(stmt(inMainAndNotMacro).bind("body")))
             .bind("loop");
     auto macroActions = flatten(
@@ -714,7 +750,7 @@ AST_MATCHER(SwitchCase, colonAndKeywordNotInMacroAndInMain) {
 auto handleSwitchCase() {
     auto matcher =
         switchStmt(
-            inMainAndNotMacro,
+            isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
             has(compoundStmt(
                 has(switchCase(colonAndKeywordNotInMacroAndInMain())
                         .bind("firstcase")))),
@@ -750,7 +786,7 @@ RangeSelector SwitchStmtEndLoc(std::string ID) {
 
 auto handleSwitch() {
     auto matcher =
-        switchStmt(inMainAndNotMacro,
+        switchStmt(isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
                    has(compoundStmt(
                        has(switchCase(colonAndKeywordNotInMacroAndInMain())
                                .bind("firstcase")))))
