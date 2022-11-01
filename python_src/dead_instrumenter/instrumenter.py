@@ -128,6 +128,7 @@ def get_instrumenter(
 def instrument_program(
     program: SourceProgram,
     emit_disable_macros: bool = False,
+    ignore_functions_with_macros: bool = False,
     instrumenter: Optional[ClangTool] = None,
     clang: Optional[CompilerExe] = None,
 ) -> InstrumentedProgram:
@@ -138,6 +139,8 @@ def instrument_program(
             The program to be instrumented.
         emit_disable_macros (bool):
             Whether to include disabling macros in the instrumented program
+        ignore_functions_with_macros (bool):
+            Whether to ignore instrumenting functions that contain macro expansions
         instrumenter (ClangTool):
             The instrumenter
         clang (CompilerExe):
@@ -153,6 +156,8 @@ def instrument_program(
     flags.append("--mode=instrument")
     if emit_disable_macros:
         flags.append("--emit-disable-macros")
+    if ignore_functions_with_macros:
+        flags.append("--ignore-functions-with-macros")
 
     try:
         instrumented_code = instrumenter_resolved.run_on_program(

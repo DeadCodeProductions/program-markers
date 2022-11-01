@@ -14,6 +14,7 @@ extern llvm::cl::OptionCategory DeadInstrOptions;
 
 namespace detail {
 void setEmitDisableMacros(bool);
+void setIgnoreFunctionsWithMacros(bool);
 
 class RuleActionCallback
     : public clang::ast_matchers::MatchFinder::MatchCallback {

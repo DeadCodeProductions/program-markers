@@ -54,7 +54,7 @@ void DCEMarker0_(void);
 
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 runBranchInstrumenterOnCode(Code, false));
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter if-else", "[if]") {
@@ -131,7 +131,7 @@ void DCEMarker0_(void);
 
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 runBranchInstrumenterOnCode(Code, false));
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter if with return macro", "[if][macro]") {
@@ -191,6 +191,8 @@ void DCEMarker0_(void);
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
                  runBranchInstrumenterOnCode(Code, false));
+    compare_code(formatCode(Code),
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter if with return macro 2", "[if][macro]") {
@@ -252,6 +254,8 @@ void DCEMarker0_(void);
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
                  runBranchInstrumenterOnCode(Code, false));
+    compare_code(formatCode(Code),
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter if with return macro 3", "[if][macro]") {
@@ -313,6 +317,8 @@ void DCEMarker0_(void);
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
                  runBranchInstrumenterOnCode(Code, false));
+    compare_code(formatCode(Code),
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter nested if with macro", "[if][nested][macro]") {
@@ -417,6 +423,8 @@ void DCEMarker3_(void);
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
                  formatCode(runBranchInstrumenterOnCode(Code, false)));
+    compare_code(formatCode(Code),
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter nested if with return", "[if][return][nested]") {
@@ -502,7 +510,7 @@ void DCEMarker3_(void);
 
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 runBranchInstrumenterOnCode(Code, false));
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter if return macro and comment",
@@ -547,6 +555,8 @@ void DCEMarker1_(void);
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
                  runBranchInstrumenterOnCode(Code, false));
+    compare_code(formatCode(Code),
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter if return macro", "[loop][if][macro][return]") {
@@ -589,6 +599,10 @@ void DCEMarker1_(void);
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
                  runBranchInstrumenterOnCode(Code, false));
+    // XXX: this doesn't work, containsMacroExpansions
+    // can't match the BUG macro
+    // compare_code(formatCode(Code),
+    // runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter if with semi return macro",
@@ -632,6 +646,8 @@ void DCEMarker1_(void);
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
                  runBranchInstrumenterOnCode(Code, false));
+    compare_code(formatCode(Code),
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter if-else with semi return macro",
@@ -683,6 +699,8 @@ void DCEMarker1_(void);
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
                  runBranchInstrumenterOnCode(Code, false));
+    compare_code(formatCode(Code),
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
@@ -728,7 +746,7 @@ TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
     Code += R"code(
     return a;
                     })code";
-    //Code = formatCode(Code);
+    // Code = formatCode(Code);
 
     auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
 #define DCEMARKERMACRO0_ ;
@@ -780,7 +798,7 @@ void DCEMarker2_(void);
 
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 runBranchInstrumenterOnCode(Code, false));
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter while stmt", "[while][loop]") {
@@ -829,8 +847,9 @@ void DCEMarker0_(void);
 
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 runBranchInstrumenterOnCode(Code, false));
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
+
 TEST_CASE("BranchInstrumenter nested for stmt", "[for][if][nested][return]") {
 
     auto Code = std::string{R"code(int foo(int a){
@@ -893,7 +912,7 @@ void DCEMarker1_(void);
 
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 formatCode(runBranchInstrumenterOnCode(Code, false)));
+                 formatCode(runBranchInstrumenterOnCode(Code, false, true)));
 }
 
 TEST_CASE("BranchInstrumenter for stmt nested if with return",
@@ -992,7 +1011,7 @@ void DCEMarker2_(void);
 
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 runBranchInstrumenterOnCode(Code, false));
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
@@ -1081,7 +1100,7 @@ void DCEMarker2_(void);
 
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 runBranchInstrumenterOnCode(Code, false));
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter for stmt with return", "[for][return]") {
@@ -1118,7 +1137,7 @@ void DCEMarker0_(void);
 
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 runBranchInstrumenterOnCode(Code, false));
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter do while stmt with return", "[do][return]") {
@@ -1165,11 +1184,11 @@ void DCEMarker0_(void);
 
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 runBranchInstrumenterOnCode(Code, false));
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter do while and if with return",
-          "[if][dowhile][return]") {
+          "[if][dowhile][return][macro]") {
     auto Code = std::string{R"code(#define X 1
     int foo(int a) {
         do )code"};
@@ -1248,7 +1267,9 @@ void DCEMarker2_(void);
     })code";
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 runBranchInstrumenterOnCode(Code, false));
+                 runBranchInstrumenterOnCode(Code, false, false));
+    compare_code(formatCode(Code),
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter do while and if else with return",
@@ -1354,7 +1375,7 @@ void DCEMarker2_(void);
 
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 runBranchInstrumenterOnCode(Code, false));
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter if dowhile with nested macro",
@@ -1414,10 +1435,12 @@ void DCEMarker1_(void);
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
                  runBranchInstrumenterOnCode(Code, false));
+    compare_code(formatCode(Code),
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
-          "[if][do][macro][return]") {
+          "[if][do][return]") {
 
     auto Code = R"code(
     void foo() {
@@ -1502,7 +1525,7 @@ void DCEMarker5_(void);
 
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 runBranchInstrumenterOnCode(Code, false));
+                 runBranchInstrumenterOnCode(Code, false, false));
 }
 
 TEST_CASE("BranchInstrumenter switch", "[switch][return]") {
@@ -1685,7 +1708,7 @@ void DCEMarker4_(void);
 
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 runBranchInstrumenterOnCode(Code, false));
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter empty switch", "[switch]") {
@@ -1766,7 +1789,48 @@ void DCEMarker2_(void);
                         })code";
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
-                 runBranchInstrumenterOnCode(Code, false));
+                 runBranchInstrumenterOnCode(Code, false, false));
+    auto ExpectedCodeMacroIgnore = R"code(#ifdef DeleteDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+                        #ifdef DeleteDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+void DCEMarker1_(void);
+#endif
+                        #define TEST bar
+
+                        int bar();
+
+                        void baz(int a) {
+                            switch (a) {
+                            case 1:
+                                TEST();
+                            }
+                        }
+
+                        void foo(int a) {
+                              if ( a)
+
+                            {
+
+                               DCEMARKERMACRO1_
+
+                                a = 1;
+
+                                }
+
+                              else {
+                                 DCEMARKERMACRO0_
+                              }
+
+                        })code";
+    compare_code(formatCode(ExpectedCodeMacroIgnore),
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
 TEST_CASE("BranchInstrumenter switch if with return and macro",
@@ -1857,5 +1921,7 @@ void DCEMarker4_(void);
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
                  runBranchInstrumenterOnCode(Code, false));
+    compare_code(formatCode(Code),
+                 runBranchInstrumenterOnCode(Code, false, true));
 }
 
