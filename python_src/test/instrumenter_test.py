@@ -36,15 +36,14 @@ def test_instr() -> None:
     """,
             language=Language.C,
         ),
-        emit_disable_macros=True,
     )
     assert set(("DCEMarker0_", "DCEMarker1_")) == set(iprogram.markers)
     assert set(
         (
-            "DeleteDCEMarker0_",
-            "DeleteDCEMarker1_",
-            "DeleteBlockDCEMarker0_",
-            "DeleteBlockDCEMarker1_",
+            "DisableDCEMarker0_",
+            "DisableDCEMarker1_",
+            "UnreachableDCEMarker0_",
+            "UnreachableDCEMarker1_",
         )
     ) == set(iprogram.available_macros)
 
@@ -57,7 +56,7 @@ def test_instr() -> None:
     assert set(("DCEMarker0_",)) == set(iprogram0.find_alive_markers(gcc))
     assert set(("DCEMarker1_",)) == set(iprogram0.find_dead_markers(gcc))
 
-    iprogram1 = iprogram.disable_markers_and_blocks(("DCEMarker0_",))
+    iprogram1 = iprogram.make_markers_unreachable(("DCEMarker0_",))
     assert set(("DCEMarker1_",)) == set(iprogram1.find_alive_markers(gcc))
     assert set(("DCEMarker0_",)) == set(iprogram1.find_dead_markers(gcc))
 

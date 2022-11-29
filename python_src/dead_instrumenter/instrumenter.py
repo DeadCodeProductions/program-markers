@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from sys import stderr
 from pathlib import Path
+from functools import cache
 from typing import Optional
 from dataclasses import dataclass
 
@@ -44,8 +45,9 @@ class InstrumentedProgram(SourceProgram):
         new_macro_defs: list[str] = []
         for marker in markers:
             assert marker in self.markers, f"{marker} not in {self.markers}"
-            macro = "Delete" + marker
+            macro = "Disable" + marker
             assert macro in self.available_macros
+            assert macro not in self.defined_macros
             new_macro_defs.append(macro)
 
         return InstrumentedProgram(
@@ -59,19 +61,14 @@ class InstrumentedProgram(SourceProgram):
             markers=self.markers,
         )
 
-    def disable_markers_and_blocks(
-        self, markers: tuple[str, ...]
-    ) -> InstrumentedProgram:
+    def make_markers_unreachable(self, markers: tuple[str, ...]) -> InstrumentedProgram:
         new_macro_defs: list[str] = []
         for marker in markers:
             assert marker in self.markers
-            # XXX: an instrumented program does not necesarily have DeleteBLock macros
-            # the code should check this (it's harmless but why define more macros)
-            macro1 = "DeleteBlock" + marker
-            macro2 = "Delete" + marker
-            assert macro1 in self.available_macros
-            assert macro2 in self.available_macros
-            new_macro_defs.extend((macro1, macro2))
+            macro = "Unreachable" + marker
+            assert macro in self.available_macros
+            assert macro not in self.defined_macros
+            new_macro_defs.append(macro)
 
         return InstrumentedProgram(
             code=self.code,
@@ -91,7 +88,7 @@ class InstrumentedProgram(SourceProgram):
             available_macros=self.available_macros,
             defined_macros=tuple(
                 set(self.defined_macros)
-                | set("Delete" + marker for marker in self.markers)
+                | set("Disable" + marker for marker in self.markers)
             ),
             include_paths=self.include_paths,
             system_include_paths=self.system_include_paths,
@@ -101,25 +98,22 @@ class InstrumentedProgram(SourceProgram):
 
 
 def find_all_markers(
-    code: str,
-    marker_prefix: str,
+    instrumenter_output: str,
 ) -> tuple[str, ...]:
-    marker_regex = re.compile(rf".*void.*{marker_prefix}([0-9]+)_\(void\);.*")
-    all_markers = set()
-    for line in code.split("\n"):
-        m = marker_regex.match(line.strip())
-        if m:
-            all_markers.add(f"{marker_prefix}{m.group(1)}_")
-    return tuple(all_markers)
+    _, _, instrumenter_output = instrumenter_output.partition("MARKERS START")
+    assert instrumenter_output
+    instrumenter_output, _, _ = instrumenter_output.partition("MARKERS END")
+    return tuple(instrumenter_output.strip().splitlines())
 
 
+@cache
 def get_instrumenter(
     instrumenter: Optional[ClangTool] = None, clang: Optional[CompilerExe] = None
 ) -> ClangTool:
     if not instrumenter:
         if not clang:
             clang = CompilerExe.get_system_clang()
-        instrumenter = ClangTool.init_with_paths_from_llvm(
+        instrumenter = ClangTool.init_with_paths_from_clang(
             Path(__file__).parent / "dead-instrument", clang
         )
     return instrumenter
@@ -127,7 +121,6 @@ def get_instrumenter(
 
 def instrument_program(
     program: SourceProgram,
-    emit_disable_macros: bool = False,
     ignore_functions_with_macros: bool = False,
     instrumenter: Optional[ClangTool] = None,
     clang: Optional[CompilerExe] = None,
@@ -137,8 +130,6 @@ def instrument_program(
     Args:
         program (Source):
             The program to be instrumented.
-        emit_disable_macros (bool):
-            Whether to include disabling macros in the instrumented program
         ignore_functions_with_macros (bool):
             Whether to ignore instrumenting functions that contain macro expansions
         instrumenter (ClangTool):
@@ -154,22 +145,24 @@ def instrument_program(
     flags = []
     prefix = "DCEMarker"
     flags.append("--mode=instrument")
-    if emit_disable_macros:
-        flags.append("--emit-disable-macros")
     if ignore_functions_with_macros:
         flags.append("--ignore-functions-with-macros")
 
     try:
-        instrumented_code = instrumenter_resolved.run_on_program(
-            program, flags, ClangToolMode.READ_MODIFIED_FILE
+        result = instrumenter_resolved.run_on_program(
+            program, flags, ClangToolMode.CAPTURE_OUT_ERR_AND_READ_MODIFIED_FILED
         )
+        assert result.modified_source_code
+        assert result.stdout
+
+        instrumented_code = result.modified_source_code
     except CompileError as e:
         print(e, file=stderr)
         exit(1)
 
-    markers = find_all_markers(instrumented_code, prefix)
-    macros = ["DeleteBlock" + marker for marker in markers] + [
-        "Delete" + marker for marker in markers
+    markers = find_all_markers(result.stdout)
+    macros = ["Disable" + marker for marker in markers] + [
+        "Unreachable" + marker for marker in markers
     ]
 
     return InstrumentedProgram(
@@ -205,12 +198,13 @@ def annotate_with_static(
     instrumenter_resolved = get_instrumenter(instrumenter, clang)
     flags = ["--mode=globals"]
 
-    modified_source = instrumenter_resolved.run_on_program(
+    result = instrumenter_resolved.run_on_program(
         program, flags, ClangToolMode.READ_MODIFIED_FILE
     )
+    assert result.modified_source_code
 
     return SourceProgram(
-        code=modified_source,
+        code=result.modified_source_code,
         language=program.language,
         available_macros=program.available_macros,
         defined_macros=program.defined_macros,

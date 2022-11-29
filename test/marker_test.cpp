@@ -21,14 +21,18 @@ TEST_CASE("BranchInstrumenter if without else", "[if]") {
     }
     )code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-#ifdef DeleteDCEMarker1_
+#if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
  void DCEMarker1_(void);
@@ -93,14 +97,18 @@ TEST_CASE("BranchInstrumenter if-else", "[if]") {
     )code";
     Code = formatCode(Code);
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-#ifdef DeleteDCEMarker1_
+#if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
  void DCEMarker1_(void);
@@ -155,14 +163,18 @@ TEST_CASE("BranchInstrumenter if with return macro", "[if][macro]") {
     }
     )code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-#ifdef DeleteDCEMarker1_
+#if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
  void DCEMarker1_(void);
@@ -217,14 +229,18 @@ TEST_CASE("BranchInstrumenter if with return macro 2", "[if][macro]") {
     }
     )code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-#ifdef DeleteDCEMarker1_
+#if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
  void DCEMarker1_(void);
@@ -280,14 +296,18 @@ TEST_CASE("BranchInstrumenter if with return macro 3", "[if][macro]") {
     }
     )code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-#ifdef DeleteDCEMarker1_
+#if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
  void DCEMarker1_(void);
@@ -359,26 +379,34 @@ TEST_CASE("BranchInstrumenter nested if with macro", "[if][nested][macro]") {
     }
     )code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-#ifdef DeleteDCEMarker1_
+#if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
 #endif
-#ifdef DeleteDCEMarker2_
+#if defined DisableDCEMarker2_
 #define DCEMARKERMACRO2_ ;
+#elif defined UnreachableDCEMarker2_
+#define DCEMARKERMACRO2_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO2_ DCEMarker2_();
 void DCEMarker2_(void);
 #endif
-#ifdef DeleteDCEMarker3_
+#if defined DisableDCEMarker3_
 #define DCEMARKERMACRO3_ ;
+#elif defined UnreachableDCEMarker3_
+#define DCEMARKERMACRO3_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO3_ DCEMarker3_();
 void DCEMarker3_(void);
@@ -452,26 +480,34 @@ TEST_CASE("BranchInstrumenter nested if with return", "[if][return][nested]") {
     }
     )code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-#ifdef DeleteDCEMarker1_
+#if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
 #endif
-#ifdef DeleteDCEMarker2_
+#if defined DisableDCEMarker2_
 #define DCEMARKERMACRO2_ ;
+#elif defined UnreachableDCEMarker2_
+#define DCEMARKERMACRO2_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO2_ DCEMarker2_();
 void DCEMarker2_(void);
 #endif
-#ifdef DeleteDCEMarker3_
+#if defined DisableDCEMarker3_
 #define DCEMARKERMACRO3_ ;
+#elif defined UnreachableDCEMarker3_
+#define DCEMARKERMACRO3_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO3_ DCEMarker3_();
 void DCEMarker3_(void);
@@ -522,14 +558,18 @@ TEST_CASE("BranchInstrumenter if return macro and comment",
         return X /* comment */;
     })code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-    #ifdef DeleteDCEMarker1_
+    #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
@@ -567,14 +607,18 @@ TEST_CASE("BranchInstrumenter if return macro", "[loop][if][macro][return]") {
         return BUG;
     })code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-    #ifdef DeleteDCEMarker1_
+    #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
@@ -614,14 +658,18 @@ TEST_CASE("BranchInstrumenter if with semi return macro",
         return BUG
     })code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-    #ifdef DeleteDCEMarker1_
+    #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
@@ -661,14 +709,18 @@ TEST_CASE("BranchInstrumenter if-else with semi return macro",
         return;
     })code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-    #ifdef DeleteDCEMarker1_
+    #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
@@ -748,20 +800,26 @@ TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
                     })code";
     // Code = formatCode(Code);
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-    #ifdef DeleteDCEMarker1_
+    #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
 #endif
-    #ifdef DeleteDCEMarker2_
+    #if defined DisableDCEMarker2_
 #define DCEMARKERMACRO2_ ;
+#elif defined UnreachableDCEMarker2_
+#define DCEMARKERMACRO2_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO2_ DCEMarker2_();
 void DCEMarker2_(void);
@@ -823,8 +881,10 @@ TEST_CASE("BranchInstrumenter while stmt", "[while][loop]") {
     }
     )code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
@@ -877,14 +937,18 @@ TEST_CASE("BranchInstrumenter nested for stmt", "[for][if][nested][return]") {
     )code";
     Code = formatCode(Code);
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-    #ifdef DeleteDCEMarker1_
+    #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
@@ -956,20 +1020,26 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return",
     }
     )code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-    #ifdef DeleteDCEMarker1_
+    #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
 #endif
-    #ifdef DeleteDCEMarker2_
+    #if defined DisableDCEMarker2_
 #define DCEMARKERMACRO2_ ;
+#elif defined UnreachableDCEMarker2_
+#define DCEMARKERMACRO2_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO2_ DCEMarker2_();
 void DCEMarker2_(void);
@@ -1049,20 +1119,26 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
     }
     )code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-    #ifdef DeleteDCEMarker1_
+    #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
 #endif
-    #ifdef DeleteDCEMarker2_
+    #if defined DisableDCEMarker2_
 #define DCEMARKERMACRO2_ ;
+#elif defined UnreachableDCEMarker2_
+#define DCEMARKERMACRO2_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO2_ DCEMarker2_();
 void DCEMarker2_(void);
@@ -1113,8 +1189,10 @@ TEST_CASE("BranchInstrumenter for stmt with return", "[for][return]") {
     }
     )code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
@@ -1159,8 +1237,10 @@ TEST_CASE("BranchInstrumenter do while stmt with return", "[do][return]") {
     }
     )code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
@@ -1220,20 +1300,26 @@ TEST_CASE("BranchInstrumenter do while and if with return",
         return 0;
     })code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-        #ifdef DeleteDCEMarker1_
+        #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
 #endif
-        #ifdef DeleteDCEMarker2_
+        #if defined DisableDCEMarker2_
 #define DCEMARKERMACRO2_ ;
+#elif defined UnreachableDCEMarker2_
+#define DCEMARKERMACRO2_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO2_ DCEMarker2_();
 void DCEMarker2_(void);
@@ -1322,20 +1408,26 @@ TEST_CASE("BranchInstrumenter do while and if else with return",
     return 0;
     })code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-        #ifdef DeleteDCEMarker1_
+        #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
 #endif
-        #ifdef DeleteDCEMarker2_
+        #if defined DisableDCEMarker2_
 #define DCEMARKERMACRO2_ ;
+#elif defined UnreachableDCEMarker2_
+#define DCEMARKERMACRO2_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO2_ DCEMarker2_();
 void DCEMarker2_(void);
@@ -1397,14 +1489,18 @@ TEST_CASE("BranchInstrumenter if dowhile with nested macro",
     })code");
     Code += R"code(   })code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-        #ifdef DeleteDCEMarker1_
+        #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
@@ -1450,38 +1546,50 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
         if (1);
     })code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-    #ifdef DeleteDCEMarker1_
+    #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
 #endif
-    #ifdef DeleteDCEMarker2_
+    #if defined DisableDCEMarker2_
 #define DCEMARKERMACRO2_ ;
+#elif defined UnreachableDCEMarker2_
+#define DCEMARKERMACRO2_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO2_ DCEMarker2_();
 void DCEMarker2_(void);
 #endif
-    #ifdef DeleteDCEMarker3_
+    #if defined DisableDCEMarker3_
 #define DCEMARKERMACRO3_ ;
+#elif defined UnreachableDCEMarker3_
+#define DCEMARKERMACRO3_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO3_ DCEMarker3_();
 void DCEMarker3_(void);
 #endif
-    #ifdef DeleteDCEMarker4_
+    #if defined DisableDCEMarker4_
 #define DCEMARKERMACRO4_ ;
+#elif defined UnreachableDCEMarker4_
+#define DCEMARKERMACRO4_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO4_ DCEMarker4_();
 void DCEMarker4_(void);
 #endif
-    #ifdef DeleteDCEMarker5_
+    #if defined DisableDCEMarker5_
 #define DCEMARKERMACRO5_ ;
+#elif defined UnreachableDCEMarker5_
+#define DCEMARKERMACRO5_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO5_ DCEMarker5_();
 void DCEMarker5_(void);
@@ -1548,38 +1656,50 @@ TEST_CASE("BranchInstrumenter switch", "[switch][return]") {
         return a;
     }
     )code";
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-    #ifdef DeleteDCEMarker1_
+    #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
 #endif
-    #ifdef DeleteDCEMarker2_
+    #if defined DisableDCEMarker2_
 #define DCEMARKERMACRO2_ ;
+#elif defined UnreachableDCEMarker2_
+#define DCEMARKERMACRO2_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO2_ DCEMarker2_();
 void DCEMarker2_(void);
 #endif
-    #ifdef DeleteDCEMarker3_
+    #if defined DisableDCEMarker3_
 #define DCEMARKERMACRO3_ ;
+#elif defined UnreachableDCEMarker3_
+#define DCEMARKERMACRO3_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO3_ DCEMarker3_();
 void DCEMarker3_(void);
 #endif
-    #ifdef DeleteDCEMarker4_
+    #if defined DisableDCEMarker4_
 #define DCEMARKERMACRO4_ ;
+#elif defined UnreachableDCEMarker4_
+#define DCEMARKERMACRO4_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO4_ DCEMarker4_();
 void DCEMarker4_(void);
 #endif
-    #ifdef DeleteDCEMarker5_
+    #if defined DisableDCEMarker5_
 #define DCEMARKERMACRO5_ ;
+#elif defined UnreachableDCEMarker5_
+#define DCEMARKERMACRO5_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO5_ DCEMarker5_();
 void DCEMarker5_(void);
@@ -1645,32 +1765,42 @@ TEST_CASE("BranchInstrumenter cascaded switch", "[switch]") {
         }
     )code";
 
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-                  #ifdef DeleteDCEMarker1_
+                  #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
 #endif
-                  #ifdef DeleteDCEMarker2_
+                  #if defined DisableDCEMarker2_
 #define DCEMARKERMACRO2_ ;
+#elif defined UnreachableDCEMarker2_
+#define DCEMARKERMACRO2_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO2_ DCEMarker2_();
 void DCEMarker2_(void);
 #endif
-                  #ifdef DeleteDCEMarker3_
+                  #if defined DisableDCEMarker3_
 #define DCEMARKERMACRO3_ ;
+#elif defined UnreachableDCEMarker3_
+#define DCEMARKERMACRO3_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO3_ DCEMarker3_();
 void DCEMarker3_(void);
 #endif
-                  #ifdef DeleteDCEMarker4_
+                  #if defined DisableDCEMarker4_
 #define DCEMARKERMACRO4_ ;
+#elif defined UnreachableDCEMarker4_
+#define DCEMARKERMACRO4_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO4_ DCEMarker4_();
 void DCEMarker4_(void);
@@ -1739,20 +1869,26 @@ TEST_CASE("BranchInstrumenter switch if and macro", "[if][switch][macro]") {
                             if (a)
                                 a = 1;
                         })code";
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-                        #ifdef DeleteDCEMarker1_
+                        #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
 #endif
-                        #ifdef DeleteDCEMarker2_
+                        #if defined DisableDCEMarker2_
 #define DCEMARKERMACRO2_ ;
+#elif defined UnreachableDCEMarker2_
+#define DCEMARKERMACRO2_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO2_ DCEMarker2_();
 void DCEMarker2_(void);
@@ -1790,14 +1926,18 @@ void DCEMarker2_(void);
     CAPTURE(Code);
     compare_code(formatCode(ExpectedCode),
                  runBranchInstrumenterOnCode(Code, false, false));
-    auto ExpectedCodeMacroIgnore = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCodeMacroIgnore = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-                        #ifdef DeleteDCEMarker1_
+                        #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
@@ -1846,32 +1986,42 @@ TEST_CASE("BranchInstrumenter switch if with return and macro",
         else if (1)
             return FFFF;
     })code";
-    auto ExpectedCode = R"code(#ifdef DeleteDCEMarker0_
+    auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
 #define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
 #endif
-                        #ifdef DeleteDCEMarker1_
+                        #if defined DisableDCEMarker1_
 #define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
 #endif
-                        #ifdef DeleteDCEMarker2_
+                        #if defined DisableDCEMarker2_
 #define DCEMARKERMACRO2_ ;
+#elif defined UnreachableDCEMarker2_
+#define DCEMARKERMACRO2_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO2_ DCEMarker2_();
 void DCEMarker2_(void);
 #endif
-                        #ifdef DeleteDCEMarker3_
+                        #if defined DisableDCEMarker3_
 #define DCEMARKERMACRO3_ ;
+#elif defined UnreachableDCEMarker3_
+#define DCEMARKERMACRO3_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO3_ DCEMarker3_();
 void DCEMarker3_(void);
 #endif
-                        #ifdef DeleteDCEMarker4_
+                        #if defined DisableDCEMarker4_
 #define DCEMARKERMACRO4_ ;
+#elif defined UnreachableDCEMarker4_
+#define DCEMARKERMACRO4_ __builtin_unreachable();
 #else
 #define DCEMARKERMACRO4_ DCEMarker4_();
 void DCEMarker4_(void);
