@@ -31,70 +31,48 @@ dead-instrument test.c --
 
 
 cat test.c
+#if defined DisableDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
 void DCEMarker0_(void);
+#endif
+#if defined DisableDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
 void DCEMarker1_(void);
+#endif
 int foo(int a) {
-  if (a == 0) {
-    DCEMarker1_();
+  if (a == 0)
+  {
+    DCEMARKERMACRO1_
     return 1;
-  } else {
-    DCEMarker0_();
+  }
+  else {
+    DCEMARKERMACRO0_
     a = 5;
   }
 
   return a;
 }
 ```
-It is also possible to emit macros used for disabling parts of the code that have found to be dead:
+
+Individual markers can be disabled or tunred into unreachables (useful for helping the compiler optimize parts known to be dead):
+
 ```
-./dead-instrument --emit-disable-macros test.c --
-
-
-cat test.c
-void DCEMarker0_(void);
-void DCEMarker1_(void);
+gcc -E -P -DDisableDCEMarker0_ -DUnreachableDCEMarker1_ test.c | clang-format
 int foo(int a) {
-#if !defined(DeleteBlockDCEMarker0_) || !defined(DeleteBlockDCEMarker1_)
-#if !defined(DeleteBlockDCEMarker0_) && !defined(DeleteBlockDCEMarker1_)
-    if (
-#endif
-        a == 0
-#if !defined(DeleteBlockDCEMarker0_) && !defined(DeleteBlockDCEMarker1_)
-    )
-#else
-        ;
-#endif
-#ifndef DeleteBlockDCEMarker1_
-    {
-
-        DCEMarker1_();
-        return 1;
-    }
-#endif
-#if !defined(DeleteBlockDCEMarker0_) && !defined(DeleteBlockDCEMarker1_)
-    else
-
-#endif
-
-#ifndef DeleteBlockDCEMarker0_
-    {
-        DCEMarker0_();
-        a = 5;
-    }
-#endif
-#endif
-    return a;
-}
-
-
-gcc -E -P -DDeleteBlockDCEMarker0_ test.c  | clang-format                                                                      disabled_dead_code_macros_squashed
-void DCEMarker0_(void);
-void DCEMarker1_(void);
-int foo(int a) {
-  a == 0;
-  {
-    DCEMarker1_();
+  if (a == 0) {
+    __builtin_unreachable();
     return 1;
+  } else {
+    ;
+    a = 5;
   }
   return a;
 }
@@ -108,7 +86,7 @@ Passing  `--ignore-functions-with-macros` to `dead-instrument` will cause it to 
 `pip install dead-instrumenter`
 
 
-To use the instrumenter in python import `from dead_instrumenter.instrumenter import instrument_program`: `instrument_program(program: diopter.SourceProgram, emit_disable_macros: bool, ignore_functions_with_macros: bool) -> InstrumentedProgram`. 
+To use the instrumenter in python import `from dead_instrumenter.instrumenter import instrument_program`: `instrument_program(program: diopter.SourceProgram, ignore_functions_with_macros: bool) -> InstrumentedProgram`. 
 
 
 #### Building the python wrapper

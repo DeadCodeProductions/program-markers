@@ -51,7 +51,6 @@ template <typename Tool> std::string runToolOnCode(llvm::StringRef Code) {
 std::string runBranchInstrumenterOnCode(llvm::StringRef Code,
                                         bool emit_disable_macros,
                                         bool ignore_functions_with_macros) {
-    dead::detail::setEmitDisableMacros(emit_disable_macros);
     dead::detail::setIgnoreFunctionsWithMacros(ignore_functions_with_macros);
     return runToolOnCode<dead::Instrumenter>(Code);
 }
