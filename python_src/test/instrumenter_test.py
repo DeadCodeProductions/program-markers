@@ -1,15 +1,15 @@
-import pytest
-
 from pathlib import Path
 
-from diopter.compiler import (
-    SourceProgram,
-    CompilerExe,
-    CompilationSetting,
-    OptLevel,
-    Language,
-)
+import pytest
 from ccbuilder import CompilerProject
+from diopter.compiler import (
+    CompilationSetting,
+    CompilerExe,
+    Language,
+    OptLevel,
+    SourceProgram,
+)
+
 from dead_instrumenter.instrumenter import instrument_program
 
 
