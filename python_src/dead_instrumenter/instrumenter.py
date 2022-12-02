@@ -1,19 +1,19 @@
 from __future__ import annotations
 
 import re
-from sys import stderr
-from pathlib import Path
-from functools import cache
-from typing import Optional
 from dataclasses import dataclass
+from functools import cache
+from pathlib import Path
+from sys import stderr
+from typing import Optional
 
 from diopter.compiler import (
-    CompileError,
     ClangTool,
     ClangToolMode,
-    SourceProgram,
-    CompilerExe,
     CompilationSetting,
+    CompileError,
+    CompilerExe,
+    SourceProgram,
 )
 
 
