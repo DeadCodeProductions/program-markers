@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from functools import cache
+from itertools import chain
 from pathlib import Path
 from sys import stderr
 from typing import Optional
@@ -20,7 +21,41 @@ from diopter.compiler import (
 @dataclass(frozen=True, kw_only=True)
 class InstrumentedProgram(SourceProgram):
     markers: tuple[str, ...] = tuple()
+    disabled_markers: tuple[str, ...] = tuple()
+    unreachable_markers: tuple[str, ...] = tuple()
     marker_prefix: str = "DCEMarker"
+
+    def __post_init__(self) -> None:
+        """Sanity checks"""
+
+        # Markers have the correct prefix
+        markers = set(self.markers)
+        for marker in markers:
+            assert marker.startswith(self.marker_prefix)
+
+        # There is no overlap between disabled and unreachable markers
+        disabled_markers = set(self.disabled_markers)
+        unreachable_markers = set(self.unreachable_markers)
+        assert disabled_markers.isdisjoint(unreachable_markers)
+
+        # Disabled and unreachable markers are subsets of all markers
+        assert set(self.disabled_markers) <= markers
+        assert set(self.unreachable_markers) <= markers
+
+        # Macros have been included for all disabled and unreachable markers
+        macros = set(self.defined_macros)
+        for marker in chain(
+            map(InstrumentedProgram.__make_disable_macro, self.disabled_markers),
+            map(InstrumentedProgram.__make_unreachable_macro, self.unreachable_markers),
+        ):
+            assert marker in macros
+            macros.remove(marker)
+
+        # No disable or unreachable marcos have been defined for other markers
+        dprefix = InstrumentedProgram.__make_disable_macro(self.marker_prefix)
+        uprefix = InstrumentedProgram.__make_unreachable_macro(self.marker_prefix)
+        for macro in macros:
+            assert not macro.startswith(dprefix) and not macro.startswith(uprefix)
 
     def find_alive_markers(
         self, compilation_setting: CompilationSetting
@@ -32,74 +67,125 @@ class InstrumentedProgram(SourceProgram):
             m = alive_regex.match(line.strip())
             if m:
                 alive_markers.add(f"{self.marker_prefix}{m.group(1)}_")
+        assert alive_markers <= set(self.markers)
         return tuple(alive_markers)
 
     def find_dead_markers(
         self, compilation_setting: CompilationSetting
     ) -> tuple[str, ...]:
-        return tuple(
-            set(self.markers) - set(self.find_alive_markers(compilation_setting))
+        dead_markers = set(self.markers) - set(
+            self.find_alive_markers(compilation_setting)
+        )
+        assert dead_markers <= set(self.markers)
+        return tuple(dead_markers)
+
+    @staticmethod
+    def __make_disable_macro(marker: str) -> str:
+        return "Disable" + marker
+
+    @staticmethod
+    def __make_unreachable_macro(marker: str) -> str:
+        return "Unreachable" + marker
+
+    def disable_markers(self, dmarkers: tuple[str, ...]) -> InstrumentedProgram:
+        """Disables the given markers by setting the relevant macros.
+
+        Markers that have already been disabled are ignored. If any of the
+        markers are not in self.markers an AssertionError will be raised.  An
+        AssertionError error is also raised if markers have been previously
+        made unreachable.
+
+        Args:
+            markers (tuple[str, ...]):
+                The markers that will be disabled
+
+        Returns:
+            InstrumentedProgram:
+                A copy of self with the additional disabled markers
+        """
+
+        dmarkers_set = set(dmarkers)
+        assert dmarkers_set <= set(self.markers)
+        assert dmarkers_set.isdisjoint(self.unreachable_markers)
+
+        new_dmarkers = tuple(dmarkers_set - set(self.disabled_markers))
+        new_macros = tuple(
+            InstrumentedProgram.__make_disable_macro(marker) for marker in new_dmarkers
         )
 
-    def disable_markers(self, markers: tuple[str, ...]) -> InstrumentedProgram:
-        new_macro_defs: list[str] = []
-        for marker in markers:
-            assert marker in self.markers, f"{marker} not in {self.markers}"
-            macro = "Disable" + marker
-            assert macro in self.available_macros
-            assert macro not in self.defined_macros
-            new_macro_defs.append(macro)
-
-        return InstrumentedProgram(
-            code=self.code,
-            language=self.language,
-            available_macros=self.available_macros,
-            defined_macros=tuple(set(self.defined_macros) | set(new_macro_defs)),
-            include_paths=self.include_paths,
-            system_include_paths=self.system_include_paths,
-            flags=self.flags,
-            markers=self.markers,
+        return replace(
+            self,
+            disabled_markers=self.disabled_markers + new_dmarkers,
+            defined_macros=self.defined_macros + new_macros,
         )
 
-    def make_markers_unreachable(self, markers: tuple[str, ...]) -> InstrumentedProgram:
-        new_macro_defs: list[str] = []
-        for marker in markers:
-            assert marker in self.markers
-            macro = "Unreachable" + marker
-            assert macro in self.available_macros
-            assert macro not in self.defined_macros
-            new_macro_defs.append(macro)
+    def make_markers_unreachable(
+        self, umarkers: tuple[str, ...]
+    ) -> InstrumentedProgram:
+        """Makes the given markers unreachable by setting the relevant macros.
 
-        return InstrumentedProgram(
-            code=self.code,
-            language=self.language,
-            available_macros=self.available_macros,
-            defined_macros=tuple(set(self.defined_macros) | set(new_macro_defs)),
-            include_paths=self.include_paths,
-            system_include_paths=self.system_include_paths,
-            flags=self.flags,
-            markers=self.markers,
+        Markers that have already been made unreachable are ignored. If any of
+        the markers are not in self.markers an AssertionError will be raised.
+        An AssertionError error is also raised if markers have been previously
+        disabled.
+
+
+        Args:
+            markers (tuple[str, ...]):
+                The markers that will be made unreachable
+
+        Returns:
+            InstrumentedProgram:
+                A copy of self with the additional unreachable markers
+        """
+
+        umarkers_set = set(umarkers)
+        assert umarkers_set <= set(self.markers)
+        assert umarkers_set.isdisjoint(self.disabled_markers)
+
+        new_umarkers = tuple(umarkers_set - set(self.unreachable_markers))
+        new_macros = tuple(
+            InstrumentedProgram.__make_unreachable_macro(marker)
+            for marker in new_umarkers
         )
 
-    def disable_all_markers(self) -> InstrumentedProgram:
-        return InstrumentedProgram(
-            code=self.code,
-            language=self.language,
-            available_macros=self.available_macros,
-            defined_macros=tuple(
-                set(self.defined_macros)
-                | set("Disable" + marker for marker in self.markers)
-            ),
-            include_paths=self.include_paths,
-            system_include_paths=self.system_include_paths,
-            flags=self.flags,
-            markers=self.markers,
+        return replace(
+            self,
+            unreachable_markers=self.unreachable_markers + new_umarkers,
+            defined_macros=self.defined_macros + new_macros,
+        )
+
+    def disable_remaining_markers(self) -> InstrumentedProgram:
+        """Disable all remaining markers by setting the relevant macros.
+
+        Macros that have already been disabled or make unreachable are unchanged.
+
+        Returns:
+            InstrumentedProgram:
+                A similar InstrumentedProgram as self but with all remaining
+                markers disabled and the corresponding macros defined.
+        """
+
+        remaining_markers = tuple(
+            set(self.markers)
+            - set(self.disabled_markers)
+            - set(self.unreachable_markers)
+        )
+        new_macros = tuple(
+            InstrumentedProgram.__make_disable_macro(marker)
+            for marker in remaining_markers
+        )
+        return replace(
+            self,
+            disabled_markers=self.disabled_markers + remaining_markers,
+            defined_macros=self.defined_macros + new_macros,
         )
 
 
 def find_all_markers(
     instrumenter_output: str,
 ) -> tuple[str, ...]:
+    # XXX: maybe this should also extract the marker prefix?
     _, _, instrumenter_output = instrumenter_output.partition("MARKERS START")
     assert instrumenter_output
     instrumenter_output, _, _ = instrumenter_output.partition("MARKERS END")
