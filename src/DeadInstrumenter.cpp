@@ -188,17 +188,22 @@ SourceLocation handleReturnStmts(const T &Node, SourceLocation End,
 
 template <typename T>
 CharSourceRange getExtendedRangeWithCommentsAndSemi(const T &Node,
-                                                    ASTContext &Context) {
+                                                    ASTContext &Context,
+                                                    bool DontExpendTillSemi) {
   auto &SM = Context.getSourceManager();
   auto Range = CharSourceRange::getTokenRange(Node.getSourceRange());
   Range = SM.getExpansionRange(Range);
   Range.setEnd(handleReturnStmts(Node, Range.getEnd(), SM));
   Range = maybeExtendRange(Range, tok::TokenKind::comment, Context);
+  if (DontExpendTillSemi)
+    return Range;
   return maybeExtendRange(Range, tok::TokenKind::semi, Context);
 }
 
-RangeSelector statementWithMacrosExpanded(std::string ID) {
-  return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+RangeSelector statementWithMacrosExpanded(std::string ID,
+                                          bool DontExpendTillSemi = false) {
+  return [ID, DontExpendTillSemi](
+             const clang::ast_matchers::MatchFinder::MatchResult &Result)
              -> Expected<CharSourceRange> {
     Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
     if (!Node) {
@@ -206,8 +211,8 @@ RangeSelector statementWithMacrosExpanded(std::string ID) {
       return Node.takeError();
     }
     const auto &SM = *Result.SourceManager;
-    auto Range = SM.getExpansionRange(
-        getExtendedRangeWithCommentsAndSemi(*Node, *Result.Context));
+    auto Range = SM.getExpansionRange(getExtendedRangeWithCommentsAndSemi(
+        *Node, *Result.Context, DontExpendTillSemi));
     return Range;
   };
 }
@@ -284,10 +289,15 @@ auto handleIfStmt() {
           .bind("ifstmt");
   auto actions = flatten(
       // instrument else branch
-      ifBound("celse", InstrumentCStmt("celse"),
-              ifBound("else", InstrumentNonCStmt("else"),
-                      edit(addElseBranch(statementWithMacrosExpanded("ifstmt"),
-                                         cat(""))))),
+      ifBound(
+          "celse", InstrumentCStmt("celse"),
+          ifBound(
+              "else", InstrumentNonCStmt("else"),
+              ifBound("cthen",
+                      addElseBranch(statementWithMacrosExpanded("ifstmt", true),
+                                    cat("")),
+                      addElseBranch(statementWithMacrosExpanded("ifstmt"),
+                                    cat(""))))),
       // instrument then branch
       ifBound("cthen", InstrumentCStmt("cthen"),
               ifBound("then", InstrumentNonCStmt("then"), noEdits())));
