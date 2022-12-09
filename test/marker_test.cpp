@@ -61,6 +61,54 @@ void DCEMarker0_(void);
                runBranchInstrumenterOnCode(Code, false, true));
 }
 
+TEST_CASE("BranchInstrumenter if without else and semicolon after curly brace",
+          "[if]") {
+  auto Code = std::string{R"code(int foo(int a){
+        if (a > 0) {
+            return 1; 
+        };
+     return 0;
+    }
+    )code"};
+
+  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
+#define DCEMARKERMACRO0_ ;
+#elif defined UnreachableDCEMarker0_
+#define DCEMARKERMACRO0_ __builtin_unreachable();
+#else
+#define DCEMARKERMACRO0_ DCEMarker0_();
+void DCEMarker0_(void);
+#endif
+#if defined DisableDCEMarker1_
+#define DCEMARKERMACRO1_ ;
+#elif defined UnreachableDCEMarker1_
+#define DCEMARKERMACRO1_ __builtin_unreachable();
+#else
+#define DCEMARKERMACRO1_ DCEMarker1_();
+ void DCEMarker1_(void);
+#endif
+    int foo(int a){
+        if ( a > 0) {
+
+            DCEMARKERMACRO1_
+
+            return 1;
+        }
+
+            else {
+            DCEMARKERMACRO0_
+        }
+
+        ;
+        return 0;
+    }
+    )code";
+
+  CAPTURE(Code);
+  compare_code(formatCode(ExpectedCode),
+               runBranchInstrumenterOnCode(Code, false, true));
+}
+
 TEST_CASE("BranchInstrumenter if-else", "[if]") {
   auto Code = std::string{R"code(int foo(int a){
         if (a > 0))code"};
