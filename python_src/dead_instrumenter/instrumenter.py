@@ -5,14 +5,12 @@ from dataclasses import dataclass, replace
 from functools import cache
 from itertools import chain
 from pathlib import Path
-from sys import stderr
 from typing import Optional
 
 from diopter.compiler import (
     ClangTool,
     ClangToolMode,
     CompilationSetting,
-    CompileError,
     CompilerExe,
     SourceProgram,
 )
@@ -234,17 +232,13 @@ def instrument_program(
     if ignore_functions_with_macros:
         flags.append("--ignore-functions-with-macros")
 
-    try:
-        result = instrumenter_resolved.run_on_program(
-            program, flags, ClangToolMode.CAPTURE_OUT_ERR_AND_READ_MODIFIED_FILED
-        )
-        assert result.modified_source_code
-        assert result.stdout
+    result = instrumenter_resolved.run_on_program(
+        program, flags, ClangToolMode.CAPTURE_OUT_ERR_AND_READ_MODIFIED_FILED
+    )
+    assert result.modified_source_code
+    assert result.stdout
 
-        instrumented_code = result.modified_source_code
-    except CompileError as e:
-        print(e, file=stderr)
-        exit(1)
+    instrumented_code = result.modified_source_code
 
     markers = find_all_markers(result.stdout)
     macros = ["Disable" + marker for marker in markers] + [
