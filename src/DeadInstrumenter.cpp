@@ -38,12 +38,6 @@ llvm::cl::OptionCategory DeadInstrOptions("dead-instrument options");
 
 namespace {
 
-cl::opt<bool>
-    EmitDisableMacros("emit-disable-macros",
-                      cl::desc("Emit ifdefs for disabling code related to "
-                               "markers that have been found to be dead."),
-                      cl::init(false), cl::cat(DeadInstrOptions));
-
 cl::opt<bool> IgnoreFunctionsWithMacros(
     "ignore-functions-with-macros",
     cl::desc("Do not instrument code in functions that contain macros."),
