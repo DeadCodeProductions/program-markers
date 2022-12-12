@@ -116,7 +116,8 @@ void detail::RuleActionEditCollector::run(
 void detail::RuleActionEditCollector::registerMatchers(
     clang::ast_matchers::MatchFinder &Finder) {
   for (auto &Matcher : buildMatchers(Rule))
-    Finder.addDynamicMatcher(Matcher, this);
+    Finder.addDynamicMatcher(
+        Matcher.withTraversalKind(TK_IgnoreUnlessSpelledInSource), this);
 }
 
 namespace {
@@ -277,9 +278,15 @@ auto isNotInFunctionWithMacrosMatcher() {
   return hasAncestor(functionDecl(unless(containsMacroExpansions())));
 }
 
+auto isNotInConstexprOrConstevalFunction() {
+  return hasAncestor(
+      functionDecl(unless(isConstexpr()), unless(isConsteval())));
+}
+
 auto handleIfStmt() {
   auto matcher =
-      ifStmt(isNotInFunctionWithMacrosMatcher(), ConditionNotInMacroAndInMain(),
+      ifStmt(isNotInConstexprOrConstevalFunction(),
+             isNotInFunctionWithMacrosMatcher(), ConditionNotInMacroAndInMain(),
              optionally(hasElse(
                  anyOf(compoundStmt(inMainAndNotMacro).bind("celse"),
                        stmt(hasParent(ifStmt(ElseNotInMacroAndInMain())))
@@ -330,11 +337,13 @@ AST_MATCHER(DoStmt, DoAndWhileNotMacroAndInMain) {
 
 auto handleDoWhile() {
   auto compoundMatcher =
-      doStmt(isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
+      doStmt(isNotInConstexprOrConstevalFunction(),
+             isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
              hasBody(compoundStmt(inMainAndNotMacro).bind("body")))
           .bind("dostmt");
   auto nonCompoundLoopMatcher =
-      doStmt(isNotInFunctionWithMacrosMatcher(), DoAndWhileNotMacroAndInMain(),
+      doStmt(isNotInConstexprOrConstevalFunction(),
+             isNotInFunctionWithMacrosMatcher(), DoAndWhileNotMacroAndInMain(),
              hasBody(stmt().bind("body")))
           .bind("dostmt");
 
@@ -349,11 +358,13 @@ auto handleDoWhile() {
 
 auto handleFor() {
   auto compoundMatcher =
-      forStmt(isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
+      forStmt(isNotInConstexprOrConstevalFunction(),
+              isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
               hasBody(compoundStmt(inMainAndNotMacro).bind("body")))
           .bind("loop");
   auto nonCompoundLoopMatcher =
-      forStmt(isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
+      forStmt(isNotInConstexprOrConstevalFunction(),
+              isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
               hasBody(stmt(inMainAndNotMacro).bind("body")))
           .bind("loop");
   return applyFirst(
@@ -367,11 +378,13 @@ auto handleFor() {
 
 auto handleWhile() {
   auto compoundMatcher =
-      whileStmt(isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
+      whileStmt(isNotInConstexprOrConstevalFunction(),
+                isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
                 hasBody(compoundStmt(inMainAndNotMacro).bind("body")))
           .bind("loop");
   auto nonCompoundLoopMatcher =
-      whileStmt(isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
+      whileStmt(isNotInConstexprOrConstevalFunction(),
+                isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
                 hasBody(stmt(inMainAndNotMacro).bind("body")))
           .bind("loop");
   return applyFirst(
@@ -405,6 +418,7 @@ AST_MATCHER(SwitchCase, colonAndKeywordNotInMacroAndInMain) {
 auto handleSwitchCase() {
   auto matcher =
       switchStmt(
+          isNotInConstexprOrConstevalFunction(),
           isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
           has(compoundStmt(has(switchCase(colonAndKeywordNotInMacroAndInMain())
                                    .bind("firstcase")))),
@@ -419,6 +433,7 @@ auto handleSwitchCase() {
 auto handleSwitch() {
   auto matcher =
       switchStmt(
+          isNotInConstexprOrConstevalFunction(),
           isNotInFunctionWithMacrosMatcher(), inMainAndNotMacro,
           has(compoundStmt(has(switchCase(colonAndKeywordNotInMacroAndInMain())
                                    .bind("firstcase")))))
