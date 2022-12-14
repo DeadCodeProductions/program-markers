@@ -2,12 +2,12 @@
 #include <clang/Rewrite/Core/Rewriter.h>
 #include <clang/Tooling/CommonOptionsParser.h>
 #include <clang/Tooling/Refactoring.h>
-
-#include <llvm/Support/CommandLine.h>
 #include <llvm/Support/raw_ostream.h>
 #include <type_traits>
 
-#include <DeadInstrumenter.hpp>
+#include <CommandLine.h>
+#include <DeadInstrumenter.h>
+#include <GlobalStaticMaker.h>
 
 using namespace llvm;
 using namespace clang;
