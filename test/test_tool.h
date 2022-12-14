@@ -4,7 +4,7 @@
 
 std::string formatCode(llvm::StringRef Code);
 std::string
-runBranchInstrumenterOnCode(llvm::StringRef Code, bool emit_disable_macros,
+runBranchInstrumenterOnCode(llvm::StringRef Code,
                             bool ignore_functions_with_macros = false);
 std::string runMakeGlobalsStaticOnCode(llvm::StringRef Code);
 

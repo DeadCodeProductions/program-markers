@@ -1,4 +1,4 @@
-#include "test_tool.hpp"
+#include "test_tool.h"
 #include <catch2/catch.hpp>
 
 TEST_CASE("MakeGlobalsStatic single global") {

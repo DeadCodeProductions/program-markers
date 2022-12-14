@@ -1,7 +1,7 @@
 #include <sstream>
 #include <vector>
 
-#include "print_diff.hpp"
+#include "print_diff.h"
 
 #include "dtl/dtl.hpp"
 

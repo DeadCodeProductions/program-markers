@@ -1,7 +1,9 @@
-#include "test_tool.hpp"
-#include "print_diff.hpp"
+#include "test_tool.h"
+#include "print_diff.h"
 
-#include <DeadInstrumenter.hpp>
+#include <DeadInstrumenter.h>
+#include <GlobalStaticMaker.h>
+#include <Matchers.h>
 
 #include <clang/Format/Format.h>
 #include <clang/Tooling/Core/Replacement.h>
@@ -49,9 +51,8 @@ template <typename Tool> std::string runToolOnCode(llvm::StringRef Code) {
 }
 
 std::string runBranchInstrumenterOnCode(llvm::StringRef Code,
-                                        bool emit_disable_macros,
                                         bool ignore_functions_with_macros) {
-  dead::detail::setIgnoreFunctionsWithMacros(ignore_functions_with_macros);
+  dead::setIgnoreFunctionsWithMacros(ignore_functions_with_macros);
   return runToolOnCode<dead::Instrumenter>(Code);
 }
 
