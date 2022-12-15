@@ -12,4 +12,6 @@ clang::transformer::RangeSelector doStmtWhileSelector(std::string ID);
 
 clang::transformer::RangeSelector switchCaseColonLocSelector(std::string ID);
 
+clang::transformer::RangeSelector variableFromDeclRef(std::string ID);
+
 } // namespace dead

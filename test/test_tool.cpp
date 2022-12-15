@@ -1,9 +1,11 @@
 #include "test_tool.h"
+#include "ValueRangeInstrumenter.h"
 #include "print_diff.h"
 
 #include <DeadInstrumenter.h>
 #include <GlobalStaticMaker.h>
 #include <Matchers.h>
+#include <ValueRangeInstrumenter.h>
 
 #include <clang/Format/Format.h>
 #include <clang/Tooling/Core/Replacement.h>
@@ -44,7 +46,8 @@ template <typename Tool> std::string runToolOnCode(llvm::StringRef Code) {
   std::unique_ptr<tooling::FrontendActionFactory> Factory =
       tooling::newFrontendActionFactory(&Finder);
   REQUIRE(tooling::runToolOnCode(Factory->create(), Code, "input.cc"));
-  if constexpr (std::is_same_v<Tool, dead::Instrumenter>)
+  if constexpr (std::is_same_v<Tool, dead::Instrumenter> ||
+                std::is_same_v<Tool, dead::ValueRangeInstrumenter>)
     InstrumenterTool.applyReplacements();
   formatAndApplyAllReplacements(FileToReplacements, Context.Rewrite);
   return formatCode(formatCode(Context.getRewrittenText(ID)));
@@ -54,6 +57,12 @@ std::string runBranchInstrumenterOnCode(llvm::StringRef Code,
                                         bool ignore_functions_with_macros) {
   dead::setIgnoreFunctionsWithMacros(ignore_functions_with_macros);
   return runToolOnCode<dead::Instrumenter>(Code);
+}
+
+std::string runVRInstrumenterOnCode(llvm::StringRef Code,
+                                    bool ignore_functions_with_macros) {
+  dead::setIgnoreFunctionsWithMacros(ignore_functions_with_macros);
+  return runToolOnCode<dead::ValueRangeInstrumenter>(Code);
 }
 
 std::string runMakeGlobalsStaticOnCode(llvm::StringRef Code) {

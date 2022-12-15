@@ -8,7 +8,7 @@
 
 namespace dead {
 
-enum class EditMetadataKind { MarkerDecl, MarkerCall, NewElseBranch };
+enum class EditMetadataKind { MarkerCall, NewElseBranch, VRMarker };
 
 clang::transformer::ASTEdit addMetadata(clang::transformer::ASTEdit &&Edit,
                                         EditMetadataKind Kind);

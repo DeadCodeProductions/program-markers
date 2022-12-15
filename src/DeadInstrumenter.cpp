@@ -167,7 +167,7 @@ Instrumenter::Instrumenter(
 
 void Instrumenter::applyReplacements() {
   for (const auto &[File, NumberMarkerDecls] : FileToNumberMarkerDecls) {
-    llvm::outs() << File << ":MARKERS START\n";
+    llvm::outs() << File << ":DCEMARKERS START\n";
     std::stringstream ss;
     auto gen = [i = 0]() mutable {
       auto m = i++;
@@ -188,7 +188,7 @@ void Instrumenter::applyReplacements() {
     if (auto Err = FileToReplacements[File].add(R))
       llvm_unreachable(llvm::toString(std::move(Err)).c_str());
 
-    llvm::outs() << "MARKERS END\n";
+    llvm::outs() << "DCEMARKERS END\n";
   }
 
   for (auto Rit = Replacements.rbegin(); Rit != Replacements.rend(); ++Rit) {
