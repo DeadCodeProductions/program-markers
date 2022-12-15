@@ -8,10 +8,11 @@ namespace dead {
 
 namespace {
 
-cl::opt<bool> IgnoreFunctionsWithMacros(
-    "ignore-functions-with-macros",
-    cl::desc("Do not instrument code in functions that contain macros."),
-    cl::init(true), cl::cat(DeadInstrOptions));
+cl::opt<bool>
+    IgnoreFunctionsWithMacros("ignore-functions-with-macros",
+                              cl::desc("Do not instrument code in functions "
+                                       "that contain macros (default: false)."),
+                              cl::init(false), cl::cat(DeadInstrOptions));
 
 } // namespace
 

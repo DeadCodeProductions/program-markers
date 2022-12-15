@@ -74,6 +74,13 @@ void RuleActionEditCollector::run(
                          "_\n}" + +"\n\n");
       break;
     }
+    case EditMetadataKind::VRMarker: {
+      auto N = GetMarkerN()++;
+      UpdateReplacements("VRMARKERMACROLE" + std::to_string(N) + "_(" +
+                         T.Replacement + ")\nVRMARKERMACROGE" +
+                         std::to_string(N) + "_(" + T.Replacement + ")\n");
+      break;
+    }
     default:
       llvm_unreachable("dead::detail::RuleActionEditCollector::run: "
                        "Unknown EditMetadataKind");

@@ -1,3 +1,4 @@
+#include "ValueRangeInstrumenter.h"
 #include <clang/Frontend/TextDiagnosticPrinter.h>
 #include <clang/Rewrite/Core/Rewriter.h>
 #include <clang/Tooling/CommonOptionsParser.h>
@@ -8,6 +9,7 @@
 #include <CommandLine.h>
 #include <DeadInstrumenter.h>
 #include <GlobalStaticMaker.h>
+#include <ValueRangeInstrumenter.h>
 
 using namespace llvm;
 using namespace clang;
@@ -16,15 +18,21 @@ using namespace clang::ast_matchers;
 
 namespace {
 
-enum class ToolMode { MakeGlobalsStaticOnly, InstrumentBranches };
+enum class ToolMode {
+  MakeGlobalsStaticOnly,
+  InstrumentBranches,
+  InstrumentValueRanges
+};
 
 cl::opt<ToolMode>
     Mode("mode", cl::desc("dead-instrumenter mode:"),
-         cl::values(
-             clEnumValN(ToolMode::MakeGlobalsStaticOnly, "globals",
-                        "Only make globals static"),
-             clEnumValN(ToolMode::InstrumentBranches, "instrument",
-                        "Only canonicalize and instrument branches (default)")),
+         cl::values(clEnumValN(ToolMode::MakeGlobalsStaticOnly, "globals",
+                               "Only make globals static"),
+                    clEnumValN(ToolMode::InstrumentBranches, "dce",
+                               "Only canonicalize and instrument branches with "
+                               "DCE markers (default)"),
+                    clEnumValN(ToolMode::InstrumentValueRanges, "vr",
+                               "Only instrument for value ranges")),
          cl::init(ToolMode::InstrumentBranches),
          cl::cat(dead::DeadInstrOptions));
 
@@ -36,7 +44,8 @@ template <typename InstrTool> int runToolOnCode(RefactoringTool &Tool) {
       tooling::newFrontendActionFactory(&Finder);
 
   auto Ret = Tool.run(Factory.get());
-  if constexpr (std::is_same_v<InstrTool, dead::Instrumenter>)
+  if constexpr (std::is_same_v<InstrTool, dead::Instrumenter> ||
+                std::is_same_v<InstrTool, dead::ValueRangeInstrumenter>)
     if (!Ret)
       Instr.applyReplacements();
   return Ret;
@@ -69,7 +78,7 @@ bool applyReplacements(RefactoringTool &Tool) {
   return !Rewrite.overwriteChangedFiles();
 }
 
-void versionPrinter(llvm::raw_ostream &S) { S << "v0.2.3\n"; }
+void versionPrinter(llvm::raw_ostream &S) { S << "v0.3.0\n"; }
 
 } // namespace
 
@@ -86,6 +95,7 @@ int main(int argc, const char **argv) {
   const auto &Compilations = OptionsParser.getCompilations();
   const auto &Files = OptionsParser.getSourcePathList();
   RefactoringTool Tool(Compilations, Files);
+  // TODO: replace with switch?
   if (ToolMode::MakeGlobalsStaticOnly == Mode) {
     RefactoringTool Tool(Compilations, Files);
 
@@ -97,9 +107,19 @@ int main(int argc, const char **argv) {
       llvm::errs() << "Failed to overwrite the input files.\n";
       return 1;
     }
-  } else {
+  } else if (ToolMode::InstrumentBranches == Mode) {
     RefactoringTool Tool(Compilations, Files);
     if (int Result = runToolOnCode<dead::Instrumenter>(Tool)) {
+      llvm::errs() << "Something went wrong...\n";
+      return Result;
+    }
+    if (!applyReplacements(Tool)) {
+      llvm::errs() << "Failed to overwrite the input files.\n";
+      return 1;
+    }
+  } else {
+    RefactoringTool Tool(Compilations, Files);
+    if (int Result = runToolOnCode<dead::ValueRangeInstrumenter>(Tool)) {
       llvm::errs() << "Something went wrong...\n";
       return Result;
     }
