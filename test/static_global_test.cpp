@@ -116,3 +116,31 @@ TEST_CASE("MakeGlobalsStatic functions and global variables") {
   CAPTURE(Code);
   REQUIRE(formatCode(ExpectedCode) == runMakeGlobalsStaticOnCode(Code));
 }
+
+TEST_CASE("MakeGlobalsStatic function with definition and declaration") {
+  auto Code = R"code(
+    int foo();
+    int foo(){ return 42;}
+    )code";
+
+  auto ExpectedCode = R"code(
+    static int foo();
+    static int foo(){ return 42;}
+    )code";
+
+  CAPTURE(Code);
+  REQUIRE(formatCode(ExpectedCode) == runMakeGlobalsStaticOnCode(Code));
+}
+
+TEST_CASE("MakeGlobalsStatic extern function") {
+  auto Code = R"code(
+    extern int foo(){ return 42;}
+    )code";
+
+  auto ExpectedCode = R"code(
+    extern int foo(){ return 42;}
+    )code";
+
+  CAPTURE(Code);
+  REQUIRE(formatCode(ExpectedCode) == runMakeGlobalsStaticOnCode(Code));
+}

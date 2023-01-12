@@ -1,5 +1,6 @@
 #include "GlobalStaticMaker.h"
 
+#include <clang/Basic/Specifiers.h>
 #include <clang/Tooling/Transformer/Stencil.h>
 
 #include "Matchers.h"
@@ -13,11 +14,13 @@ using namespace clang::transformer::detail;
 namespace dead {
 
 namespace {
+
 auto globalizeRule() {
   return makeRule(decl(anyOf(varDecl(hasGlobalStorage(), unless(isExtern()),
                                      unless(isStaticStorageClass())),
-                             functionDecl(isDefinition(), unless(isMain()),
-                                          unless(isStaticStorageClass()))),
+                             functionDecl(isDefined(), unless(isMain()),
+                                          unless(isStaticStorageClass()),
+                                          unless(isExternF()))),
                        isExpansionInMainFile())
                       .bind("global"),
                   insertBefore(node("global"), cat(" static ")));

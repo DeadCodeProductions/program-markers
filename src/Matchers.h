@@ -6,6 +6,18 @@ using namespace clang;
 
 namespace dead {
 
+AST_MATCHER(FunctionDecl, isDefined) {
+  (void)Finder;
+  (void)Builder;
+  return Node.isDefined();
+}
+
+AST_MATCHER(FunctionDecl, isExternF) {
+  (void)Finder;
+  (void)Builder;
+  return Node.getStorageClass() == clang::SC_Extern;
+}
+
 AST_MATCHER(VarDecl, isExtern) {
   (void)Finder;
   (void)Builder;
