@@ -525,11 +525,4 @@ def annotate_with_static(
     )
     assert result.modified_source_code
 
-    return SourceProgram(
-        code=result.modified_source_code,
-        language=program.language,
-        defined_macros=program.defined_macros,
-        include_paths=program.include_paths,
-        system_include_paths=program.system_include_paths,
-        flags=program.flags,
-    )
+    return replace(program, code=result.modified_source_code)
