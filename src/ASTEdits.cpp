@@ -1,5 +1,7 @@
 #include "ASTEdits.h"
 
+#include <clang/Basic/Version.h>
+
 using namespace clang;
 using namespace clang::ast_matchers;
 using namespace clang::tooling;
@@ -33,8 +35,17 @@ void RuleActionEditCollector::run(
     llvm::errs() << "An error has occured.\n";
     return;
   }
+
+#if CLANG_VERSION_MAJOR == 15
+  Expected<SmallVector<transformer::Edit, 1>> Edits =
+      Rule.Cases[findSelectedCase(Result, Rule)].Edits(Result);
+#elif CLANG_VERSION_MAJOR == 14
   Expected<SmallVector<transformer::Edit, 1>> Edits =
       findSelectedCase(Result, Rule).Edits(Result);
+#else
+#error "Only versions 14 and 15 are supported"
+#endif
+
   if (!Edits) {
     llvm::errs() << "Rewrite failed: " << llvm::toString(Edits.takeError())
                  << "\n";

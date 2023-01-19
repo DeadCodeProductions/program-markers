@@ -5,7 +5,8 @@ add_library(DeadInstrumentlib
             GlobalStaticMaker.cpp
             Matchers.cpp
             RangeSelectors.cpp
-            ValueRangeInstrumenter.cpp)
+            ValueRangeInstrumenter.cpp
+            VersionChecks.cpp)
 target_include_directories(DeadInstrumentlib PUBLIC ${CLANG_INCLUDE_DIRS} ${LLVM_INCLUDE_DIRS} ${CMAKE_CURRENT_SOURCE_DIR})
 
 if(CLANG_LINK_CLANG_DYLIB)

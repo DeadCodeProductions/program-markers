@@ -5,17 +5,18 @@ find_package(LLVM REQUIRED CONFIG)
 
 message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
 message(STATUS "Using LLVMConfig.cmake in ${LLVM_DIR}")
-
 list(APPEND CMAKE_MODULE_PATH ${LLVM_CMAKE_DIR})
+
+if("${LLVM_VERSION_MAJOR}" VERSION_LESS 14)
+  message(FATAL_ERROR "Found LLVM ${LLVM_VERSION_MAJOR}, but need LLVM >= 14")
+endif()
+
 
 find_package(Clang REQUIRED CONFIG)
 message(STATUS "Using ClangConfig.cmake in ${Clang_DIR}")
 list(APPEND CMAKE_MODULE_PATH ${CLANG_CMAKE_DIR})
 include(${CLANG_CMAKE_DIR}/AddClang.cmake)
 
-if("${LLVM_VERSION_MAJOR}" VERSION_LESS 13)
-  message(FATAL_ERROR "Found LLVM ${LLVM_VERSION_MAJOR}, but need LLVM >= 13")
-endif()
 
 if (NOT CMAKE_BUILD_TYPE)
   set(CMAKE_BUILD_TYPE Release)
