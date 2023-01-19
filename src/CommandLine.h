@@ -8,4 +8,4 @@ namespace dead {
 
 extern cl::OptionCategory DeadInstrOptions;
 
-}
+} // namespace dead

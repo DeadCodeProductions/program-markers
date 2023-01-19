@@ -6,7 +6,7 @@ from enum import Enum
 from functools import cache
 from itertools import chain
 from pathlib import Path
-from typing import ClassVar, Optional, TypeAlias
+from typing import ClassVar, Optional, Sequence, TypeAlias
 
 from diopter.compiler import (
     ClangTool,
@@ -15,6 +15,11 @@ from diopter.compiler import (
     CompilerExe,
     SourceProgram,
 )
+
+# TODO: The various hardcoded strings, e.g., "//MARKER_DIRECTIVES\n"
+# should not be manually copied, instead either have some common file
+# where they are defined or read them from some kind of info output,
+# e.g., instrumenter --info
 
 
 @dataclass(frozen=True)
@@ -164,6 +169,7 @@ def find_alive_markers_impl(asm: str) -> tuple[Marker, ...]:
     return tuple(alive_markers)
 
 
+# TODO: Replace tuple[Marker,...] with Sequence[Marker] wherever appropriate
 @dataclass(frozen=True, kw_only=True)
 class MarkerStatus:
     dead_markers: tuple[Marker, ...]
@@ -172,7 +178,11 @@ class MarkerStatus:
 
 @dataclass(frozen=True, kw_only=True)
 class InstrumentedProgram(SourceProgram):
+    marker_preprocessor_directives: dict[Marker, str]
+    # XXX: markers: tuple[Marker, ...] = tuple()
+    # instead of separate markers
     dce_markers: tuple[DCEMarker, ...] = tuple()
+    # XXX: should the constants be part of the marker?
     vr_markers: tuple[VRMarker, ...] = tuple()
     vr_marker_defined_constants: tuple[tuple[VRMarker, int], ...] = tuple()
     disabled_markers: tuple[Marker, ...] = tuple()
@@ -182,6 +192,10 @@ class InstrumentedProgram(SourceProgram):
 
     def __post_init__(self) -> None:
         """Sanity checks"""
+
+        # The relevant directives for each marker should be present
+        for marker in self.all_markers():
+            assert marker in self.marker_preprocessor_directives
 
         # There is no overlap between disabled and unreachable markers
         disabled_markers = set(self.disabled_markers)
@@ -221,6 +235,28 @@ class InstrumentedProgram(SourceProgram):
             for prefix in prefixes:
                 assert not macro.startswith(prefix)
 
+    def get_modified_code(self) -> str:
+        """Returns self.marker_preprocessor_directives + self.code.
+
+        Only directives for the enabled, disabled and made unreachable markers
+        are added.
+
+        If any markers have not been enabled, disabled, or made unreachable,
+        then the code not compilable but it can be preprocessed.
+
+        Returns:
+            str:
+                the source code including the necessary preprocessor directives
+        """
+        return (
+            "\n".join(
+                self.marker_preprocessor_directives[marker]
+                for marker in self.all_markers()
+            )
+            + "\n"
+            + self.code
+        )
+
     def all_markers(self) -> tuple[Marker, ...]:
         """Return all of this program's markers.
 
@@ -230,6 +266,8 @@ class InstrumentedProgram(SourceProgram):
         """
         return self.dce_markers + self.vr_markers
 
+    # XXX: 1) merge these two methods, 2) should they
+    # optionally ignore enabled/disabled/unreachable?
     def find_alive_markers(
         self, compilation_setting: CompilationSetting
     ) -> tuple[Marker, ...]:
@@ -356,9 +394,13 @@ class InstrumentedProgram(SourceProgram):
         )
 
     def disable_remaining_markers(
-        self, do_not_disable: tuple[Marker, ...] = tuple()
+        self, do_not_disable: Sequence[Marker] = tuple()
     ) -> InstrumentedProgram:
         """Disable all remaining markers by setting the relevant macros.
+
+        Args:
+            do_not_disable (Sequence[Marker]):
+                markers that will not be modified
 
         The following are unaffected:
         - already disabled markers
@@ -387,64 +429,160 @@ class InstrumentedProgram(SourceProgram):
             defined_macros=self.defined_macros + new_macros,
         )
 
+    def with_preprocessed_code(self, preprocessed_code: str) -> InstrumentedProgram:
+        """Returns a new program with its code replaced with `preprocessed_code`
 
-def __find_all_markers_with_prefix(
-    instrumenter_output: str, prefix: str
-) -> tuple[str, ...]:
-    """Finds the set of `prefix`MarkerX_ inserted by the instrumenter.
+        Any markers that were previously disabled or made unreachable are removed.
 
-    The instrumenter prints the set of markers in stdout in this format:
-    `prefix`MARKERS START\n
-    `prefix`Marker1_\n
-    `prefix`Marker2_\n
-    ...
-    `prefix`MARKERS END
+        Returns:
+            InstrumentedProgram:
+                the new program
+        """
 
-    Args:
-        instrumenter_output (str):
-            The instrumenter's stdout
-    Returns:
-        tuple[str, ...] the parsed markers
-    """
-    _, _, instrumenter_output = instrumenter_output.partition(f"{prefix}MARKERS START")
-    assert instrumenter_output
-    instrumenter_output, _, _ = instrumenter_output.partition(f"{prefix}MARKERS END")
-    return tuple(instrumenter_output.strip().splitlines())
-
-
-def __find_all_dce_markers(
-    instrumenter_output: str,
-) -> tuple[DCEMarker, ...]:
-    """Finds the set of DCE markers inserted by the instrumenter.
-    Args:
-        instrumenter_output (str):
-            The instrumenter's stdout
-    Returns:
-        tuple[str, ...] the parsed markers
-    """
-    return tuple(
-        DCEMarker(marker)
-        for marker in __find_all_markers_with_prefix(instrumenter_output, "DCE")
-    )
-
-
-def __find_all_vr_markers(
-    instrumenter_output: str,
-) -> tuple[VRMarker, ...]:
-    """Finds the set of VR markers inserted by the instrumenter.
-
-    Args:
-        instrumenter_output (str):
-            The instrumenter's stdout
-    Returns:
-        tuple[VRMarker, ...] the parsed markers
-    """
-    return tuple(
-        chain.from_iterable(
-            (VRMarker(marker, VRMarkerKind.LE), VRMarker(marker, VRMarkerKind.GE))
-            for marker in __find_all_markers_with_prefix(instrumenter_output, "VR")
+        return replace(
+            self,
+            code=preprocessed_code,
+            marker_preprocessor_directives={},
+            dce_markers=tuple(),
+            vr_markers=tuple(),
+            vr_marker_defined_constants=tuple(),
+            disabled_markers=tuple(),
+            unreachable_markers=tuple(),
+            defined_macros=tuple(),
+            include_paths=tuple(),
+            system_include_paths=tuple(),
         )
-    )
+
+    def preprocess_disabled_and_unreachable_markers(
+        self, setting: CompilationSetting, make_compiler_agnostic: bool = False
+    ) -> InstrumentedProgram:
+        """Preprocesses `self.code` with `setting` and makes disabled markers
+        and unreachable markers permanent.
+
+        All disabled and unreachable markers are "committed" and their
+        corresponding preprocessor directives are expanded. The resulting
+        program contains only the remaining markers (and their corresponding
+        directives).
+
+        Args:
+            setting (CompilationSetting):
+                the compiler setting used to to preprocess the program
+            make_compiler_agnostic (bool):
+                if True, various compiler specific attributes, types and function
+                declarations will be removed from the preprocessed code
+        Returns:
+            InstrumentedProgram:
+                a program with only the non-disabled/unreachable markers, the
+                preprocessor directives of the other ones have been expanded
+        """
+        preserved_markers = set(self.all_markers()).difference(
+            self.disabled_markers, self.unreachable_markers
+        )
+
+        def remove_markers(old_markers: tuple[Marker, ...]) -> tuple[Marker, ...]:
+            return tuple(set(old_markers) - preserved_markers)
+
+        # Preprocess a program that does not contain the preserved markers and
+        # their directives. It still included the macros in the code, e.g.,
+        # DCEMarker0_, but since their directives are missing they won't be
+        # expanded.
+        program_with_markers_removed = replace(
+            self,
+            marker_preprocessor_directives={
+                m: d
+                for m, d in self.marker_preprocessor_directives.items()
+                if m not in preserved_markers
+            },
+            dce_markers=remove_markers(self.dce_markers),
+            vr_markers=remove_markers(self.vr_markers),
+            vr_marker_defined_constants=tuple(
+                constant
+                for constant in self.vr_marker_defined_constants
+                if constant[0] not in preserved_markers
+            ),
+            disabled_markers=remove_markers(self.disabled_markers),
+            unreachable_markers=remove_markers(self.unreachable_markers),
+        )
+        pprogram = setting.preprocess_program(
+            program_with_markers_removed, make_compiler_agnostic=make_compiler_agnostic
+        )
+
+        # Add the preserved markers and directives back
+        preserved_directives = {
+            m: d
+            for m, d in self.marker_preprocessor_directives.items()
+            if m in preserved_markers
+        }
+        preserved_dce_markers = tuple(set(self.dce_markers) & preserved_markers)
+        preserved_vr_markers = tuple(set(self.vr_markers) & preserved_markers)
+        preserved_vr_marker_constants = tuple(
+            constant
+            for constant in self.vr_marker_defined_constants
+            if constant[0] in preserved_markers
+        )
+        return replace(
+            pprogram,
+            marker_preprocessor_directives=preserved_directives,
+            dce_markers=preserved_dce_markers,
+            vr_markers=preserved_vr_markers,
+            vr_marker_defined_constants=preserved_vr_marker_constants,
+        )
+
+
+def __str_to_marker(marker_macro: str) -> Marker:
+    """Converts the `marker_macro` string into a `Marker.
+    Args:
+        marker_macro (str):
+            a marker in the form PrefixMarkerX_, e.g., DCEMarker32_.
+    Returns:
+        Marker:
+            a `Marker` object
+    """
+    if marker_macro.startswith(DCEMarker.prefix):
+        return DCEMarker(marker_macro)
+    else:
+        assert marker_macro.startswith(VRMarker.prefix)
+        return VRMarker.from_str(marker_macro)
+
+
+def __split_marker_directives(directives: str) -> dict[Marker, str]:
+    """Maps each set of preprocessor directive in `directives` to the
+    appropriate markers.
+
+    Args:
+        directives (str):
+            the marker preprocessor directives added by the instrumenter
+    Returns:
+        dict[Marker, str]:
+            a mapping from each marker to its preprocessor directives
+    """
+    directives_map = {}
+    for directive in directives.split("//MARKER_DIRECTIVES:")[1:]:
+        marker_macro = directive[: directive.find("\n")]
+        directives_map[__str_to_marker(marker_macro)] = directive[len(marker_macro) :]
+    return directives_map
+
+
+def __split_to_marker_directives_and_code(instrumented_code: str) -> tuple[str, str]:
+    """Splits the instrumented code into the marker preprocessor
+    directives and the actual code.
+
+    Args:
+        instrumented_code (str): the output of the instrumenter
+
+    Returns:
+        tuple[str,str]:
+            marker preprocessor directives, instrumented code
+    """
+    markers_start = "//MARKERS START\n"
+    markers_end = "//MARKERS END\n"
+    assert instrumented_code.startswith(markers_start), instrumented_code
+    markers_end_idx = instrumented_code.find(markers_end)
+    assert markers_end_idx != -1, instrumented_code
+    code_idx = markers_end_idx + len(markers_end)
+    directives = instrumented_code[len(markers_start) : markers_end_idx]
+    code = instrumented_code[code_idx:]
+    return directives, code
 
 
 @cache
@@ -513,20 +651,21 @@ def instrument_program(
         flags.append("--ignore-functions-with-macros=0")
 
     result = instrumenter_resolved.run_on_program(
-        program, flags, ClangToolMode.CAPTURE_OUT_ERR_AND_READ_MODIFIED_FILED
+        program, flags, ClangToolMode.READ_MODIFIED_FILE
     )
     assert result.modified_source_code
-    assert result.stdout
 
-    instrumented_code = result.modified_source_code
+    directives, instrumented_code = __split_to_marker_directives_and_code(
+        result.modified_source_code
+    )
 
-    match mode:
-        case InstrumenterMode.DCE:
-            dce_markers = __find_all_dce_markers(result.stdout)
-            vr_markers: tuple[VRMarker, ...] = tuple()
-        case InstrumenterMode.VR:
-            dce_markers = tuple()
-            vr_markers = __find_all_vr_markers(result.stdout)
+    directives_map = __split_marker_directives(directives)
+    dce_markers = tuple(
+        marker for marker in directives_map.keys() if isinstance(marker, DCEMarker)
+    )
+    vr_markers = tuple(
+        marker for marker in directives_map.keys() if isinstance(marker, VRMarker)
+    )
 
     return InstrumentedProgram(
         code=instrumented_code,
@@ -535,6 +674,7 @@ def instrument_program(
         include_paths=program.include_paths,
         system_include_paths=program.system_include_paths,
         flags=program.flags,
+        marker_preprocessor_directives=directives_map,
         dce_markers=dce_markers,
         vr_markers=vr_markers,
     )

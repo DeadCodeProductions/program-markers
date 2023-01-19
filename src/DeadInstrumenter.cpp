@@ -155,6 +155,17 @@ auto handleSwitch() {
 
 } // namespace
 
+std::string Instrumenter::makeMarkerMacros(size_t MarkerID) {
+  auto Marker = "DCEMarker" + std::to_string(MarkerID) + "_";
+  return "//MARKER_DIRECTIVES:" + Marker + "\n" + "#if defined Disable" +
+         Marker + "\n" + "#define DCEMARKERMACRO" + std::to_string(MarkerID) +
+         "_ ;\n" + "#elif defined Unreachable" + Marker + "\n" +
+         "#define DCEMARKERMACRO" + std::to_string(MarkerID) +
+         "_ __builtin_unreachable();\n" + "#else\n" +
+         +"#define DCEMARKERMACRO" + std::to_string(MarkerID) + "_ " + Marker +
+         "();\n" + "void " + Marker + "(void);\n" + "#endif\n";
+}
+
 Instrumenter::Instrumenter(
     std::map<std::string, clang::tooling::Replacements> &FileToReplacements)
     : FileToReplacements{FileToReplacements},
@@ -167,28 +178,20 @@ Instrumenter::Instrumenter(
 
 void Instrumenter::applyReplacements() {
   for (const auto &[File, NumberMarkerDecls] : FileToNumberMarkerDecls) {
-    llvm::outs() << File << ":DCEMARKERS START\n";
+
     std::stringstream ss;
     auto gen = [i = 0]() mutable {
       auto m = i++;
-      llvm::outs() << "DCEMarker" + std::to_string(m) + "_\n";
-      return "#if defined DisableDCEMarker" + std::to_string(m) + "_\n" +
-             "#define DCEMARKERMACRO" + std::to_string(m) + "_ ;\n" +
-             "#elif defined UnreachableDCEMarker" + std::to_string(m) + "_\n" +
-             "#define DCEMARKERMACRO" + std::to_string(m) +
-             "_ __builtin_unreachable();\n" + "#else\n" +
-             +"#define DCEMARKERMACRO" + std::to_string(m) + "_ DCEMarker" +
-             std::to_string(m) + "_();\n" + "void DCEMarker" +
-             std::to_string(m) + "_(void);\n" + "#endif\n";
+      return makeMarkerMacros(m);
     };
+    ss << "//MARKERS START\n";
     std::generate_n(std::ostream_iterator<std::string>(ss), NumberMarkerDecls,
                     gen);
+    ss << "//MARKERS END\n";
     auto Decls = ss.str();
     auto R = Replacement(File, 0, 0, Decls);
     if (auto Err = FileToReplacements[File].add(R))
       llvm_unreachable(llvm::toString(std::move(Err)).c_str());
-
-    llvm::outs() << "DCEMARKERS END\n";
   }
 
   for (auto Rit = Replacements.rbegin(); Rit != Replacements.rend(); ++Rit) {

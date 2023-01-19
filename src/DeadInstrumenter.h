@@ -15,6 +15,8 @@ public:
   void registerMatchers(clang::ast_matchers::MatchFinder &Finder);
   void applyReplacements();
 
+  static std::string makeMarkerMacros(size_t MarkerID);
+
 private:
   std::map<std::string, clang::tooling::Replacements> &FileToReplacements;
   std::vector<RuleActionEditCollector> Rules;

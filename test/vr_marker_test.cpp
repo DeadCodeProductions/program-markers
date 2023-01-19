@@ -9,9 +9,10 @@ TEST_CASE("VRMarkers statement with two variables", "[vr]") {
         return a+b;
         })code"};
 
-  auto ExpectedCode = dead::ValueRangeInstrumenter::makeMarkerMacros(0) +
-                      dead::ValueRangeInstrumenter::makeMarkerMacros(1) +
-                      R"code(int foo(int a, int b){
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::ValueRangeInstrumenter::makeMarkerMacros(0) +
+      dead::ValueRangeInstrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      R"code(int foo(int a, int b){
                          VRMARKERMACROLE1_(b)
                          VRMARKERMACROGE1_(b)
                          VRMARKERMACROLE0_(a)
@@ -29,9 +30,10 @@ TEST_CASE("VRMarkers if no compound", "[vr,if]") {
         return a+2; 
         })code"};
 
-  auto ExpectedCode = dead::ValueRangeInstrumenter::makeMarkerMacros(0) +
-                      dead::ValueRangeInstrumenter::makeMarkerMacros(1) +
-                      R"code(int foo(int a){
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::ValueRangeInstrumenter::makeMarkerMacros(0) +
+      dead::ValueRangeInstrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      R"code(int foo(int a){
                          VRMARKERMACROLE0_(a)
                          VRMARKERMACROGE0_(a)
                          if ( a > 0)
@@ -54,10 +56,11 @@ TEST_CASE("VRMarkers if-else compound", "[vr,if]") {
         }
         })code"};
 
-  auto ExpectedCode = dead::ValueRangeInstrumenter::makeMarkerMacros(0) +
-                      dead::ValueRangeInstrumenter::makeMarkerMacros(1) +
-                      dead::ValueRangeInstrumenter::makeMarkerMacros(2) +
-                      R"code(int foo(int a){
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::ValueRangeInstrumenter::makeMarkerMacros(0) +
+      dead::ValueRangeInstrumenter::makeMarkerMacros(1) +
+      dead::ValueRangeInstrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      R"code(int foo(int a){
                          VRMARKERMACROLE0_(a)
                          VRMARKERMACROGE0_(a)
                          if ( a > 0) {
@@ -83,10 +86,11 @@ TEST_CASE("VRMarkers for loop", "[vr,for]") {
         return s;
         })code"};
 
-  auto ExpectedCode = dead::ValueRangeInstrumenter::makeMarkerMacros(0) +
-                      dead::ValueRangeInstrumenter::makeMarkerMacros(1) +
-                      dead::ValueRangeInstrumenter::makeMarkerMacros(2) +
-                      R"code(int foo(int a){
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::ValueRangeInstrumenter::makeMarkerMacros(0) +
+      dead::ValueRangeInstrumenter::makeMarkerMacros(1) +
+      dead::ValueRangeInstrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      R"code(int foo(int a){
                               int s = 0;
                               VRMARKERMACROLE1_(s)
                               VRMARKERMACROGE1_(s)
@@ -111,10 +115,11 @@ TEST_CASE("VRMarkers do while", "[vr,do]") {
         return a;
         })code"};
 
-  auto ExpectedCode = dead::ValueRangeInstrumenter::makeMarkerMacros(0) +
-                      dead::ValueRangeInstrumenter::makeMarkerMacros(1) +
-                      dead::ValueRangeInstrumenter::makeMarkerMacros(2) +
-                      R"code(int foo(int a){
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::ValueRangeInstrumenter::makeMarkerMacros(0) +
+      dead::ValueRangeInstrumenter::makeMarkerMacros(1) +
+      dead::ValueRangeInstrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      R"code(int foo(int a){
                               VRMARKERMACROLE0_(a)
                               VRMARKERMACROGE0_(a)
                               do{
@@ -142,10 +147,11 @@ TEST_CASE("VRMarkers switch", "[vr,switch]") {
         }
         })code"};
 
-  auto ExpectedCode = dead::ValueRangeInstrumenter::makeMarkerMacros(0) +
-                      dead::ValueRangeInstrumenter::makeMarkerMacros(1) +
-                      dead::ValueRangeInstrumenter::makeMarkerMacros(2) +
-                      R"code(int foo(int a){
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::ValueRangeInstrumenter::makeMarkerMacros(0) +
+      dead::ValueRangeInstrumenter::makeMarkerMacros(1) +
+      dead::ValueRangeInstrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      R"code(int foo(int a){
                               VRMARKERMACROLE0_(a)
                               VRMARKERMACROGE0_(a)
                               switch(a){
