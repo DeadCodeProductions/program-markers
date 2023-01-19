@@ -333,10 +333,15 @@ class InstrumentedProgram(SourceProgram):
             defined_macros=self.defined_macros + new_macros,
         )
 
-    def disable_remaining_markers(self) -> InstrumentedProgram:
+    def disable_remaining_markers(
+        self, do_not_disable: tuple[Marker, ...] = tuple()
+    ) -> InstrumentedProgram:
         """Disable all remaining markers by setting the relevant macros.
 
-        Macros that have already been disabled or make unreachable are unchanged.
+        The following are unaffected:
+        - already disabled markers
+        - markers already made unreachable
+        - markers in `do_not_disable` (optional argument)
 
         Returns:
             InstrumentedProgram:
@@ -348,6 +353,7 @@ class InstrumentedProgram(SourceProgram):
             set(self.all_markers())
             - set(self.disabled_markers)
             - set(self.unreachable_markers)
+            - set(do_not_disable)
         )
         new_macros = tuple(
             InstrumentedProgram.__make_disable_macro(marker)
