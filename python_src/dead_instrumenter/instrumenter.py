@@ -431,8 +431,19 @@ def get_instrumenter(
 ) -> ClangTool:
     if not instrumenter:
         if not clang:
-            # TODO: need to check clang version, maybe supply multiple binaries?
-            clang = CompilerExe.get_system_clang()
+            # TODO: move this to diopter
+            try:
+                clang = CompilerExe.get_system_clang()
+            except:  # noqa: E722
+                pass
+            if not clang:
+                try:
+                    clang = CompilerExe.from_path(Path("clang-15"))
+                except:  # noqa: E722
+                    pass
+            if not clang:
+                clang = CompilerExe.from_path(Path("clang-14"))
+
         instrumenter = ClangTool.init_with_paths_from_clang(
             Path(__file__).parent / "dead-instrument", clang
         )
