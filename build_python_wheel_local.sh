@@ -8,9 +8,8 @@ cd build
 cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release \
                   -DCMAKE_CXX_FLAGS="-static-libgcc -static-libstdc++ -fPIC" \
                   -DCMAKE_EXE_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
-                  -DCMAKE_SHARED_LINKER_FLAGS="-static-libgcc -static-libstdc++" \
-                  -DCMAKE_MODULE_PATH="$CMAKE_MODULE_PATH"
-                  
+                  -DCMAKE_SHARED_LINKER_FLAGS="-static-libgcc -static-libstdc++" 
+
 ninja 
 cd ..
 cp build/bin/dead-instrument python_src/dead_instrumenter
