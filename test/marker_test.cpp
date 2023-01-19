@@ -1,3 +1,4 @@
+#include "DeadInstrumenter.h"
 #include "test_tool.h"
 #include <catch2/catch.hpp>
 
@@ -21,23 +22,10 @@ TEST_CASE("BranchInstrumenter if without else", "[if]") {
     }
     )code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-#if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
- void DCEMarker1_(void);
-#endif
-    int foo(int a){
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      R"code(int foo(int a){
         if ( a > 0)
 
         {
@@ -71,23 +59,10 @@ TEST_CASE("BranchInstrumenter if without else and semicolon after curly brace",
     }
     )code"};
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-#if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
- void DCEMarker1_(void);
-#endif
-    int foo(int a){
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      R"code(int foo(int a){
         if ( a > 0) {
 
             DCEMARKERMACRO1_
@@ -145,23 +120,10 @@ TEST_CASE("BranchInstrumenter if-else", "[if]") {
     )code";
   Code = formatCode(Code);
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-#if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
- void DCEMarker1_(void);
-#endif
-    int foo(int a){
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      R"code(int foo(int a){
         if ( a > 0)
 
         {
@@ -211,23 +173,10 @@ TEST_CASE("BranchInstrumenter if with return macro", "[if][macro]") {
     }
     )code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-#if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
- void DCEMarker1_(void);
-#endif
-    #define R return
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      R"code(#define R return
 
     int foo(int a){
         if ( a > 0)
@@ -276,23 +225,10 @@ TEST_CASE("BranchInstrumenter if with return macro 2", "[if][macro]") {
     }
     )code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-#if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
- void DCEMarker1_(void);
-#endif
-    #define R return 0
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      R"code(#define R return 0
 
     int foo(int a){
         if ( a > 0)
@@ -342,23 +278,10 @@ TEST_CASE("BranchInstrumenter if with return macro 3", "[if][macro]") {
     }
     )code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-#if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
- void DCEMarker1_(void);
-#endif
-    #define R return 0;
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      R"code(#define R return 0;
 
     int foo(int a){
         if ( a > 0)
@@ -424,39 +347,12 @@ TEST_CASE("BranchInstrumenter nested if with macro", "[if][nested][macro]") {
     }
     )code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-#if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-#if defined DisableDCEMarker2_
-#define DCEMARKERMACRO2_ ;
-#elif defined UnreachableDCEMarker2_
-#define DCEMARKERMACRO2_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO2_ DCEMarker2_();
-void DCEMarker2_(void);
-#endif
-#if defined DisableDCEMarker3_
-#define DCEMARKERMACRO3_ ;
-#elif defined UnreachableDCEMarker3_
-#define DCEMARKERMACRO3_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO3_ DCEMarker3_();
-void DCEMarker3_(void);
-#endif
-    #define A a = 1;
+  auto ExpectedCode = "// MARKERS START\n" +
+                      dead::Instrumenter::makeMarkerMacros(0) +
+                      dead::Instrumenter::makeMarkerMacros(1) +
+                      dead::Instrumenter::makeMarkerMacros(2) +
+                      dead::Instrumenter::makeMarkerMacros(3) +
+                      "// MARKERS END\n" + +R"code(#define A a = 1;
     int foo(int a){
         if ( a > 0)
 
@@ -524,39 +420,12 @@ TEST_CASE("BranchInstrumenter nested if with return", "[if][return][nested]") {
     }
     )code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-#if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-#if defined DisableDCEMarker2_
-#define DCEMARKERMACRO2_ ;
-#elif defined UnreachableDCEMarker2_
-#define DCEMARKERMACRO2_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO2_ DCEMarker2_();
-void DCEMarker2_(void);
-#endif
-#if defined DisableDCEMarker3_
-#define DCEMARKERMACRO3_ ;
-#elif defined UnreachableDCEMarker3_
-#define DCEMARKERMACRO3_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO3_ DCEMarker3_();
-void DCEMarker3_(void);
-#endif
-    int foo(int a){
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) +
+      dead::Instrumenter::makeMarkerMacros(2) +
+      dead::Instrumenter::makeMarkerMacros(3) + "// MARKERS END\n" +
+      R"code(int foo(int a){
         if ( a >= 0)
 
         {
@@ -602,23 +471,10 @@ TEST_CASE("BranchInstrumenter if return macro and comment",
         return X /* comment */;
     })code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-    #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-    #define X 0
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      R"code(#define X 0
     int foo() {
         if (1)
 
@@ -650,23 +506,10 @@ TEST_CASE("BranchInstrumenter if return macro", "[loop][if][macro][return]") {
         return BUG;
     })code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-    #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-    #define BUG
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      R"code(#define BUG
     void foo() {
         if ( 1)
 
@@ -701,23 +544,10 @@ TEST_CASE("BranchInstrumenter if with semi return macro",
         return BUG
     })code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-    #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-    #define BUG ;
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      R"code(#define BUG ;
     void foo() {
         if ( 1)
 
@@ -751,23 +581,10 @@ TEST_CASE("BranchInstrumenter if-else with semi return macro",
         return;
     })code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-    #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-    #define BUG ;
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      R"code(#define BUG ;
     void foo() {
         if ( 1)
 
@@ -841,31 +658,11 @@ TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
                     })code";
   // Code = formatCode(Code);
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-    #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-    #if defined DisableDCEMarker2_
-#define DCEMARKERMACRO2_ ;
-#elif defined UnreachableDCEMarker2_
-#define DCEMARKERMACRO2_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO2_ DCEMarker2_();
-void DCEMarker2_(void);
-#endif
-    int foo(int a) {
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) +
+      dead::Instrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      R"code(int foo(int a) {
         if ( a > 0)
 
         {
@@ -922,15 +719,10 @@ TEST_CASE("BranchInstrumenter while stmt", "[while][loop]") {
     }
     )code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-    int foo(int a){
+  auto ExpectedCode = "// MARKERS START\n" +
+                      dead::Instrumenter::makeMarkerMacros(0) +
+                      "// MARKERS END\n" +
+                      R"code(int foo(int a){
         int b = 0;
             while(true)
 
@@ -978,23 +770,10 @@ TEST_CASE("BranchInstrumenter nested for stmt", "[for][if][nested][return]") {
     )code";
   Code = formatCode(Code);
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-    #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-    int foo(int a){
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      R"code(int foo(int a){
         for ( ;;)
 
         {
@@ -1061,31 +840,11 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return",
     }
     )code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-    #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-    #if defined DisableDCEMarker2_
-#define DCEMARKERMACRO2_ ;
-#elif defined UnreachableDCEMarker2_
-#define DCEMARKERMACRO2_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO2_ DCEMarker2_();
-void DCEMarker2_(void);
-#endif
-    int foo(int a){
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) +
+      dead::Instrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      R"code(int foo(int a){
         int b = 0;
         for ( int i = 0; i < a; ++i)
 
@@ -1160,31 +919,11 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
     }
     )code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-    #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-    #if defined DisableDCEMarker2_
-#define DCEMARKERMACRO2_ ;
-#elif defined UnreachableDCEMarker2_
-#define DCEMARKERMACRO2_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO2_ DCEMarker2_();
-void DCEMarker2_(void);
-#endif
-    int foo(int a){
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) +
+      dead::Instrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      R"code(int foo(int a){
         int b = 0;
         for ( int i = 0; i < a; ++i) {
 
@@ -1230,15 +969,10 @@ TEST_CASE("BranchInstrumenter for stmt with return", "[for][return]") {
     }
     )code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-    int foo(int a){
+  auto ExpectedCode = "// MARKERS START\n" +
+                      dead::Instrumenter::makeMarkerMacros(0) +
+                      "// MARKERS END\n" +
+                      R"code(int foo(int a){
         int b = 0;
         for ( int i = 0; i < a; ++i)
 
@@ -1278,15 +1012,10 @@ TEST_CASE("BranchInstrumenter do while stmt with return", "[do][return]") {
     }
     )code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-    int foo(int a){
+  auto ExpectedCode = "// MARKERS START\n" +
+                      dead::Instrumenter::makeMarkerMacros(0) +
+                      "// MARKERS END\n" +
+                      R"code(int foo(int a){
         int b = 0;
         do 
 
@@ -1341,31 +1070,11 @@ TEST_CASE("BranchInstrumenter do while and if with return",
         return 0;
     })code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-        #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-        #if defined DisableDCEMarker2_
-#define DCEMARKERMACRO2_ ;
-#elif defined UnreachableDCEMarker2_
-#define DCEMARKERMACRO2_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO2_ DCEMarker2_();
-void DCEMarker2_(void);
-#endif
-        #define X 1
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) +
+      dead::Instrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      R"code(#define X 1
         int foo(int a) {
           do 
 
@@ -1448,31 +1157,11 @@ TEST_CASE("BranchInstrumenter do while and if else with return",
     return 0;
     })code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-        #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-        #if defined DisableDCEMarker2_
-#define DCEMARKERMACRO2_ ;
-#elif defined UnreachableDCEMarker2_
-#define DCEMARKERMACRO2_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO2_ DCEMarker2_();
-void DCEMarker2_(void);
-#endif
-        int foo(int a) {
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) +
+      dead::Instrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      R"code(int foo(int a) {
             if ( a)
 
             {
@@ -1529,23 +1218,10 @@ TEST_CASE("BranchInstrumenter if dowhile with nested macro",
     })code");
   Code += R"code(   })code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-        #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-        #define M
+  auto ExpectedCode = "// MARKERS START\n" +
+                      dead::Instrumenter::makeMarkerMacros(0) +
+                      dead::Instrumenter::makeMarkerMacros(1) +
+                      "// MARKERS END\n" + +R"code(#define M
         #define bar    \
         do  {          \
         } while (0) M
@@ -1577,64 +1253,21 @@ void DCEMarker1_(void);
 TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
           "[if][do][return]") {
 
-  auto Code = R"code(
-    void foo() {
+  auto Code = R"code(void foo() {
         while (1) {}
         if (1) {}
         do {} while(1);
         if (1);
     })code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-    #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-    #if defined DisableDCEMarker2_
-#define DCEMARKERMACRO2_ ;
-#elif defined UnreachableDCEMarker2_
-#define DCEMARKERMACRO2_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO2_ DCEMarker2_();
-void DCEMarker2_(void);
-#endif
-    #if defined DisableDCEMarker3_
-#define DCEMARKERMACRO3_ ;
-#elif defined UnreachableDCEMarker3_
-#define DCEMARKERMACRO3_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO3_ DCEMarker3_();
-void DCEMarker3_(void);
-#endif
-    #if defined DisableDCEMarker4_
-#define DCEMARKERMACRO4_ ;
-#elif defined UnreachableDCEMarker4_
-#define DCEMARKERMACRO4_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO4_ DCEMarker4_();
-void DCEMarker4_(void);
-#endif
-    #if defined DisableDCEMarker5_
-#define DCEMARKERMACRO5_ ;
-#elif defined UnreachableDCEMarker5_
-#define DCEMARKERMACRO5_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO5_ DCEMarker5_();
-void DCEMarker5_(void);
-#endif
-
-    void foo() {
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) +
+      dead::Instrumenter::makeMarkerMacros(2) +
+      dead::Instrumenter::makeMarkerMacros(3) +
+      dead::Instrumenter::makeMarkerMacros(4) +
+      dead::Instrumenter::makeMarkerMacros(5) + "// MARKERS END\n" +
+      R"code(void foo() {
         while ( 1) {
 
        DCEMARKERMACRO0_
@@ -1695,55 +1328,14 @@ TEST_CASE("BranchInstrumenter switch", "[switch][return]") {
         return a;
     }
     )code";
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-    #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-    #if defined DisableDCEMarker2_
-#define DCEMARKERMACRO2_ ;
-#elif defined UnreachableDCEMarker2_
-#define DCEMARKERMACRO2_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO2_ DCEMarker2_();
-void DCEMarker2_(void);
-#endif
-    #if defined DisableDCEMarker3_
-#define DCEMARKERMACRO3_ ;
-#elif defined UnreachableDCEMarker3_
-#define DCEMARKERMACRO3_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO3_ DCEMarker3_();
-void DCEMarker3_(void);
-#endif
-    #if defined DisableDCEMarker4_
-#define DCEMARKERMACRO4_ ;
-#elif defined UnreachableDCEMarker4_
-#define DCEMARKERMACRO4_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO4_ DCEMarker4_();
-void DCEMarker4_(void);
-#endif
-    #if defined DisableDCEMarker5_
-#define DCEMARKERMACRO5_ ;
-#elif defined UnreachableDCEMarker5_
-#define DCEMARKERMACRO5_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO5_ DCEMarker5_();
-void DCEMarker5_(void);
-#endif
-    int foo(int a){
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) +
+      dead::Instrumenter::makeMarkerMacros(2) +
+      dead::Instrumenter::makeMarkerMacros(3) +
+      dead::Instrumenter::makeMarkerMacros(4) +
+      dead::Instrumenter::makeMarkerMacros(5) + "// MARKERS END\n" +
+      R"code(int foo(int a){
         switch(a){
         case 1: 
 
@@ -1804,47 +1396,13 @@ TEST_CASE("BranchInstrumenter cascaded switch", "[switch]") {
         }
     )code";
 
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-                  #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-                  #if defined DisableDCEMarker2_
-#define DCEMARKERMACRO2_ ;
-#elif defined UnreachableDCEMarker2_
-#define DCEMARKERMACRO2_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO2_ DCEMarker2_();
-void DCEMarker2_(void);
-#endif
-                  #if defined DisableDCEMarker3_
-#define DCEMARKERMACRO3_ ;
-#elif defined UnreachableDCEMarker3_
-#define DCEMARKERMACRO3_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO3_ DCEMarker3_();
-void DCEMarker3_(void);
-#endif
-                  #if defined DisableDCEMarker4_
-#define DCEMARKERMACRO4_ ;
-#elif defined UnreachableDCEMarker4_
-#define DCEMARKERMACRO4_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO4_ DCEMarker4_();
-void DCEMarker4_(void);
-#endif
-                  int foo(int a) {
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) +
+      dead::Instrumenter::makeMarkerMacros(2) +
+      dead::Instrumenter::makeMarkerMacros(3) +
+      dead::Instrumenter::makeMarkerMacros(4) + "// MARKERS END\n" +
+      R"code(int foo(int a) {
                     switch (a) {
                   case 0:
 
@@ -1908,31 +1466,11 @@ TEST_CASE("BranchInstrumenter switch if and macro", "[if][switch][macro]") {
                             if (a)
                                 a = 1;
                         })code";
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-                        #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-                        #if defined DisableDCEMarker2_
-#define DCEMARKERMACRO2_ ;
-#elif defined UnreachableDCEMarker2_
-#define DCEMARKERMACRO2_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO2_ DCEMarker2_();
-void DCEMarker2_(void);
-#endif
-                        #define TEST bar
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) +
+      dead::Instrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      R"code(#define TEST bar
 
                         int bar();
 
@@ -1965,23 +1503,10 @@ void DCEMarker2_(void);
   CAPTURE(Code);
   compare_code(formatCode(ExpectedCode),
                runBranchInstrumenterOnCode(Code, false));
-  auto ExpectedCodeMacroIgnore = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-                        #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-                        #define TEST bar
+  auto ExpectedCodeMacroIgnore =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      R"code(#define TEST bar
 
                         int bar();
 
@@ -2025,48 +1550,14 @@ TEST_CASE("BranchInstrumenter switch if with return and macro",
         else if (1)
             return FFFF;
     })code";
-  auto ExpectedCode = R"code(#if defined DisableDCEMarker0_
-#define DCEMARKERMACRO0_ ;
-#elif defined UnreachableDCEMarker0_
-#define DCEMARKERMACRO0_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO0_ DCEMarker0_();
-void DCEMarker0_(void);
-#endif
-                        #if defined DisableDCEMarker1_
-#define DCEMARKERMACRO1_ ;
-#elif defined UnreachableDCEMarker1_
-#define DCEMARKERMACRO1_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO1_ DCEMarker1_();
-void DCEMarker1_(void);
-#endif
-                        #if defined DisableDCEMarker2_
-#define DCEMARKERMACRO2_ ;
-#elif defined UnreachableDCEMarker2_
-#define DCEMARKERMACRO2_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO2_ DCEMarker2_();
-void DCEMarker2_(void);
-#endif
-                        #if defined DisableDCEMarker3_
-#define DCEMARKERMACRO3_ ;
-#elif defined UnreachableDCEMarker3_
-#define DCEMARKERMACRO3_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO3_ DCEMarker3_();
-void DCEMarker3_(void);
-#endif
-                        #if defined DisableDCEMarker4_
-#define DCEMARKERMACRO4_ ;
-#elif defined UnreachableDCEMarker4_
-#define DCEMARKERMACRO4_ __builtin_unreachable();
-#else
-#define DCEMARKERMACRO4_ DCEMarker4_();
-void DCEMarker4_(void);
-#endif
-#define FFFF 1
-    int foo() {
+  auto ExpectedCode =
+      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
+      dead::Instrumenter::makeMarkerMacros(1) +
+      dead::Instrumenter::makeMarkerMacros(2) +
+      dead::Instrumenter::makeMarkerMacros(3) +
+      dead::Instrumenter::makeMarkerMacros(4) + "// MARKERS END\n" +
+      R"code(#define FFFF 1
+      int foo() {
               if ( 1)
 
         {

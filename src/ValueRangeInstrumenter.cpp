@@ -2,6 +2,7 @@
 
 #include <clang/ASTMatchers/ASTMatchers.h>
 #include <sstream>
+#include <string>
 
 #include "Matchers.h"
 #include "RangeSelectors.h"
@@ -60,17 +61,19 @@ ValueRangeInstrumenter::ValueRangeInstrumenter(
 
 std::string ValueRangeInstrumenter::makeMarkerMacros(size_t MarkerID) {
   auto markerString = [m = MarkerID](StringRef kind, StringRef Op) {
-    return ("#if defined DisableVRMarker" + kind + std::to_string(m) + "_\n" +
-            "#define VRMARKERMACRO" + kind + std::to_string(m) + "_(VAR)\n" +
-            "#elif defined UnreachableVRMarker" + kind + std::to_string(m) +
-            "_\n" + "#define VRMARKERMACRO" + kind + std::to_string(m) +
+    auto Marker = ("VRMarker" + kind + std::to_string(m) + "_").str();
+    return ("//MARKER_DIRECTIVES:" + Marker +
+            "\n"
+            "#if defined Disable" +
+            Marker + "\n" + "#define VRMARKERMACRO" + kind + std::to_string(m) +
+            "_(VAR)\n" + "#elif defined Unreachable" + Marker + "\n" +
+            "#define VRMARKERMACRO" + kind + std::to_string(m) +
             "_(VAR) if((VAR) " + Op + " VRMarkerConstant" + kind +
             std::to_string(m) + "_) __builtin_unreachable();\n" + "#else\n" +
             +"#define VRMARKERMACRO" + kind + std::to_string(m) +
             "_(VAR) if((VAR) " + Op + " VRMarkerConstant" + kind +
-            std::to_string(m) + "_) VRMarker" + kind + std::to_string(m) +
-            "_();\n" + "void VRMarker" + kind + std::to_string(m) +
-            "_(void);\n#endif\n#ifndef VRMarkerConstant" + kind +
+            std::to_string(m) + "_) " + Marker + "();\n" + "void " + Marker +
+            "(void);\n#endif\n#ifndef VRMarkerConstant" + kind +
             std::to_string(m) + "_\n#define VRMarkerConstant" + kind +
             std::to_string(m) + "_ 0\n#endif\n")
         .str();
@@ -80,21 +83,19 @@ std::string ValueRangeInstrumenter::makeMarkerMacros(size_t MarkerID) {
 
 void ValueRangeInstrumenter::applyReplacements() {
   for (const auto &[File, NumberMarkerDecls] : FileToNumberMarkerDecls) {
-    llvm::outs() << File << ":VRMARKERS START\n";
     std::stringstream ss;
     auto gen = [i = 0]() mutable {
       auto m = i++;
-      llvm::outs() << "VRMarker" + std::to_string(m) + "_\n";
       return makeMarkerMacros(m);
     };
+    ss << "//MARKERS START\n";
     std::generate_n(std::ostream_iterator<std::string>(ss), NumberMarkerDecls,
                     gen);
+    ss << "//MARKERS END\n";
     auto Decls = ss.str();
     auto R = Replacement(File, 0, 0, Decls);
     if (auto Err = FileToReplacements[File].add(R))
       llvm_unreachable(llvm::toString(std::move(Err)).c_str());
-
-    llvm::outs() << "VRMARKERS END\n";
   }
 
   for (auto Rit = Replacements.rbegin(); Rit != Replacements.rend(); ++Rit) {
