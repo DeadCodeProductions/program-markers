@@ -6,7 +6,7 @@ from enum import Enum
 from functools import cache
 from itertools import chain
 from pathlib import Path
-from typing import ClassVar, Optional
+from typing import ClassVar, Optional, TypeAlias
 
 from diopter.compiler import (
     ClangTool,
@@ -50,11 +50,11 @@ class DCEMarker:
 class VRMarkerKind(Enum):
     """
     A VRMarker can either be a LE-Equal(LE):
-        if (var <= VRMarerConstantLEX_)
+        if (var <= VRMarkerConstantLEX_)
             VRMarkerLEX_
 
     or a Greater-Equal(GE):
-        if (var >= VRMarerConstantGEX_)
+        if (var >= VRMarkerConstantGEX_)
             VRMarkerGEX_
     """
 
@@ -80,10 +80,10 @@ class VRMarker:
     - (VRMarkerGEX_ VRMarkerConstantGEX_) for GE markers
 
     These appear in the source code as:
-        if (var <= VRMarerConstantLEX_)
+        if (var <= VRMarkerConstantLEX_)
             VRMarkerLEX_
     or:
-        if (var >= VRMarerConstantGEX_)
+        if (var >= VRMarkerConstantGEX_)
             VRMarkerGEX_
 
 
@@ -138,19 +138,22 @@ class VRMarker:
         return self.marker[:8] + "Constant" + str(self.kind) + self.marker[8:]
 
 
-def find_alive_markers_impl(asm: str) -> tuple[DCEMarker | VRMarker, ...]:
+Marker: TypeAlias = DCEMarker | VRMarker
+
+
+def find_alive_markers_impl(asm: str) -> tuple[Marker, ...]:
     """Finds alive markers in asm, i.e., markers that have not been eliminated.
 
     The markers are found by searching for calls or jumps to functions with
     names starting with a known marker prefix (e.g., DCEMarker123_)
 
     Returns:
-        tuple[DCEMarker | VRMarker, ...]:
+        tuple[Marker, ...]:
             The alive markers for the given compilation setting.
     """
     dce_alive_regex = re.compile(f".*[call|jmp].*{DCEMarker.prefix}([0-9]+)_.*")
     vr_alive_regex = re.compile(f".*[call|jmp].*{VRMarker.prefix}([G|L])E([0-9]+)_.*")
-    alive_markers: set[DCEMarker | VRMarker] = set()
+    alive_markers: set[Marker] = set()
     for line in asm.split("\n"):
         if m := dce_alive_regex.match(line.strip()):
             alive_markers.add(DCEMarker(f"{DCEMarker.prefix}{m.group(1)}_"))
@@ -166,8 +169,8 @@ class InstrumentedProgram(SourceProgram):
     dce_markers: tuple[DCEMarker, ...] = tuple()
     vr_markers: tuple[VRMarker, ...] = tuple()
     vr_marker_defined_constants: tuple[tuple[VRMarker, int], ...] = tuple()
-    disabled_markers: tuple[DCEMarker | VRMarker, ...] = tuple()
-    unreachable_markers: tuple[DCEMarker | VRMarker, ...] = tuple()
+    disabled_markers: tuple[Marker, ...] = tuple()
+    unreachable_markers: tuple[Marker, ...] = tuple()
     disable_prefix: ClassVar[str] = "Disable"
     unreachable_prefix: ClassVar[str] = "Unreachable"
 
@@ -212,7 +215,7 @@ class InstrumentedProgram(SourceProgram):
             for prefix in prefixes:
                 assert not macro.startswith(prefix)
 
-    def all_markers(self) -> tuple[DCEMarker | VRMarker, ...]:
+    def all_markers(self) -> tuple[Marker, ...]:
         """Return all of this program's markers.
 
         Returns:
@@ -223,7 +226,7 @@ class InstrumentedProgram(SourceProgram):
 
     def find_alive_markers(
         self, compilation_setting: CompilationSetting
-    ) -> tuple[DCEMarker | VRMarker, ...]:
+    ) -> tuple[Marker, ...]:
         """Compiles the program to ASM with `compilation_setting` and finds
         alive markers, i.e., markers that have not been eliminated.
 
@@ -231,7 +234,7 @@ class InstrumentedProgram(SourceProgram):
         names starting with a known marker prefix (e.g., DCEMarker123_)
 
         Returns:
-            tuple[DCEMarker | VRMarker, ...]:
+            tuple[Marker, ...]:
                 The alive markers for the given compilation setting.
         """
         asm = compilation_setting.get_asm_from_program(self)
@@ -241,12 +244,12 @@ class InstrumentedProgram(SourceProgram):
 
     def find_dead_markers(
         self, compilation_setting: CompilationSetting
-    ) -> tuple[DCEMarker | VRMarker, ...]:
+    ) -> tuple[Marker, ...]:
         """Compiles the program to ASM with `compilation_setting` and finds
         dead markers, i.e., markers that have been eliminated.
 
         Returns:
-            tuple[DCEMarker | VRMarker, ...]:
+            tuple[Marker, ...]:
                 The dead markers for the given compilation setting.
         """
         dead_markers = set(self.all_markers()) - set(
@@ -255,16 +258,14 @@ class InstrumentedProgram(SourceProgram):
         return tuple(dead_markers)
 
     @staticmethod
-    def __make_disable_macro(marker: DCEMarker | VRMarker) -> str:
+    def __make_disable_macro(marker: Marker) -> str:
         return InstrumentedProgram.disable_prefix + marker.to_macro()
 
     @staticmethod
-    def __make_unreachable_macro(marker: DCEMarker | VRMarker) -> str:
+    def __make_unreachable_macro(marker: Marker) -> str:
         return InstrumentedProgram.unreachable_prefix + marker.to_macro()
 
-    def disable_markers(
-        self, dmarkers: tuple[DCEMarker | VRMarker, ...]
-    ) -> InstrumentedProgram:
+    def disable_markers(self, dmarkers: tuple[Marker, ...]) -> InstrumentedProgram:
         """Disables the given markers by setting the relevant macros.
 
         Markers that have already been disabled are ignored. If any of the
@@ -297,7 +298,7 @@ class InstrumentedProgram(SourceProgram):
         )
 
     def make_markers_unreachable(
-        self, umarkers: tuple[DCEMarker | VRMarker, ...]
+        self, umarkers: tuple[Marker, ...]
     ) -> InstrumentedProgram:
         """Makes the given markers unreachable by setting the relevant macros.
 
