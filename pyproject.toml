@@ -1,3 +1,7 @@
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
+
+[tool.vulture]
+make_whitelist = true
+paths = ["python_src", "vulture_whitelist.py"]
