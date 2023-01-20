@@ -165,6 +165,12 @@ def find_alive_markers_impl(asm: str) -> tuple[Marker, ...]:
 
 
 @dataclass(frozen=True, kw_only=True)
+class MarkerStatus:
+    dead_markers: tuple[Marker, ...]
+    alive_markers: tuple[Marker, ...]
+
+
+@dataclass(frozen=True, kw_only=True)
 class InstrumentedProgram(SourceProgram):
     dce_markers: tuple[DCEMarker, ...] = tuple()
     vr_markers: tuple[VRMarker, ...] = tuple()
@@ -256,6 +262,22 @@ class InstrumentedProgram(SourceProgram):
             self.find_alive_markers(compilation_setting)
         )
         return tuple(dead_markers)
+
+    def find_dead_and_alive_markers(
+        self, compilation_setting: CompilationSetting
+    ) -> MarkerStatus:
+        """Compiles the program to ASM with `compilation_setting` and finds
+        dead and alive markers, i.e., markers that have been eliminated or not
+
+        Returns:
+            MarkerStatus:
+                The dead and alive markers for the given compilation setting.
+        """
+        alive_markers = self.find_alive_markers(compilation_setting)
+        dead_markers = set(self.all_markers()) - set(alive_markers)
+        return MarkerStatus(
+            dead_markers=tuple(dead_markers), alive_markers=alive_markers
+        )
 
     @staticmethod
     def __make_disable_macro(marker: Marker) -> str:

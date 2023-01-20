@@ -29,6 +29,12 @@ def test_instrumentation() -> None:
     )
     assert set() == set(iprogram.find_dead_markers(gcc))
 
+    marker_status = iprogram.find_dead_and_alive_markers(gcc)
+    assert set() == set(marker_status.dead_markers)
+    assert set((DCEMarker("DCEMarker0_"), DCEMarker("DCEMarker1_"))) == set(
+        marker_status.alive_markers
+    )
+
 
 def test_disable_markers() -> None:
     iprogram = instrument_program(
