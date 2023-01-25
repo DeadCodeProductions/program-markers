@@ -169,7 +169,6 @@ def find_alive_markers_impl(asm: str) -> tuple[Marker, ...]:
     return tuple(alive_markers)
 
 
-# TODO: Replace tuple[Marker,...] with Sequence[Marker] wherever appropriate
 @dataclass(frozen=True, kw_only=True)
 class MarkerStatus:
     dead_markers: tuple[Marker, ...]
@@ -325,7 +324,7 @@ class InstrumentedProgram(SourceProgram):
     def __make_unreachable_macro(marker: Marker) -> str:
         return InstrumentedProgram.unreachable_prefix + marker.to_macro()
 
-    def disable_markers(self, dmarkers: tuple[Marker, ...]) -> InstrumentedProgram:
+    def disable_markers(self, dmarkers: Sequence[Marker]) -> InstrumentedProgram:
         """Disables the given markers by setting the relevant macros.
 
         Markers that have already been disabled are ignored. If any of the
@@ -334,7 +333,7 @@ class InstrumentedProgram(SourceProgram):
         made unreachable.
 
         Args:
-            markers (tuple[DCEMarker|VRMarker, ...]):
+            markers (Sequence[Marker]):
                 The markers that will be disabled
 
         Returns:
@@ -358,7 +357,7 @@ class InstrumentedProgram(SourceProgram):
         )
 
     def make_markers_unreachable(
-        self, umarkers: tuple[Marker, ...]
+        self, umarkers: Sequence[Marker]
     ) -> InstrumentedProgram:
         """Makes the given markers unreachable by setting the relevant macros.
 
@@ -369,7 +368,7 @@ class InstrumentedProgram(SourceProgram):
 
 
         Args:
-            markers (tuple[DCEMarker|VRMarker, ...]):
+            markers (Sequence[Marker]):
                 The markers that will be made unreachable
 
         Returns:
@@ -479,7 +478,7 @@ class InstrumentedProgram(SourceProgram):
             self.disabled_markers, self.unreachable_markers
         )
 
-        def remove_markers(old_markers: tuple[Marker, ...]) -> tuple[Marker, ...]:
+        def remove_markers(old_markers: Sequence[Marker]) -> tuple[Marker, ...]:
             return tuple(set(old_markers) - preserved_markers)
 
         # Preprocess a program that does not contain the preserved markers and
