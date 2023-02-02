@@ -2,7 +2,6 @@ add_library(DeadInstrumentlib
             ASTEdits.cpp
             CommandLine.cpp
             DeadInstrumenter.cpp
-            GlobalStaticMaker.cpp
             Matchers.cpp
             RangeSelectors.cpp
             ValueRangeInstrumenter.cpp
