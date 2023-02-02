@@ -8,7 +8,6 @@
 
 #include <CommandLine.h>
 #include <DeadInstrumenter.h>
-#include <GlobalStaticMaker.h>
 #include <ValueRangeInstrumenter.h>
 
 using namespace llvm;
@@ -18,17 +17,11 @@ using namespace clang::ast_matchers;
 
 namespace {
 
-enum class ToolMode {
-  MakeGlobalsStaticOnly,
-  InstrumentBranches,
-  InstrumentValueRanges
-};
+enum class ToolMode { InstrumentBranches, InstrumentValueRanges };
 
 cl::opt<ToolMode>
     Mode("mode", cl::desc("dead-instrumenter mode:"),
-         cl::values(clEnumValN(ToolMode::MakeGlobalsStaticOnly, "globals",
-                               "Only make globals static"),
-                    clEnumValN(ToolMode::InstrumentBranches, "dce",
+         cl::values(clEnumValN(ToolMode::InstrumentBranches, "dce",
                                "Only canonicalize and instrument branches with "
                                "DCE markers (default)"),
                     clEnumValN(ToolMode::InstrumentValueRanges, "vr",
@@ -44,10 +37,8 @@ template <typename InstrTool> int runToolOnCode(RefactoringTool &Tool) {
       tooling::newFrontendActionFactory(&Finder);
 
   auto Ret = Tool.run(Factory.get());
-  if constexpr (std::is_same_v<InstrTool, dead::Instrumenter> ||
-                std::is_same_v<InstrTool, dead::ValueRangeInstrumenter>)
-    if (!Ret)
-      Instr.applyReplacements();
+  if (!Ret)
+    Instr.applyReplacements();
   return Ret;
 }
 
@@ -78,7 +69,7 @@ bool applyReplacements(RefactoringTool &Tool) {
   return !Rewrite.overwriteChangedFiles();
 }
 
-void versionPrinter(llvm::raw_ostream &S) { S << "v0.3.2\n"; }
+void versionPrinter(llvm::raw_ostream &S) { S << "v0.3.3\n"; }
 
 } // namespace
 
@@ -94,20 +85,7 @@ int main(int argc, const char **argv) {
 
   const auto &Compilations = OptionsParser.getCompilations();
   const auto &Files = OptionsParser.getSourcePathList();
-  RefactoringTool Tool(Compilations, Files);
-  // TODO: replace with switch?
-  if (ToolMode::MakeGlobalsStaticOnly == Mode) {
-    RefactoringTool Tool(Compilations, Files);
-
-    if (int Result = runToolOnCode<dead::GlobalStaticMaker>(Tool)) {
-      llvm::errs() << "Something went wrong...\n";
-      return Result;
-    }
-    if (!applyReplacements(Tool)) {
-      llvm::errs() << "Failed to overwrite the input files.\n";
-      return 1;
-    }
-  } else if (ToolMode::InstrumentBranches == Mode) {
+  if (ToolMode::InstrumentBranches == Mode) {
     RefactoringTool Tool(Compilations, Files);
     if (int Result = runToolOnCode<dead::Instrumenter>(Tool)) {
       llvm::errs() << "Something went wrong...\n";

@@ -3,7 +3,6 @@ add_executable(dead_instrument_test
                test_tool.cpp
                marker_test.cpp
                vr_marker_test.cpp
-               static_global_test.cpp
                print_diff.cpp)
 
 target_link_libraries(dead_instrument_test PRIVATE Catch2::Catch2 DeadInstrumentlib)

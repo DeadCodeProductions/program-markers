@@ -677,31 +677,3 @@ def instrument_program(
         dce_markers=dce_markers,
         vr_markers=vr_markers,
     )
-
-
-def annotate_with_static(
-    program: SourceProgram,
-    instrumenter: Optional[ClangTool] = None,
-    clang: Optional[CompilerExe] = None,
-) -> SourceProgram:
-    """Turn all globals in the given file into static globals.
-
-    Args:
-        file (Path): Path to code file to be instrumented.
-        flags (list[str]): list of user provided clang flags
-        instrumenter (Path): Path to the instrumenter executable., if not
-                             provided will use what's specified in
-        clang (Path): Path to the clang executable.
-    Returns:
-        None:
-    """
-
-    instrumenter_resolved = get_instrumenter(instrumenter, clang)
-    flags = ["--mode=globals"]
-
-    result = instrumenter_resolved.run_on_program(
-        program, flags, ClangToolMode.READ_MODIFIED_FILE
-    )
-    assert result.modified_source_code
-
-    return replace(program, code=result.modified_source_code)
