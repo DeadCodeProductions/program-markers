@@ -14,6 +14,7 @@ from diopter.compiler import (
     ClangToolMode,
     CompilationSetting,
     CompilerExe,
+    ExeCompilationOutput,
     SourceProgram,
 )
 
@@ -44,13 +45,29 @@ class DCEMarker:
         assert self.marker[-1] == "_"
         assert int(self.marker[len(DCEMarker.prefix) : -1]) >= 0
 
-    def to_macro(self) -> str:
-        """Returns the marker macro
+    def name(self) -> str:
+        """Returns the marker name
 
         Returns:
             str: DCEMarkerX_
         """
         return self.marker
+
+    def macro(self) -> str:
+        """Returns the preprocessor macro that can
+        be defined before compiling the program
+
+        Returns:
+            str:
+                DCEMARKERMACROX_
+        """
+        return f"DCEMARKERMACRO{self.marker[len(DCEMarker.prefix):]}"
+
+    def marker_tracker_pp_directive(self) -> str:
+        return (
+            f'void {self.name()}(void){{__builtin_printf("{self.name()}");}}\n'
+            f"#define {self.macro()} {self.name()}();"
+        )
 
 
 class VRMarkerKind(Enum):
@@ -76,6 +93,16 @@ class VRMarkerKind(Enum):
                 return VRMarkerKind.GE
             case _:
                 raise ValueError(f"{kind} is not a valid VRMarkerKind")
+
+    def operator(self) -> str:
+        """Returns:
+        str:
+            "<=" or ">="
+        """
+        if self == VRMarkerKind.LE:
+            return "<="
+        else:
+            return ">="
 
 
 @dataclass(frozen=True)
@@ -127,13 +154,35 @@ class VRMarker:
         assert self.marker[-1] == "_"
         assert int(self.marker[len(VRMarker.prefix) : -1]) >= 0
 
-    def to_macro(self) -> str:
-        """Extract the marker macro
+    def name(self) -> str:
+        """Extract the marker name
 
         Returns:
-            str: VRMarkerLEX_ or VRMarkerGEX_
+            str:
+                VRMarkerLEX_ or VRMarkerGEX_
         """
         return self.marker[:8] + self.kind.name + self.marker[8:]
+
+    def macro(self) -> str:
+        """Returns the preprocessor macro that can
+        be defined before compiling the program
+
+        Returns:
+            str:
+                VRMARKERMACRO{LE,GE}X_
+        """
+        return f"VRMARKERMACRO{self.kind.name}{self.marker[len(VRMarker.prefix):]}"
+
+    def marker_tracker_pp_directive(self) -> str:
+        return f"""
+            #define {self.macro()}(VAR) \
+            if ((VAR) {self.kind.operator()} {self.get_constant_macro()}) \
+               {self.name()}();
+            void {self.name()}(void){{__builtin_printf("{self.name()}");}}
+            #ifndef {self.get_constant_macro()}
+            #define {self.get_constant_macro()} 0
+            #endif
+            """
 
     def get_constant_macro(self) -> str:
         """Extract the LE constant macro
@@ -141,7 +190,7 @@ class VRMarker:
         Returns:
             str: VRMarkerConstantLEX_ or VRMarkerConstantGEX_
         """
-        return self.marker[:8] + "Constant" + str(self.kind) + self.marker[8:]
+        return self.marker[:8] + "Constant" + self.kind.name + self.marker[8:]
 
 
 Marker: TypeAlias = DCEMarker | VRMarker
@@ -185,8 +234,13 @@ class InstrumentedProgram(SourceProgram):
     # XXX: should the constants be part of the marker?
     vr_markers: tuple[VRMarker, ...] = tuple()
     vr_marker_defined_constants: tuple[tuple[VRMarker, int], ...] = tuple()
+    # XXX: this whole mechanism is a bit adhoc, should
+    # I completely drop the macros in the python wrapper and
+    # instead completely relly on the .get_modified_code()
     disabled_markers: tuple[Marker, ...] = tuple()
     unreachable_markers: tuple[Marker, ...] = tuple()
+    # TODO: drop this, it's not needed
+    tracked_markers: tuple[Marker, ...] = tuple()
     disable_prefix: ClassVar[str] = "Disable"
     unreachable_prefix: ClassVar[str] = "Unreachable"
 
@@ -197,15 +251,21 @@ class InstrumentedProgram(SourceProgram):
         for marker in self.all_markers():
             assert marker in self.marker_preprocessor_directives
 
-        # There is no overlap between disabled and unreachable markers
+        # There is no overlap between disabled, unreachable,
+        # and tracked markers
         disabled_markers = set(self.disabled_markers)
         unreachable_markers = set(self.unreachable_markers)
+        tracked_markers = set(self.tracked_markers)
         assert disabled_markers.isdisjoint(unreachable_markers)
+        assert disabled_markers.isdisjoint(tracked_markers)
+        assert unreachable_markers.isdisjoint(tracked_markers)
 
-        # Disabled and unreachable markers are subsets of all markers
+        # Disabled, unreachable and tracked markers
+        # are subsets of all markers
         all_markers = set(self.all_markers())
         assert disabled_markers <= all_markers
         assert unreachable_markers <= all_markers
+        assert tracked_markers <= all_markers
 
         # Macros have been included for all disabled and
         # unreachable markers and defined constants
@@ -248,10 +308,17 @@ class InstrumentedProgram(SourceProgram):
             str:
                 the source code including the necessary preprocessor directives
         """
+
+        tracking_code = "\n".join(
+            marker.marker_tracker_pp_directive() for marker in self.tracked_markers
+        )
+
         return (
-            "\n".join(
+            tracking_code
+            + "\n"
+            + "\n".join(
                 self.marker_preprocessor_directives[marker]
-                for marker in self.all_markers()
+                for marker in set(self.all_markers()) - set(self.tracked_markers)
             )
             + "\n"
             + self.code
@@ -321,11 +388,27 @@ class InstrumentedProgram(SourceProgram):
 
     @staticmethod
     def __make_disable_macro(marker: Marker) -> str:
-        return InstrumentedProgram.disable_prefix + marker.to_macro()
+        return InstrumentedProgram.disable_prefix + marker.name()
 
     @staticmethod
     def __make_unreachable_macro(marker: Marker) -> str:
-        return InstrumentedProgram.unreachable_prefix + marker.to_macro()
+        return InstrumentedProgram.unreachable_prefix + marker.name()
+
+    def track_markers(
+        self,
+        args: tuple[str, ...],
+        setting: CompilationSetting,
+    ) -> tuple[Marker, ...]:
+        tmarkers = (
+            set(self.all_markers())
+            - set(self.unreachable_markers)
+            - set(self.disabled_markers)
+        )
+
+        tracked_program = replace(self, tracked_markers=tuple(tmarkers))
+        result = setting.compile_program(tracked_program, ExeCompilationOutput())
+        output = result.output.run(args)
+        return tuple(marker for marker in tmarkers if marker.name() in output.stdout)
 
     def disable_markers(self, dmarkers: Sequence[Marker]) -> InstrumentedProgram:
         """Disables the given markers by setting the relevant macros.
