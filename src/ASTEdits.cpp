@@ -8,7 +8,7 @@ using namespace clang::tooling;
 using namespace clang::transformer;
 using namespace clang::transformer::detail;
 
-namespace dead {
+namespace markers {
 
 ASTEdit addMetadata(ASTEdit &&Edit, EditMetadataKind Kind) {
   return withMetadata(
@@ -93,7 +93,7 @@ void RuleActionEditCollector::run(
       break;
     }
     default:
-      llvm_unreachable("dead::detail::RuleActionEditCollector::run: "
+      llvm_unreachable("markers::detail::RuleActionEditCollector::run: "
                        "Unknown EditMetadataKind");
     };
   }
@@ -106,4 +106,4 @@ void RuleActionEditCollector::registerMatchers(
         Matcher.withTraversalKind(TK_IgnoreUnlessSpelledInSource), this);
 }
 
-} // namespace dead
+} // namespace markers

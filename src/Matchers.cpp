@@ -4,7 +4,7 @@
 
 using namespace clang::ast_matchers;
 
-namespace dead {
+namespace markers {
 
 namespace {
 
@@ -12,7 +12,7 @@ cl::opt<bool>
     IgnoreFunctionsWithMacros("ignore-functions-with-macros",
                               cl::desc("Do not instrument code in functions "
                                        "that contain macros (default: false)."),
-                              cl::init(false), cl::cat(DeadInstrOptions));
+                              cl::init(false), cl::cat(ProgramMarkersOptions));
 
 } // namespace
 
@@ -33,4 +33,4 @@ MatcherType2 inMainAndNotMacro() {
   return allOf(notInMacro(), isExpansionInMainFile());
 }
 
-} // namespace dead
+} // namespace markers

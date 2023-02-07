@@ -1,4 +1,4 @@
-#include "DeadInstrumenter.h"
+#include "DCEInstrumenter.h"
 
 #include <sstream>
 
@@ -11,7 +11,7 @@ using namespace clang::tooling;
 using namespace clang::transformer;
 using namespace clang::transformer::detail;
 
-namespace dead {
+namespace markers {
 
 namespace {
 
@@ -155,7 +155,7 @@ auto handleSwitch() {
 
 } // namespace
 
-std::string Instrumenter::makeMarkerMacros(size_t MarkerID) {
+std::string DCEInstrumenter::makeMarkerMacros(size_t MarkerID) {
   auto Marker = "DCEMarker" + std::to_string(MarkerID) + "_";
   return "//MARKER_DIRECTIVES:" + Marker + "\n" + "#if defined Disable" +
          Marker + "\n" + "#define DCEMARKERMACRO" + std::to_string(MarkerID) +
@@ -166,7 +166,7 @@ std::string Instrumenter::makeMarkerMacros(size_t MarkerID) {
          "();\n" + "void " + Marker + "(void);\n" + "#endif\n";
 }
 
-Instrumenter::Instrumenter(
+DCEInstrumenter::DCEInstrumenter(
     std::map<std::string, clang::tooling::Replacements> &FileToReplacements)
     : FileToReplacements{FileToReplacements},
       Rules{{handleIfStmt(), Replacements, FileToNumberMarkerDecls},
@@ -176,7 +176,7 @@ Instrumenter::Instrumenter(
             {handleSwitch(), Replacements, FileToNumberMarkerDecls},
             {handleSwitchCase(), Replacements, FileToNumberMarkerDecls}} {}
 
-void Instrumenter::applyReplacements() {
+void DCEInstrumenter::applyReplacements() {
   for (const auto &[File, NumberMarkerDecls] : FileToNumberMarkerDecls) {
 
     std::stringstream ss;
@@ -214,9 +214,10 @@ void Instrumenter::applyReplacements() {
   }
 }
 
-void Instrumenter::registerMatchers(clang::ast_matchers::MatchFinder &Finder) {
+void DCEInstrumenter::registerMatchers(
+    clang::ast_matchers::MatchFinder &Finder) {
   for (auto &Rule : Rules)
     Rule.registerMatchers(Finder);
 }
 
-} // namespace dead
+} // namespace markers

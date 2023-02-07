@@ -13,7 +13,7 @@ using namespace clang::tooling;
 using namespace clang::transformer;
 using namespace clang::transformer::detail;
 
-namespace dead {
+namespace markers {
 
 ASTEdit addVRMarkerBefore(RangeSelector &&Selection, Stencil Text) {
   return addMetadata(insertBefore(std::move(Selection), std::move(Text)),
@@ -124,4 +124,4 @@ void ValueRangeInstrumenter::registerMatchers(
     Rule.registerMatchers(Finder);
 }
 
-} // namespace dead
+} // namespace markers

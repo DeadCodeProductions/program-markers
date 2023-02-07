@@ -2,7 +2,7 @@
 
 #include "ASTEdits.h"
 
-namespace dead {
+namespace markers {
 
 // TODO: Make a common parent class for all instrumenters?
 class ValueRangeInstrumenter {
@@ -24,4 +24,4 @@ private:
   std::map<std::string, int> FileToNumberMarkerDecls;
 };
 
-} // namespace dead
+} // namespace markers

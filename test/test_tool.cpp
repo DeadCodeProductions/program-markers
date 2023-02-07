@@ -1,8 +1,8 @@
 #include "test_tool.h"
-#include "ValueRangeInstrumenter.h"
+
 #include "print_diff.h"
 
-#include <DeadInstrumenter.h>
+#include <DCEInstrumenter.h>
 #include <Matchers.h>
 #include <ValueRangeInstrumenter.h>
 
@@ -50,14 +50,14 @@ template <typename Tool> std::string runToolOnCode(llvm::StringRef Code) {
   return formatCode(formatCode(Context.getRewrittenText(ID)));
 }
 
-std::string runBranchInstrumenterOnCode(llvm::StringRef Code,
-                                        bool ignore_functions_with_macros) {
-  dead::setIgnoreFunctionsWithMacros(ignore_functions_with_macros);
-  return runToolOnCode<dead::Instrumenter>(Code);
+std::string runDCEInstrumenterOnCode(llvm::StringRef Code,
+                                     bool ignore_functions_with_macros) {
+  markers::setIgnoreFunctionsWithMacros(ignore_functions_with_macros);
+  return runToolOnCode<markers::DCEInstrumenter>(Code);
 }
 
 std::string runVRInstrumenterOnCode(llvm::StringRef Code,
                                     bool ignore_functions_with_macros) {
-  dead::setIgnoreFunctionsWithMacros(ignore_functions_with_macros);
-  return runToolOnCode<dead::ValueRangeInstrumenter>(Code);
+  markers::setIgnoreFunctionsWithMacros(ignore_functions_with_macros);
+  return runToolOnCode<markers::ValueRangeInstrumenter>(Code);
 }

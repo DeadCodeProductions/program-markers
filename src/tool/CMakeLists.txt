@@ -1,4 +1,4 @@
-add_executable(dead-instrument DeadInstrument.cpp)
-target_link_libraries(dead-instrument PUBLIC DeadInstrumentlib)
+add_executable(program-markers ProgramMarkers.cpp)
+target_link_libraries(program-markers PUBLIC Markerslib)
 
-install(TARGETS dead-instrument DESTINATION bin)
+install(TARGETS program-markers DESTINATION bin)

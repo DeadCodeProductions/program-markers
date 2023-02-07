@@ -1,8 +1,4 @@
-`dead-instrument` is the instrumenter used in [DEAD](https://github.com/DeadCodeProductions/dead).
-
-
-It inserts markers (as function calls) in C or C++ source code to enable differential
-testing:
+`program-markers` inserts markers (as function calls) in C or C++ source code to enable [differential testing for missed optimizations](https://thetheodor.github.io/papers/asplos22-1010.pdf):
 1. Instrument a program.
 2. Compile it with two or more compilers (or compiler versions, or optimization levels, etc).
 3. For each output: the markers whose corresponding calls are still present in the
@@ -114,7 +110,7 @@ int foo(int a) {
 }
 ```
 
-Passing  `--ignore-functions-with-macros` to `dead-instrument` will cause it to ignore any functions that contain macro expansions.
+Passing  `--ignore-functions-with-macros` to `program-markers` will cause it to ignore any functions that contain macro expansions.
 
 
 Value range markers can be emitted instead by using `--mode=vr`: 
@@ -126,7 +122,7 @@ int foo(int a) {
   return 0;
 }
 
-dead-instrument --mode=vr test.c --
+program-markers --mode=vr test.c --
 
 cat test.c | clang-format 
 #if defined DisableVRMarkerLE0_
@@ -186,10 +182,10 @@ int foo(int a) {
 
 #### Python wrapper
 
-`pip install dead-instrumenter`
+`pip install program-markers`
 
 
-To use the instrumenter in python import `from dead_instrumenter.instrumenter import instrument_program`: `instrument_program(program: diopter.SourceProgram, ignore_functions_with_macros: bool) -> InstrumentedProgram`. 
+To use the instrumenter in python import `from program_markers.instrumenter import instrument_program`: `instrument_program(program: diopter.SourceProgram, ignore_functions_with_macros: bool) -> InstrumentedProgram`. 
 
 
 #### Building the python wrapper
