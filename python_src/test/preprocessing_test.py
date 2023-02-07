@@ -1,6 +1,5 @@
-from diopter.compiler import Language, SourceProgram
-
 from dead_instrumenter.instrumenter import DCEMarker, instrument_program
+from diopter.compiler import Language, SourceProgram
 
 from .utils import get_system_gcc_O0
 

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import ClassVar, Optional, Sequence, TypeAlias
 
 from diopter.compiler import (
+    ASMCompilationOutput,
     ClangTool,
     ClangToolMode,
     CompilationSetting,
@@ -280,7 +281,9 @@ class InstrumentedProgram(SourceProgram):
             tuple[Marker, ...]:
                 The alive markers for the given compilation setting.
         """
-        asm = compilation_setting.get_asm_from_program(self)
+        asm = compilation_setting.compile_program(
+            self, ASMCompilationOutput()
+        ).output.read()
         alive_markers = find_alive_markers_impl(asm)
         assert set(alive_markers) <= set(self.all_markers())
         return alive_markers

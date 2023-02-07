@@ -1,7 +1,6 @@
 import pytest
-from diopter.compiler import Language, SourceProgram
-
 from dead_instrumenter.instrumenter import DCEMarker, instrument_program
+from diopter.compiler import ASMCompilationOutput, Language, SourceProgram
 
 from .utils import get_system_gcc_O0
 
@@ -123,7 +122,7 @@ def test_unreachable() -> None:
     iprogram == iprogram.make_markers_unreachable((DCEMarker("DCEMarker1_"),))
     assert set((DCEMarker("DCEMarker1_"),)) == set(iprogram.unreachable_markers)
 
-    asm = gcc.get_asm_from_program(iprogram)
+    asm = gcc.compile_program(iprogram, ASMCompilationOutput()).output.read()
     assert "bar" not in asm
 
 
@@ -161,7 +160,7 @@ def test_disable_and_unreachable() -> None:
         iprogram.find_dead_markers(gcc)
     )
 
-    asm = gcc.get_asm_from_program(iprogram)
+    asm = gcc.compile_program(iprogram, ASMCompilationOutput()).output.read()
     assert "bar" not in asm
 
     # All markers have already been disabled or made unreachable
