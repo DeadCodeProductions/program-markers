@@ -1,7 +1,7 @@
 #include "CommandLine.h"
 
-namespace dead {
+namespace markers {
 
-cl::OptionCategory DeadInstrOptions("dead-instrument options");
+cl::OptionCategory ProgramMarkersOptions("program-markers options");
 
-} // namespace dead
+} // namespace markers

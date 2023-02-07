@@ -1,8 +1,9 @@
-#include "DeadInstrumenter.h"
+#include <DCEInstrumenter.h>
+
 #include "test_tool.h"
 #include <catch2/catch.hpp>
 
-TEST_CASE("BranchInstrumenter if without else", "[if]") {
+TEST_CASE("DCEInstrumenter if without else", "[if]") {
   auto Code = std::string{R"code(int foo(int a){
         if (a > 0))code"};
   Code += GENERATE(
@@ -23,8 +24,8 @@ TEST_CASE("BranchInstrumenter if without else", "[if]") {
     )code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
       R"code(int foo(int a){
         if ( a > 0)
 
@@ -45,11 +46,10 @@ TEST_CASE("BranchInstrumenter if without else", "[if]") {
     )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter if without else and semicolon after curly brace",
+TEST_CASE("DCEInstrumenter if without else and semicolon after curly brace",
           "[if]") {
   auto Code = std::string{R"code(int foo(int a){
         if (a > 0) {
@@ -60,8 +60,8 @@ TEST_CASE("BranchInstrumenter if without else and semicolon after curly brace",
     )code"};
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
       R"code(int foo(int a){
         if ( a > 0) {
 
@@ -80,11 +80,10 @@ TEST_CASE("BranchInstrumenter if without else and semicolon after curly brace",
     )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter if-else", "[if]") {
+TEST_CASE("DCEInstrumenter if-else", "[if]") {
   auto Code = std::string{R"code(int foo(int a){
         if (a > 0))code"};
 
@@ -121,8 +120,8 @@ TEST_CASE("BranchInstrumenter if-else", "[if]") {
   Code = formatCode(Code);
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
       R"code(int foo(int a){
         if ( a > 0)
 
@@ -148,11 +147,10 @@ TEST_CASE("BranchInstrumenter if-else", "[if]") {
     )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter if with return macro", "[if][macro]") {
+TEST_CASE("DCEInstrumenter if with return macro", "[if][macro]") {
   auto Code = std::string{R"code(#define R return
 
     int foo(int a){
@@ -174,8 +172,8 @@ TEST_CASE("BranchInstrumenter if with return macro", "[if][macro]") {
     )code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
       R"code(#define R return
 
     int foo(int a){
@@ -198,12 +196,11 @@ TEST_CASE("BranchInstrumenter if with return macro", "[if][macro]") {
     )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, false));
-  compare_code(formatCode(Code), runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, false));
+  compare_code(formatCode(Code), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter if with return macro 2", "[if][macro]") {
+TEST_CASE("DCEInstrumenter if with return macro 2", "[if][macro]") {
   auto Code = std::string{R"code(#define R return 0
 
     int foo(int a){
@@ -226,8 +223,8 @@ TEST_CASE("BranchInstrumenter if with return macro 2", "[if][macro]") {
     )code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
       R"code(#define R return 0
 
     int foo(int a){
@@ -251,12 +248,11 @@ TEST_CASE("BranchInstrumenter if with return macro 2", "[if][macro]") {
     )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, false));
-  compare_code(formatCode(Code), runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, false));
+  compare_code(formatCode(Code), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter if with return macro 3", "[if][macro]") {
+TEST_CASE("DCEInstrumenter if with return macro 3", "[if][macro]") {
   auto Code = std::string{R"code(#define R return 0;
 
     int foo(int a){
@@ -279,8 +275,8 @@ TEST_CASE("BranchInstrumenter if with return macro 3", "[if][macro]") {
     )code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
       R"code(#define R return 0;
 
     int foo(int a){
@@ -304,12 +300,11 @@ TEST_CASE("BranchInstrumenter if with return macro 3", "[if][macro]") {
     )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, false));
-  compare_code(formatCode(Code), runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, false));
+  compare_code(formatCode(Code), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter nested if with macro", "[if][nested][macro]") {
+TEST_CASE("DCEInstrumenter nested if with macro", "[if][nested][macro]") {
   auto Code = std::string{R"code(#define A a = 1;
     int foo(int a){
         if (a > 0)
@@ -348,10 +343,10 @@ TEST_CASE("BranchInstrumenter nested if with macro", "[if][nested][macro]") {
     )code";
 
   auto ExpectedCode = "// MARKERS START\n" +
-                      dead::Instrumenter::makeMarkerMacros(0) +
-                      dead::Instrumenter::makeMarkerMacros(1) +
-                      dead::Instrumenter::makeMarkerMacros(2) +
-                      dead::Instrumenter::makeMarkerMacros(3) +
+                      markers::DCEInstrumenter::makeMarkerMacros(0) +
+                      markers::DCEInstrumenter::makeMarkerMacros(1) +
+                      markers::DCEInstrumenter::makeMarkerMacros(2) +
+                      markers::DCEInstrumenter::makeMarkerMacros(3) +
                       "// MARKERS END\n" + +R"code(#define A a = 1;
     int foo(int a){
         if ( a > 0)
@@ -391,11 +386,11 @@ TEST_CASE("BranchInstrumenter nested if with macro", "[if][nested][macro]") {
 
   CAPTURE(Code);
   compare_code(formatCode(ExpectedCode),
-               formatCode(runBranchInstrumenterOnCode(Code, false)));
-  compare_code(formatCode(Code), runBranchInstrumenterOnCode(Code, true));
+               formatCode(runDCEInstrumenterOnCode(Code, false)));
+  compare_code(formatCode(Code), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter nested if with return", "[if][return][nested]") {
+TEST_CASE("DCEInstrumenter nested if with return", "[if][return][nested]") {
   auto Code = std::string{R"code(int foo(int a){
         if (a >= 0)
 
@@ -421,10 +416,10 @@ TEST_CASE("BranchInstrumenter nested if with return", "[if][return][nested]") {
     )code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) +
-      dead::Instrumenter::makeMarkerMacros(2) +
-      dead::Instrumenter::makeMarkerMacros(3) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) +
+      markers::DCEInstrumenter::makeMarkerMacros(2) +
+      markers::DCEInstrumenter::makeMarkerMacros(3) + "// MARKERS END\n" +
       R"code(int foo(int a){
         if ( a >= 0)
 
@@ -458,11 +453,10 @@ TEST_CASE("BranchInstrumenter nested if with return", "[if][return][nested]") {
     )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter if return macro and comment",
+TEST_CASE("DCEInstrumenter if return macro and comment",
           "[loop][if][macro][return]") {
 
   auto Code = R"code(#define X 0
@@ -472,8 +466,8 @@ TEST_CASE("BranchInstrumenter if return macro and comment",
     })code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
       R"code(#define X 0
     int foo() {
         if (1)
@@ -493,12 +487,11 @@ TEST_CASE("BranchInstrumenter if return macro and comment",
     })code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, false));
-  compare_code(formatCode(Code), runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, false));
+  compare_code(formatCode(Code), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter if return macro", "[loop][if][macro][return]") {
+TEST_CASE("DCEInstrumenter if return macro", "[loop][if][macro][return]") {
 
   auto Code = R"code(#define BUG
     void foo() {
@@ -507,8 +500,8 @@ TEST_CASE("BranchInstrumenter if return macro", "[loop][if][macro][return]") {
     })code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
       R"code(#define BUG
     void foo() {
         if ( 1)
@@ -527,15 +520,14 @@ TEST_CASE("BranchInstrumenter if return macro", "[loop][if][macro][return]") {
     })code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, false));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, false));
   // XXX: this doesn't work, containsMacroExpansions
   // can't match the BUG macro
   // compare_code(formatCode(Code),
-  // runBranchInstrumenterOnCode(Code, true));
+  // runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter if with semi return macro",
+TEST_CASE("DCEInstrumenter if with semi return macro",
           "[loop][if][macro][return]") {
 
   auto Code = R"code(#define BUG ;
@@ -545,8 +537,8 @@ TEST_CASE("BranchInstrumenter if with semi return macro",
     })code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
       R"code(#define BUG ;
     void foo() {
         if ( 1)
@@ -565,12 +557,11 @@ TEST_CASE("BranchInstrumenter if with semi return macro",
     })code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, false));
-  compare_code(formatCode(Code), runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, false));
+  compare_code(formatCode(Code), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter if-else with semi return macro",
+TEST_CASE("DCEInstrumenter if-else with semi return macro",
           "[loop][if][macro][return]") {
 
   auto Code = R"code(#define BUG ;
@@ -582,8 +573,8 @@ TEST_CASE("BranchInstrumenter if-else with semi return macro",
     })code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
       R"code(#define BUG ;
     void foo() {
         if ( 1)
@@ -608,12 +599,11 @@ TEST_CASE("BranchInstrumenter if-else with semi return macro",
     })code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, false));
-  compare_code(formatCode(Code), runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, false));
+  compare_code(formatCode(Code), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
+TEST_CASE("DCEInstrumenter if-else nested with while", "[if][loop][while]") {
   std::string Code = R"code(int foo(int a){
       if (a > 0))code";
 
@@ -659,9 +649,9 @@ TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
   // Code = formatCode(Code);
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) +
-      dead::Instrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) +
+      markers::DCEInstrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
       R"code(int foo(int a) {
         if ( a > 0)
 
@@ -693,11 +683,10 @@ TEST_CASE("BranchInstrumenter if-else nested with while", "[if][loop][while]") {
     })code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter while stmt", "[while][loop]") {
+TEST_CASE("DCEInstrumenter while stmt", "[while][loop]") {
 
   auto Code = std::string{R"code(int foo(int a){
         int b = 0;
@@ -720,7 +709,7 @@ TEST_CASE("BranchInstrumenter while stmt", "[while][loop]") {
     )code";
 
   auto ExpectedCode = "// MARKERS START\n" +
-                      dead::Instrumenter::makeMarkerMacros(0) +
+                      markers::DCEInstrumenter::makeMarkerMacros(0) +
                       "// MARKERS END\n" +
                       R"code(int foo(int a){
         int b = 0;
@@ -739,11 +728,10 @@ TEST_CASE("BranchInstrumenter while stmt", "[while][loop]") {
     )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter nested for stmt", "[for][if][nested][return]") {
+TEST_CASE("DCEInstrumenter nested for stmt", "[for][if][nested][return]") {
 
   auto Code = std::string{R"code(int foo(int a){
         for (;;))code"};
@@ -771,8 +759,8 @@ TEST_CASE("BranchInstrumenter nested for stmt", "[for][if][nested][return]") {
   Code = formatCode(Code);
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
       R"code(int foo(int a){
         for ( ;;)
 
@@ -796,10 +784,10 @@ TEST_CASE("BranchInstrumenter nested for stmt", "[for][if][nested][return]") {
 
   CAPTURE(Code);
   compare_code(formatCode(ExpectedCode),
-               formatCode(runBranchInstrumenterOnCode(Code, true)));
+               formatCode(runDCEInstrumenterOnCode(Code, true)));
 }
 
-TEST_CASE("BranchInstrumenter for stmt nested if with return",
+TEST_CASE("DCEInstrumenter for stmt nested if with return",
           "[for][if][nested][return]") {
 
   auto Code = std::string{R"code(int foo(int a){
@@ -841,9 +829,9 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return",
     )code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) +
-      dead::Instrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) +
+      markers::DCEInstrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
       R"code(int foo(int a){
         int b = 0;
         for ( int i = 0; i < a; ++i)
@@ -880,11 +868,10 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return",
     )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
+TEST_CASE("DCEInstrumenter for stmt nested if with return and extra stmt",
           "[for][if][nested][return]") {
 
   auto Code = std::string{R"code(int foo(int a){
@@ -920,9 +907,9 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
     )code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) +
-      dead::Instrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) +
+      markers::DCEInstrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
       R"code(int foo(int a){
         int b = 0;
         for ( int i = 0; i < a; ++i) {
@@ -955,11 +942,10 @@ TEST_CASE("BranchInstrumenter for stmt nested if with return and extra stmt",
     )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter for stmt with return", "[for][return]") {
+TEST_CASE("DCEInstrumenter for stmt with return", "[for][return]") {
 
   auto Code = R"code(int foo(int a){
         int b = 0;
@@ -970,7 +956,7 @@ TEST_CASE("BranchInstrumenter for stmt with return", "[for][return]") {
     )code";
 
   auto ExpectedCode = "// MARKERS START\n" +
-                      dead::Instrumenter::makeMarkerMacros(0) +
+                      markers::DCEInstrumenter::makeMarkerMacros(0) +
                       "// MARKERS END\n" +
                       R"code(int foo(int a){
         int b = 0;
@@ -989,11 +975,10 @@ TEST_CASE("BranchInstrumenter for stmt with return", "[for][return]") {
     )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter do while stmt with return", "[do][return]") {
+TEST_CASE("DCEInstrumenter do while stmt with return", "[do][return]") {
 
   auto Code = std::string{R"code(int foo(int a){
         int b = 0;
@@ -1013,7 +998,7 @@ TEST_CASE("BranchInstrumenter do while stmt with return", "[do][return]") {
     )code";
 
   auto ExpectedCode = "// MARKERS START\n" +
-                      dead::Instrumenter::makeMarkerMacros(0) +
+                      markers::DCEInstrumenter::makeMarkerMacros(0) +
                       "// MARKERS END\n" +
                       R"code(int foo(int a){
         int b = 0;
@@ -1033,11 +1018,10 @@ TEST_CASE("BranchInstrumenter do while stmt with return", "[do][return]") {
     )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter do while and if with return",
+TEST_CASE("DCEInstrumenter do while and if with return",
           "[if][dowhile][return][macro]") {
   auto Code = std::string{R"code(#define X 1
     int foo(int a) {
@@ -1071,9 +1055,9 @@ TEST_CASE("BranchInstrumenter do while and if with return",
     })code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) +
-      dead::Instrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) +
+      markers::DCEInstrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
       R"code(#define X 1
         int foo(int a) {
           do 
@@ -1102,12 +1086,11 @@ TEST_CASE("BranchInstrumenter do while and if with return",
           return 0;
     })code";
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, false));
-  compare_code(formatCode(Code), runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, false));
+  compare_code(formatCode(Code), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter do while and if else with return",
+TEST_CASE("DCEInstrumenter do while and if else with return",
           "[if][dowhile][return]") {
   auto Code = std::string{R"code(int foo(int a) {
                 if (a))code"};
@@ -1158,9 +1141,9 @@ TEST_CASE("BranchInstrumenter do while and if else with return",
     })code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) +
-      dead::Instrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) +
+      markers::DCEInstrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
       R"code(int foo(int a) {
             if ( a)
 
@@ -1195,11 +1178,10 @@ TEST_CASE("BranchInstrumenter do while and if else with return",
     })code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter if dowhile with nested macro",
+TEST_CASE("DCEInstrumenter if dowhile with nested macro",
           "[if][do][macro][return]") {
 
   auto Code = std::string{R"code(#define M
@@ -1219,8 +1201,8 @@ TEST_CASE("BranchInstrumenter if dowhile with nested macro",
   Code += R"code(   })code";
 
   auto ExpectedCode = "// MARKERS START\n" +
-                      dead::Instrumenter::makeMarkerMacros(0) +
-                      dead::Instrumenter::makeMarkerMacros(1) +
+                      markers::DCEInstrumenter::makeMarkerMacros(0) +
+                      markers::DCEInstrumenter::makeMarkerMacros(1) +
                       "// MARKERS END\n" + +R"code(#define M
         #define bar    \
         do  {          \
@@ -1245,12 +1227,11 @@ TEST_CASE("BranchInstrumenter if dowhile with nested macro",
     })code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, false));
-  compare_code(formatCode(Code), runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, false));
+  compare_code(formatCode(Code), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
+TEST_CASE("DCEInstrumenter if while do and braces without whitespace",
           "[if][do][return]") {
 
   auto Code = R"code(void foo() {
@@ -1261,12 +1242,12 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
     })code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) +
-      dead::Instrumenter::makeMarkerMacros(2) +
-      dead::Instrumenter::makeMarkerMacros(3) +
-      dead::Instrumenter::makeMarkerMacros(4) +
-      dead::Instrumenter::makeMarkerMacros(5) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) +
+      markers::DCEInstrumenter::makeMarkerMacros(2) +
+      markers::DCEInstrumenter::makeMarkerMacros(3) +
+      markers::DCEInstrumenter::makeMarkerMacros(4) +
+      markers::DCEInstrumenter::makeMarkerMacros(5) + "// MARKERS END\n" +
       R"code(void foo() {
         while ( 1) {
 
@@ -1304,11 +1285,10 @@ TEST_CASE("BranchInstrumenter if while do and braces without whitespace",
     })code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, false));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, false));
 }
 
-TEST_CASE("BranchInstrumenter switch", "[switch][return]") {
+TEST_CASE("DCEInstrumenter switch", "[switch][return]") {
   auto Code = R"code(int foo(int a){
         switch(a){
         case 1:
@@ -1329,12 +1309,12 @@ TEST_CASE("BranchInstrumenter switch", "[switch][return]") {
     }
     )code";
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) +
-      dead::Instrumenter::makeMarkerMacros(2) +
-      dead::Instrumenter::makeMarkerMacros(3) +
-      dead::Instrumenter::makeMarkerMacros(4) +
-      dead::Instrumenter::makeMarkerMacros(5) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) +
+      markers::DCEInstrumenter::makeMarkerMacros(2) +
+      markers::DCEInstrumenter::makeMarkerMacros(3) +
+      markers::DCEInstrumenter::makeMarkerMacros(4) +
+      markers::DCEInstrumenter::makeMarkerMacros(5) + "// MARKERS END\n" +
       R"code(int foo(int a){
         switch(a){
         case 1: 
@@ -1374,11 +1354,10 @@ TEST_CASE("BranchInstrumenter switch", "[switch][return]") {
     )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, false));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, false));
 }
 
-TEST_CASE("BranchInstrumenter cascaded switch", "[switch]") {
+TEST_CASE("DCEInstrumenter cascaded switch", "[switch]") {
 
   auto Code = R"code(int foo(int a){
             switch (a) {
@@ -1397,11 +1376,11 @@ TEST_CASE("BranchInstrumenter cascaded switch", "[switch]") {
     )code";
 
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) +
-      dead::Instrumenter::makeMarkerMacros(2) +
-      dead::Instrumenter::makeMarkerMacros(3) +
-      dead::Instrumenter::makeMarkerMacros(4) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) +
+      markers::DCEInstrumenter::makeMarkerMacros(2) +
+      markers::DCEInstrumenter::makeMarkerMacros(3) +
+      markers::DCEInstrumenter::makeMarkerMacros(4) + "// MARKERS END\n" +
       R"code(int foo(int a) {
                     switch (a) {
                   case 0:
@@ -1434,11 +1413,10 @@ TEST_CASE("BranchInstrumenter cascaded switch", "[switch]") {
 )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter empty switch", "[switch]") {
+TEST_CASE("DCEInstrumenter empty switch", "[switch]") {
   auto Code = R"code(int foo(int a){
         switch(a){
         }
@@ -1447,10 +1425,10 @@ TEST_CASE("BranchInstrumenter empty switch", "[switch]") {
     )code";
 
   CAPTURE(Code);
-  compare_code(formatCode(Code), runBranchInstrumenterOnCode(Code, false));
+  compare_code(formatCode(Code), runDCEInstrumenterOnCode(Code, false));
 }
 
-TEST_CASE("BranchInstrumenter switch if and macro", "[if][switch][macro]") {
+TEST_CASE("DCEInstrumenter switch if and macro", "[if][switch][macro]") {
   auto Code = R"code(#define TEST bar
 
                         int bar();
@@ -1467,9 +1445,9 @@ TEST_CASE("BranchInstrumenter switch if and macro", "[if][switch][macro]") {
                                 a = 1;
                         })code";
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) +
-      dead::Instrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) +
+      markers::DCEInstrumenter::makeMarkerMacros(2) + "// MARKERS END\n" +
       R"code(#define TEST bar
 
                         int bar();
@@ -1501,11 +1479,10 @@ TEST_CASE("BranchInstrumenter switch if and macro", "[if][switch][macro]") {
 
                         })code";
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, false));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, false));
   auto ExpectedCodeMacroIgnore =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) + "// MARKERS END\n" +
       R"code(#define TEST bar
 
                         int bar();
@@ -1534,10 +1511,10 @@ TEST_CASE("BranchInstrumenter switch if and macro", "[if][switch][macro]") {
 
                         })code";
   compare_code(formatCode(ExpectedCodeMacroIgnore),
-               runBranchInstrumenterOnCode(Code, true));
+               runDCEInstrumenterOnCode(Code, true));
 }
 
-TEST_CASE("BranchInstrumenter switch if with return and macro",
+TEST_CASE("DCEInstrumenter switch if with return and macro",
           "[if][return][switch][macro]") {
 
   auto Code = R"code(#define FFFF 1
@@ -1551,11 +1528,11 @@ TEST_CASE("BranchInstrumenter switch if with return and macro",
             return FFFF;
     })code";
   auto ExpectedCode =
-      "// MARKERS START\n" + dead::Instrumenter::makeMarkerMacros(0) +
-      dead::Instrumenter::makeMarkerMacros(1) +
-      dead::Instrumenter::makeMarkerMacros(2) +
-      dead::Instrumenter::makeMarkerMacros(3) +
-      dead::Instrumenter::makeMarkerMacros(4) + "// MARKERS END\n" +
+      "// MARKERS START\n" + markers::DCEInstrumenter::makeMarkerMacros(0) +
+      markers::DCEInstrumenter::makeMarkerMacros(1) +
+      markers::DCEInstrumenter::makeMarkerMacros(2) +
+      markers::DCEInstrumenter::makeMarkerMacros(3) +
+      markers::DCEInstrumenter::makeMarkerMacros(4) + "// MARKERS END\n" +
       R"code(#define FFFF 1
       int foo() {
               if ( 1)
@@ -1599,7 +1576,6 @@ TEST_CASE("BranchInstrumenter switch if with return and macro",
     })code";
 
   CAPTURE(Code);
-  compare_code(formatCode(ExpectedCode),
-               runBranchInstrumenterOnCode(Code, false));
-  compare_code(formatCode(Code), runBranchInstrumenterOnCode(Code, true));
+  compare_code(formatCode(ExpectedCode), runDCEInstrumenterOnCode(Code, false));
+  compare_code(formatCode(Code), runDCEInstrumenterOnCode(Code, true));
 }

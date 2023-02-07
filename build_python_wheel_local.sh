@@ -12,7 +12,7 @@ cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release \
 
 ninja 
 cd ..
-cp build/bin/dead-instrument python_src/dead_instrumenter
+cp build/bin/program-markers python_src/program_markers
 cp setup.py.in setup.py
 sed -i "s~THIS_DIR~$(pwd)~g" setup.py
 python -m build

@@ -6,8 +6,8 @@ setup(
             name="dummy",
             sources=[],
             extra_objects=[
-                "THIS_DIR/build/src/tool/CMakeFiles/dead-instrument.dir/DeadInstrument.cpp.o",
-                "THIS_DIR/build/src/libDeadInstrumentlib.a",
+                "THIS_DIR/build/src/tool/CMakeFiles/program-markers.dir/ProgramMarkers.cpp.o",
+                "THIS_DIR/build/src/libMarkerslib.a",
             ],
         ),
     ]

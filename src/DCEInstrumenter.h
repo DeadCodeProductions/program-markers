@@ -2,15 +2,15 @@
 
 #include "ASTEdits.h"
 
-namespace dead {
+namespace markers {
 
 // Adds DCEMarkers in places where control flow diverges
-class Instrumenter {
+class DCEInstrumenter {
 public:
-  Instrumenter(
+  DCEInstrumenter(
       std::map<std::string, clang::tooling::Replacements> &FileToReplacements);
-  Instrumenter(Instrumenter &&) = delete;
-  Instrumenter(const Instrumenter &) = delete;
+  DCEInstrumenter(DCEInstrumenter &&) = delete;
+  DCEInstrumenter(const DCEInstrumenter &) = delete;
 
   void registerMatchers(clang::ast_matchers::MatchFinder &Finder);
   void applyReplacements();
@@ -23,4 +23,4 @@ private:
   std::vector<clang::tooling::Replacement> Replacements;
   std::map<std::string, int> FileToNumberMarkerDecls;
 };
-} // namespace dead
+} // namespace markers

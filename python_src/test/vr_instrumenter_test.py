@@ -1,12 +1,12 @@
 import pytest
-from dead_instrumenter.instrumenter import (
+from diopter.compiler import Language, SourceProgram
+from program_markers.instrumenter import (
     InstrumenterMode,
     VRMarker,
     VRMarkerKind,
     find_alive_markers_impl,
     instrument_program,
 )
-from diopter.compiler import Language, SourceProgram
 
 from .utils import get_system_gcc_O0
 

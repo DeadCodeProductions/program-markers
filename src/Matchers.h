@@ -4,7 +4,7 @@
 
 using namespace clang;
 
-namespace dead {
+namespace markers {
 
 AST_MATCHER(FunctionDecl, isDefined) {
   (void)Finder;
@@ -124,4 +124,4 @@ using MatcherType2 =
 
 MatcherType2 inMainAndNotMacro();
 
-} // namespace dead
+} // namespace markers

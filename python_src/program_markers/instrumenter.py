@@ -607,7 +607,7 @@ def get_instrumenter(
                 clang = CompilerExe.from_path(Path("clang-14"))
 
         instrumenter = ClangTool.init_with_paths_from_clang(
-            Path(__file__).parent / "dead-instrument", clang
+            Path(__file__).parent / "program-markers", clang
         )
     return instrumenter
 

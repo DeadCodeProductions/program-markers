@@ -1,6 +1,6 @@
 import pytest
-from dead_instrumenter.instrumenter import DCEMarker, instrument_program
 from diopter.compiler import ASMCompilationOutput, Language, SourceProgram
+from program_markers.instrumenter import DCEMarker, instrument_program
 
 from .utils import get_system_gcc_O0
 

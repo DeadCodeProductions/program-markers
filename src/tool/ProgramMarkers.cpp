@@ -7,7 +7,7 @@
 #include <type_traits>
 
 #include <CommandLine.h>
-#include <DeadInstrumenter.h>
+#include <DCEInstrumenter.h>
 #include <ValueRangeInstrumenter.h>
 
 using namespace llvm;
@@ -20,14 +20,14 @@ namespace {
 enum class ToolMode { InstrumentBranches, InstrumentValueRanges };
 
 cl::opt<ToolMode>
-    Mode("mode", cl::desc("dead-instrumenter mode:"),
+    Mode("mode", cl::desc("program-markers mode:"),
          cl::values(clEnumValN(ToolMode::InstrumentBranches, "dce",
                                "Only canonicalize and instrument branches with "
                                "DCE markers (default)"),
                     clEnumValN(ToolMode::InstrumentValueRanges, "vr",
                                "Only instrument for value ranges")),
          cl::init(ToolMode::InstrumentBranches),
-         cl::cat(dead::DeadInstrOptions));
+         cl::cat(markers::ProgramMarkersOptions));
 
 template <typename InstrTool> int runToolOnCode(RefactoringTool &Tool) {
   InstrTool Instr(Tool.getReplacements());
@@ -76,7 +76,7 @@ void versionPrinter(llvm::raw_ostream &S) { S << "v0.3.3\n"; }
 int main(int argc, const char **argv) {
   cl::SetVersionPrinter(versionPrinter);
   auto ExpectedParser =
-      CommonOptionsParser::create(argc, argv, dead::DeadInstrOptions);
+      CommonOptionsParser::create(argc, argv, markers::ProgramMarkersOptions);
   if (!ExpectedParser) {
     llvm::errs() << ExpectedParser.takeError();
     return 1;
@@ -87,7 +87,7 @@ int main(int argc, const char **argv) {
   const auto &Files = OptionsParser.getSourcePathList();
   if (ToolMode::InstrumentBranches == Mode) {
     RefactoringTool Tool(Compilations, Files);
-    if (int Result = runToolOnCode<dead::Instrumenter>(Tool)) {
+    if (int Result = runToolOnCode<markers::DCEInstrumenter>(Tool)) {
       llvm::errs() << "Something went wrong...\n";
       return Result;
     }
@@ -97,7 +97,7 @@ int main(int argc, const char **argv) {
     }
   } else {
     RefactoringTool Tool(Compilations, Files);
-    if (int Result = runToolOnCode<dead::ValueRangeInstrumenter>(Tool)) {
+    if (int Result = runToolOnCode<markers::ValueRangeInstrumenter>(Tool)) {
       llvm::errs() << "Something went wrong...\n";
       return Result;
     }

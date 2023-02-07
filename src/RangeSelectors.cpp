@@ -6,7 +6,7 @@ using namespace clang;
 using namespace clang::tooling;
 using namespace clang::transformer;
 
-namespace dead {
+namespace markers {
 
 namespace {
 
@@ -113,4 +113,4 @@ RangeSelector variableFromDeclRef(std::string ID) {
   };
 }
 
-} // namespace dead
+} // namespace markers

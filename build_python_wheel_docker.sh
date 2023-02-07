@@ -3,8 +3,8 @@ set -e -x
 
 
 cd /root
-git clone https://github.com/DeadCodeProductions/dead_instrumenter.git
-cd dead_instrumenter
+git clone https://github.com/DeadCodeProductions/program-markers.git
+cd program-markers
 git checkout "$REVISION"
 mkdir build
 cd build
@@ -14,7 +14,7 @@ cmake -G Ninja .. -DCMAKE_BUILD_TYPE=Release \
                   -DCMAKE_SHARED_LINKER_FLAGS="-static-libgcc -static-libstdc++"
 ninja 
 cd ..
-cp build/bin/dead-instrument python_src/dead_instrumenter
+cp build/bin/program-markers python_src/program_markers
 cp setup.py.in setup.py
 sed -i "s~THIS_DIR~$(pwd)~g" setup.py
 

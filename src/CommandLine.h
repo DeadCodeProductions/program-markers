@@ -4,8 +4,8 @@
 
 namespace cl = llvm::cl;
 
-namespace dead {
+namespace markers {
 
-extern cl::OptionCategory DeadInstrOptions;
+extern cl::OptionCategory ProgramMarkersOptions;
 
-} // namespace dead
+} // namespace markers

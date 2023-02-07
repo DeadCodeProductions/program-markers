@@ -1,2 +1,2 @@
-include python_src/dead_instrumenter/py.typed
-include python_src/dead_instrumenter/dead-instrument
+include python_src/program_markers/py.typed
+include python_src/program_markers/program-markers
