@@ -398,7 +398,21 @@ class InstrumentedProgram(SourceProgram):
         self,
         args: tuple[str, ...],
         setting: CompilationSetting,
+        timeout: int | None = None,
     ) -> tuple[Marker, ...]:
+        """Runs the program and tracks which markers are executed.
+
+        Ars:
+            args (tuple[str,...]):
+                arguments to pass to the program
+            setting (CompilationSetting):
+                the compiler used to compile to program
+            timeout (int | None):
+                if not None, abort after `timeout` seconds
+        Returns:
+            tuple[Marker, ...]:
+                the markers that were "encountered" during execution
+        """
         tmarkers = (
             set(self.all_markers())
             - set(self.unreachable_markers)
@@ -407,7 +421,7 @@ class InstrumentedProgram(SourceProgram):
 
         tracked_program = replace(self, tracked_markers=tuple(tmarkers))
         result = setting.compile_program(tracked_program, ExeCompilationOutput())
-        output = result.output.run(args)
+        output = result.output.run(args, timeout=timeout)
         return tuple(marker for marker in tmarkers if marker.name() in output.stdout)
 
     def disable_markers(self, dmarkers: Sequence[Marker]) -> InstrumentedProgram:
