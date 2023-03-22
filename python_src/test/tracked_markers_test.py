@@ -32,10 +32,10 @@ def test_dce_marker_tracking() -> None:
     )
     gcc = get_system_gcc_O0()
 
-    executed_markers_without_args = iprogram.track_markers((), gcc)
+    executed_markers_without_args = iprogram.track_reachable_markers((), gcc)
     assert set((DCEMarker("DCEMarker0_"),)) == set(executed_markers_without_args)
 
-    executed_markers_with_args = iprogram.track_markers(("foo",), gcc)
+    executed_markers_with_args = iprogram.track_reachable_markers(("foo",), gcc)
     assert set((DCEMarker("DCEMarker1_"),)) == set(executed_markers_with_args)
 
 
@@ -74,5 +74,5 @@ def test_vr_marker_tracking() -> None:
 
     gcc = get_system_gcc_O0()
 
-    executed_markers = iprogram.track_markers((), gcc)
+    executed_markers = iprogram.track_reachable_markers((), gcc)
     assert set((VRMarker("VRMarker0_", VRMarkerKind.GE),)) == set(executed_markers)

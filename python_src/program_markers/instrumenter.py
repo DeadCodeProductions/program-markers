@@ -196,33 +196,37 @@ class VRMarker:
 Marker: TypeAlias = DCEMarker | VRMarker
 
 
-def find_alive_markers_impl(asm: str) -> tuple[Marker, ...]:
-    """Finds alive markers in asm, i.e., markers that have not been eliminated.
+def find_non_eliminated_markers_impl(asm: str) -> tuple[Marker, ...]:
+    """Finds non-eliminated markers in `asm`.
 
     The markers are found by searching for calls or jumps to functions with
     names starting with a known marker prefix (e.g., DCEMarker123_)
 
     Returns:
         tuple[Marker, ...]:
-            The alive markers for the given compilation setting.
+            The non-eliminated markers for the given compilation setting.
     """
-    dce_alive_regex = re.compile(f".*[call|jmp].*{DCEMarker.prefix}([0-9]+)_.*")
-    vr_alive_regex = re.compile(f".*[call|jmp].*{VRMarker.prefix}([G|L])E([0-9]+)_.*")
-    alive_markers: set[Marker] = set()
+    dce_non_eliminated_regex = re.compile(
+        f".*[call|jmp].*{DCEMarker.prefix}([0-9]+)_.*"
+    )
+    vr_non_eliminated_regex = re.compile(
+        f".*[call|jmp].*{VRMarker.prefix}([G|L])E([0-9]+)_.*"
+    )
+    non_eliminated_markers: set[Marker] = set()
     for line in asm.split("\n"):
-        if m := dce_alive_regex.match(line.strip()):
-            alive_markers.add(DCEMarker(f"{DCEMarker.prefix}{m.group(1)}_"))
-        elif m := vr_alive_regex.match(line.strip()):
-            alive_markers.add(
+        if m := dce_non_eliminated_regex.match(line.strip()):
+            non_eliminated_markers.add(DCEMarker(f"{DCEMarker.prefix}{m.group(1)}_"))
+        elif m := vr_non_eliminated_regex.match(line.strip()):
+            non_eliminated_markers.add(
                 VRMarker.from_str(f"{VRMarker.prefix}{m.group(1)}E{m.group(2)}_")
             )
-    return tuple(alive_markers)
+    return tuple(non_eliminated_markers)
 
 
 @dataclass(frozen=True, kw_only=True)
 class MarkerStatus:
-    dead_markers: tuple[Marker, ...]
-    alive_markers: tuple[Marker, ...]
+    eliminated_markers: tuple[Marker, ...]
+    non_eliminated_markers: tuple[Marker, ...]
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -335,55 +339,57 @@ class InstrumentedProgram(SourceProgram):
 
     # XXX: 1) merge these two methods, 2) should they
     # optionally ignore enabled/disabled/unreachable?
-    def find_alive_markers(
+    def find_non_eliminated_markers(
         self, compilation_setting: CompilationSetting
     ) -> tuple[Marker, ...]:
         """Compiles the program to ASM with `compilation_setting` and finds
-        alive markers, i.e., markers that have not been eliminated.
+        the non-eliminated markers.
 
         The markers are found by searching for calls or jumps to functions with
         names starting with a known marker prefix (e.g., DCEMarker123_)
 
         Returns:
             tuple[Marker, ...]:
-                The alive markers for the given compilation setting.
+                The non_eliminated markers for the given compilation setting.
         """
         asm = compilation_setting.compile_program(
             self, ASMCompilationOutput()
         ).output.read()
-        alive_markers = find_alive_markers_impl(asm)
-        assert set(alive_markers) <= set(self.all_markers())
-        return alive_markers
+        non_eliminated_markers = find_non_eliminated_markers_impl(asm)
+        assert set(non_eliminated_markers) <= set(self.all_markers())
+        return non_eliminated_markers
 
-    def find_dead_markers(
+    def find_eliminated_markers(
         self, compilation_setting: CompilationSetting
     ) -> tuple[Marker, ...]:
         """Compiles the program to ASM with `compilation_setting` and finds
-        dead markers, i.e., markers that have been eliminated.
+        the eliminated markers.
 
         Returns:
             tuple[Marker, ...]:
-                The dead markers for the given compilation setting.
+                The eliminated markers for the given compilation setting.
         """
-        dead_markers = set(self.all_markers()) - set(
-            self.find_alive_markers(compilation_setting)
+        non_eliminated_markers = set(self.all_markers()) - set(
+            self.find_non_eliminated_markers(compilation_setting)
         )
-        return tuple(dead_markers)
+        return tuple(non_eliminated_markers)
 
-    def find_dead_and_alive_markers(
+    def find_eliminated_and_non_eliminated_markers(
         self, compilation_setting: CompilationSetting
     ) -> MarkerStatus:
         """Compiles the program to ASM with `compilation_setting` and finds
-        dead and alive markers, i.e., markers that have been eliminated or not
+        eliminated and non_eliminated markers.
 
         Returns:
             MarkerStatus:
-                The dead and alive markers for the given compilation setting.
+                The eliminated and non-eliminated markers
+                for the given compilation setting.
         """
-        alive_markers = self.find_alive_markers(compilation_setting)
-        dead_markers = set(self.all_markers()) - set(alive_markers)
+        non_eliminated_markers = self.find_non_eliminated_markers(compilation_setting)
+        eliminated_markers = set(self.all_markers()) - set(non_eliminated_markers)
         return MarkerStatus(
-            dead_markers=tuple(dead_markers), alive_markers=alive_markers
+            eliminated_markers=tuple(eliminated_markers),
+            non_eliminated_markers=non_eliminated_markers,
         )
 
     @staticmethod
@@ -394,13 +400,13 @@ class InstrumentedProgram(SourceProgram):
     def __make_unreachable_macro(marker: Marker) -> str:
         return InstrumentedProgram.unreachable_prefix + marker.name()
 
-    def track_markers(
+    def track_reachable_markers(
         self,
         args: tuple[str, ...],
         setting: CompilationSetting,
         timeout: int | None = None,
     ) -> tuple[Marker, ...]:
-        """Runs the program and tracks which markers are executed.
+        """Runs the program and tracks which markers are reachable(executed).
 
         Ars:
             args (tuple[str,...]):
