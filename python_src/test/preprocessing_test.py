@@ -25,24 +25,24 @@ def test_preprocessing() -> None:
     # preprocess without any disabled or unreachable markers
     iprogram_p = iprogram.preprocess_disabled_and_unreachable_markers(gcc)
     assert set((m0, m1)) == set(iprogram_p.all_markers())
-    assert set((m0, m1)) == set(iprogram_p.find_alive_markers(gcc))
-    assert set() == set(iprogram_p.find_dead_markers(gcc))
+    assert set((m0, m1)) == set(iprogram_p.find_non_eliminated_markers(gcc))
+    assert set() == set(iprogram_p.find_eliminated_markers(gcc))
 
     # preprocess with an unreachable marker
     iprogram_u = iprogram.make_markers_unreachable(
         [m0]
     ).preprocess_disabled_and_unreachable_markers(gcc)
     assert set((m1,)) == set(iprogram_u.all_markers())
-    assert set((m1,)) == set(iprogram_u.find_alive_markers(gcc))
-    assert set() == set(iprogram_u.find_dead_markers(gcc))
+    assert set((m1,)) == set(iprogram_u.find_non_eliminated_markers(gcc))
+    assert set() == set(iprogram_u.find_eliminated_markers(gcc))
 
     # preprocess with a disabled marker
     iprogram_d = iprogram.make_markers_unreachable(
         [m1]
     ).preprocess_disabled_and_unreachable_markers(gcc)
     assert set((m0,)) == set(iprogram_d.all_markers())
-    assert set((m0,)) == set(iprogram_d.find_alive_markers(gcc))
-    assert set() == set(iprogram_d.find_dead_markers(gcc))
+    assert set((m0,)) == set(iprogram_d.find_non_eliminated_markers(gcc))
+    assert set() == set(iprogram_d.find_eliminated_markers(gcc))
 
     # preprocess with a disabled and an unreachable marker
     iprogram_ud = (
@@ -51,5 +51,5 @@ def test_preprocessing() -> None:
         .preprocess_disabled_and_unreachable_markers(gcc)
     )
     assert set() == set(iprogram_ud.all_markers())
-    assert set() == set(iprogram_ud.find_alive_markers(gcc))
-    assert set() == set(iprogram_ud.find_dead_markers(gcc))
+    assert set() == set(iprogram_ud.find_non_eliminated_markers(gcc))
+    assert set() == set(iprogram_ud.find_eliminated_markers(gcc))
