@@ -1,3 +1,4 @@
+import program_markers.marker_strategies as ms
 import pytest
 from diopter.compiler import Language, SourceProgram
 from program_markers.instrumenter import (
@@ -19,7 +20,9 @@ def test_asm_parsing() -> None:
     js	.L3
     call	VRMarkerGE0_@PLT
     """
-    assert (set(find_non_eliminated_markers_impl(asm))) == set(
+    assert (
+        set(find_non_eliminated_markers_impl(asm, ms.FunctionCallStrategy()))
+    ) == set(
         (
             VRMarker("VRMarker0_", VRMarkerKind.GE),
             VRMarker("VRMarker0_", VRMarkerKind.LE),
@@ -30,9 +33,9 @@ def test_asm_parsing() -> None:
     js	.L2
     call	VRMarkerGE0_@PLT
 """
-    assert (set(find_non_eliminated_markers_impl(asm))) == set(
-        (VRMarker("VRMarker0_", VRMarkerKind.GE),)
-    )
+    assert (
+        set(find_non_eliminated_markers_impl(asm, ms.FunctionCallStrategy()))
+    ) == set((VRMarker("VRMarker0_", VRMarkerKind.GE),))
 
 
 def test_instrumentation() -> None:

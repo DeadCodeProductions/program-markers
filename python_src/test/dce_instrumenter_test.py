@@ -1,8 +1,9 @@
+import program_markers.marker_strategies as ms
 import pytest
 from diopter.compiler import ASMCompilationOutput, Language, SourceProgram
 from program_markers.instrumenter import DCEMarker, instrument_program
 
-from .utils import get_system_gcc_O0
+from .utils import get_system_gcc_O0, get_system_gcc_O3
 
 
 def test_instrumentation() -> None:
@@ -173,3 +174,48 @@ def test_disable_and_unreachable() -> None:
 
     # All markers have already been disabled or made unreachable
     assert iprogram == iprogram.disable_remaining_markers()
+
+
+def test_strategies() -> None:
+    iprogram = instrument_program(
+        SourceProgram(
+            code="""
+        int g;
+        int main()
+        {
+            g = 5;
+            if (g == 5) {
+                if (g != 5) {
+                }
+            }
+        }
+        """,
+            language=Language.C,
+        ),
+    )
+
+    all_marker_strategies = (
+        ms.FunctionCallStrategy(),
+        ms.AsmCommentStrategy(),
+        ms.AsmCommentEmptyOperandsStrategy(),
+        ms.AsmCommentLocalOutOperandStrategy(),
+        ms.AsmCommentGlobalOutOperandStrategy(),
+        ms.AsmCommentVolatileGlobalOutOperandStrategy(),
+        ms.LocalVolatileIntStrategy(),
+        ms.GlobalVolatileIntStrategy(),
+        ms.GlobalIntStrategy(),
+    )
+    gcc = get_system_gcc_O3()
+
+    for strategy in all_marker_strategies:
+        ip = iprogram.with_marker_directives(strategy)
+
+        assert (
+            ip.marker_preprocessor_directives.keys()
+            == iprogram.marker_preprocessor_directives.keys()
+        )
+
+        markers = ip.find_non_eliminated_markers(gcc)
+
+        assert (DCEMarker(f"{DCEMarker.prefix}1_")) in markers
+        assert (DCEMarker(f"{DCEMarker.prefix}2_")) in markers
