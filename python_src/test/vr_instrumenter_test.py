@@ -98,7 +98,10 @@ def test_disable_markers() -> None:
         iprogram0.find_non_eliminated_markers(gcc)
     )
     assert set((VRMarker("VRMarker0_", VRMarkerKind.LE),)) == set(
-        iprogram0.find_eliminated_markers(gcc)
+        iprogram0.find_eliminated_markers(gcc, include_all_markers=True)
+    )
+    assert set() == set(
+        iprogram0.find_eliminated_markers(gcc, include_all_markers=False)
     )
     # disabling the same marker twice shouldn't have any effect
     assert iprogram0 == iprogram0.disable_markers(
@@ -114,7 +117,10 @@ def test_disable_markers() -> None:
         iprogram1.find_non_eliminated_markers(gcc)
     )
     assert set((VRMarker("VRMarker0_", VRMarkerKind.GE),)) == set(
-        iprogram1.find_eliminated_markers(gcc)
+        iprogram1.find_eliminated_markers(gcc, include_all_markers=True)
+    )
+    assert set() == set(
+        iprogram1.find_eliminated_markers(gcc, include_all_markers=False)
     )
 
     iprogram1_1 = iprogram1.disable_remaining_markers()
@@ -130,7 +136,10 @@ def test_disable_markers() -> None:
             VRMarker("VRMarker0_", VRMarkerKind.LE),
             VRMarker("VRMarker0_", VRMarkerKind.GE),
         )
-    ) == set(iprogram1_1.find_eliminated_markers(gcc))
+    ) == set(iprogram1_1.find_eliminated_markers(gcc, include_all_markers=True))
+    assert set() == set(
+        iprogram1_1.find_eliminated_markers(gcc, include_all_markers=False)
+    )
 
     iprogram2 = iprogram.disable_remaining_markers()
     # disabling all remaining markers twice shouldn't have any effect
@@ -147,7 +156,10 @@ def test_disable_markers() -> None:
             VRMarker("VRMarker0_", VRMarkerKind.LE),
             VRMarker("VRMarker0_", VRMarkerKind.GE),
         )
-    ) == set(iprogram2.find_eliminated_markers(gcc))
+    ) == set(iprogram2.find_eliminated_markers(gcc, include_all_markers=True))
+    assert set() == set(
+        iprogram2.find_eliminated_markers(gcc, include_all_markers=False)
+    )
 
 
 def test_unreachable() -> None:
@@ -181,7 +193,16 @@ def test_unreachable() -> None:
         iprogram0.find_non_eliminated_markers(gcc)
     )
     assert set((VRMarker("VRMarker0_", VRMarkerKind.LE),)) == set(
-        iprogram0.find_eliminated_markers(gcc)
+        iprogram0.find_eliminated_markers(gcc, include_all_markers=True)
+    )
+    assert set() == set(
+        iprogram0.find_eliminated_markers(gcc, include_all_markers=False)
+    )
+    assert set((VRMarker("VRMarker0_", VRMarkerKind.LE),)) == set(
+        iprogram0.find_eliminated_markers(gcc, include_all_markers=True)
+    )
+    assert set() == set(
+        iprogram0.find_eliminated_markers(gcc, include_all_markers=False)
     )
     # Making the same marker unreachable twice shouldn't have any effect
     assert iprogram0 == iprogram0.make_markers_unreachable(
@@ -232,7 +253,10 @@ def test_disable_and_unreachable() -> None:
             VRMarker("VRMarker0_", VRMarkerKind.LE),
             VRMarker("VRMarker0_", VRMarkerKind.GE),
         )
-    ) == set(iprogram.find_eliminated_markers(gcc))
+    ) == set(iprogram.find_eliminated_markers(gcc, include_all_markers=True))
+    assert set() == set(
+        iprogram.find_eliminated_markers(gcc, include_all_markers=False)
+    )
 
     # All markers have already been disabled or made unreachable
     assert iprogram == iprogram.disable_remaining_markers()
