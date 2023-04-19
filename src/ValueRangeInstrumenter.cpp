@@ -58,32 +58,34 @@ ValueRangeInstrumenter::ValueRangeInstrumenter(
       Rules{{valueRangeRule(), Replacements, FileToNumberMarkerDecls}} {}
 
 std::string ValueRangeInstrumenter::makeMarkerMacros(size_t MarkerID) {
-  auto markerString = [m = MarkerID](StringRef kind, StringRef Op) {
-    auto Marker = ("VRMarker" + kind + std::to_string(m) + "_").str();
+  auto markerString = [](StringRef kind, StringRef Op, size_t ID) {
+    auto Marker = ("VRMarker" + kind + std::to_string(ID) + "_").str();
     return ("//MARKER_DIRECTIVES:" + Marker +
             "\n"
             "#if defined Disable" +
-            Marker + "\n" + "#define VRMARKERMACRO" + kind + std::to_string(m) +
-            "_(VAR)\n" + "#elif defined Unreachable" + Marker + "\n" +
-            "#define VRMARKERMACRO" + kind + std::to_string(m) +
+            Marker + "\n" + "#define VRMARKERMACRO" + kind +
+            std::to_string(ID) + "_(VAR)\n" + "#elif defined Unreachable" +
+            Marker + "\n" + "#define VRMARKERMACRO" + kind +
+            std::to_string(ID) + "_(VAR) if((VAR) " + Op + " VRMarkerConstant" +
+            kind + std::to_string(ID) + "_) __builtin_unreachable();\n" +
+            "#else\n" + +"#define VRMARKERMACRO" + kind + std::to_string(ID) +
             "_(VAR) if((VAR) " + Op + " VRMarkerConstant" + kind +
-            std::to_string(m) + "_) __builtin_unreachable();\n" + "#else\n" +
-            +"#define VRMARKERMACRO" + kind + std::to_string(m) +
-            "_(VAR) if((VAR) " + Op + " VRMarkerConstant" + kind +
-            std::to_string(m) + "_) " + Marker + "();\n" + "void " + Marker +
+            std::to_string(ID) + "_) " + Marker + "();\n" + "void " + Marker +
             "(void);\n#endif\n#ifndef VRMarkerConstant" + kind +
-            std::to_string(m) + "_\n#define VRMarkerConstant" + kind +
-            std::to_string(m) + "_ 0\n#endif\n")
+            std::to_string(ID) + "_\n#define VRMarkerConstant" + kind +
+            std::to_string(ID) + "_ 0\n#endif\n")
         .str();
   };
-  return markerString("LE", "<=") + markerString("GE", ">=");
+  return markerString("LE", "<=", MarkerID) +
+         markerString("GE", ">=", MarkerID + 1);
 }
 
 void ValueRangeInstrumenter::applyReplacements() {
   for (const auto &[File, NumberMarkerDecls] : FileToNumberMarkerDecls) {
     std::stringstream ss;
     auto gen = [i = 0]() mutable {
-      auto m = i++;
+      auto m = i;
+      i += 2;
       return makeMarkerMacros(m);
     };
     ss << "//MARKERS START\n";
