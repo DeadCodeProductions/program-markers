@@ -1,41 +1,51 @@
-import program_markers.marker_strategies as ms
 import pytest
 from diopter.compiler import Language, SourceProgram
 from program_markers.instrumenter import (
     InstrumenterMode,
-    VRMarker,
-    VRMarkerKind,
     find_non_eliminated_markers_impl,
     instrument_program,
 )
+from program_markers.markers import (
+    AsmCommentEmptyOperandsStrategy,
+    AsmCommentGlobalOutOperandStrategy,
+    AsmCommentLocalOutOperandStrategy,
+    AsmCommentStrategy,
+    AsmCommentVolatileGlobalOutOperandStrategy,
+    FunctionCallStrategy,
+    GlobalIntStrategy,
+    GlobalVolatileIntStrategy,
+    LocalVolatileIntStrategy,
+    VRMarker,
+)
 
-from .utils import get_system_gcc_O0
+from .utils import get_system_gcc_O0, get_system_gcc_O3
 
 
 def test_asm_parsing() -> None:
     asm = """
-    call VRMarkerLE0_@PLT
+    call VRMarker0_@PLT
 .L2:
     cmpl	$0, -4(%rbp)
     js	.L3
-    call	VRMarkerGE0_@PLT
+    call	VRMarker1_@PLT
     """
+    markers = (VRMarker.from_str("VRMarkerLE0_"), VRMarker.from_str("VRMarkerGE1_"))
     assert (
-        set(find_non_eliminated_markers_impl(asm, ms.FunctionCallStrategy()))
+        set(find_non_eliminated_markers_impl(asm, markers, FunctionCallStrategy()))
     ) == set(
         (
-            VRMarker("VRMarker0_", VRMarkerKind.GE),
-            VRMarker("VRMarker0_", VRMarkerKind.LE),
+            VRMarker.from_str("VRMarkerGE1_"),
+            VRMarker.from_str("VRMarkerLE0_"),
         )
     )
 
     asm = """
     js	.L2
-    call	VRMarkerGE0_@PLT
+    call	VRMarker1_@PLT
 """
     assert (
-        set(find_non_eliminated_markers_impl(asm, ms.FunctionCallStrategy()))
-    ) == set((VRMarker("VRMarker0_", VRMarkerKind.GE),))
+        set(find_non_eliminated_markers_impl(asm, markers, FunctionCallStrategy()))
+    ) == set((VRMarker.from_str("VRMarkerGE1_"),))
 
 
 def test_instrumentation() -> None:
@@ -54,16 +64,16 @@ def test_instrumentation() -> None:
     )
     assert set(
         (
-            VRMarker("VRMarker0_", VRMarkerKind.LE),
-            VRMarker("VRMarker0_", VRMarkerKind.GE),
+            VRMarker.from_str("VRMarkerLE0_"),
+            VRMarker.from_str("VRMarkerGE1_"),
         )
-    ) == set(iprogram.vr_markers)
+    ) == set(iprogram.enabled_markers)
 
     gcc = get_system_gcc_O0()
     assert set(
         (
-            VRMarker("VRMarker0_", VRMarkerKind.LE),
-            VRMarker("VRMarker0_", VRMarkerKind.GE),
+            VRMarker.from_str("VRMarkerLE0_"),
+            VRMarker.from_str("VRMarkerGE1_"),
         )
     ) == set(iprogram.find_non_eliminated_markers(gcc))
     assert set() == set(iprogram.find_eliminated_markers(gcc))
@@ -87,36 +97,28 @@ def test_disable_markers() -> None:
     gcc = get_system_gcc_O0()
 
     with pytest.raises(AssertionError):
-        iprogram.disable_markers((VRMarker("VRMarker1_", VRMarkerKind.LE),))
+        iprogram.disable_markers((VRMarker.from_str("VRMarkerLE1_"),))
 
-    iprogram0 = iprogram.disable_markers((VRMarker("VRMarker0_", VRMarkerKind.LE),))
-    assert set((VRMarker("VRMarker0_", VRMarkerKind.LE),)) == set(
-        iprogram0.disabled_markers
-    )
-    assert set(iprogram0.defined_macros) == set(("DisableVRMarkerLE0_",))
-    assert set((VRMarker("VRMarker0_", VRMarkerKind.GE),)) == set(
+    iprogram0 = iprogram.disable_markers((VRMarker.from_str("VRMarkerLE0_"),))
+    assert set((VRMarker.from_str("VRMarkerLE0_"),)) == set(iprogram0.disabled_markers)
+    assert set((VRMarker.from_str("VRMarkerGE1_"),)) == set(
         iprogram0.find_non_eliminated_markers(gcc)
     )
-    assert set((VRMarker("VRMarker0_", VRMarkerKind.LE),)) == set(
+    assert set((VRMarker.from_str("VRMarkerLE0_"),)) == set(
         iprogram0.find_eliminated_markers(gcc, include_all_markers=True)
     )
     assert set() == set(
         iprogram0.find_eliminated_markers(gcc, include_all_markers=False)
     )
     # disabling the same marker twice shouldn't have any effect
-    assert iprogram0 == iprogram0.disable_markers(
-        (VRMarker("VRMarker0_", VRMarkerKind.LE),)
-    )
+    assert iprogram0 == iprogram0.disable_markers((VRMarker.from_str("VRMarkerLE0_"),))
 
-    iprogram1 = iprogram.disable_markers((VRMarker("VRMarker0_", VRMarkerKind.GE),))
-    assert set((VRMarker("VRMarker0_", VRMarkerKind.GE),)) == set(
-        iprogram1.disabled_markers
-    )
-    assert set(iprogram1.defined_macros) == set(("DisableVRMarkerGE0_",))
-    assert set((VRMarker("VRMarker0_", VRMarkerKind.LE),)) == set(
+    iprogram1 = iprogram.disable_markers((VRMarker.from_str("VRMarkerGE1_"),))
+    assert set((VRMarker.from_str("VRMarkerGE1_"),)) == set(iprogram1.disabled_markers)
+    assert set((VRMarker.from_str("VRMarkerLE0_"),)) == set(
         iprogram1.find_non_eliminated_markers(gcc)
     )
-    assert set((VRMarker("VRMarker0_", VRMarkerKind.GE),)) == set(
+    assert set((VRMarker.from_str("VRMarkerGE1_"),)) == set(
         iprogram1.find_eliminated_markers(gcc, include_all_markers=True)
     )
     assert set() == set(
@@ -126,15 +128,15 @@ def test_disable_markers() -> None:
     iprogram1_1 = iprogram1.disable_remaining_markers()
     assert set(
         (
-            VRMarker("VRMarker0_", VRMarkerKind.LE),
-            VRMarker("VRMarker0_", VRMarkerKind.GE),
+            VRMarker.from_str("VRMarkerLE0_"),
+            VRMarker.from_str("VRMarkerGE1_"),
         )
     ) == set(iprogram1_1.disabled_markers)
     assert set() == set(iprogram1_1.find_non_eliminated_markers(gcc))
     assert set(
         (
-            VRMarker("VRMarker0_", VRMarkerKind.LE),
-            VRMarker("VRMarker0_", VRMarkerKind.GE),
+            VRMarker.from_str("VRMarkerLE0_"),
+            VRMarker.from_str("VRMarkerGE1_"),
         )
     ) == set(iprogram1_1.find_eliminated_markers(gcc, include_all_markers=True))
     assert set() == set(
@@ -146,15 +148,15 @@ def test_disable_markers() -> None:
     assert iprogram2 == iprogram2.disable_remaining_markers()
     assert set(
         (
-            VRMarker("VRMarker0_", VRMarkerKind.LE),
-            VRMarker("VRMarker0_", VRMarkerKind.GE),
+            VRMarker.from_str("VRMarkerLE0_"),
+            VRMarker.from_str("VRMarkerGE1_"),
         )
     ) == set(iprogram2.disabled_markers)
     assert set(()) == set(iprogram2.find_non_eliminated_markers(gcc))
     assert set(
         (
-            VRMarker("VRMarker0_", VRMarkerKind.LE),
-            VRMarker("VRMarker0_", VRMarkerKind.GE),
+            VRMarker.from_str("VRMarkerLE0_"),
+            VRMarker.from_str("VRMarkerGE1_"),
         )
     ) == set(iprogram2.find_eliminated_markers(gcc, include_all_markers=True))
     assert set() == set(
@@ -180,25 +182,22 @@ def test_unreachable() -> None:
     gcc = get_system_gcc_O0()
 
     with pytest.raises(AssertionError):
-        iprogram.make_markers_unreachable((VRMarker("VRMarker1_", VRMarkerKind.LE),))
+        iprogram.make_markers_unreachable((VRMarker.from_str("VRMarkerLE1_"),))
 
-    iprogram0 = iprogram.make_markers_unreachable(
-        (VRMarker("VRMarker0_", VRMarkerKind.LE),)
-    )
-    assert set((VRMarker("VRMarker0_", VRMarkerKind.LE),)) == set(
+    iprogram0 = iprogram.make_markers_unreachable((VRMarker.from_str("VRMarkerLE0_"),))
+    assert set((VRMarker.from_str("VRMarkerLE0_"),)) == set(
         iprogram0.unreachable_markers
     )
-    assert set(iprogram0.defined_macros) == set(("UnreachableVRMarkerLE0_",))
-    assert set((VRMarker("VRMarker0_", VRMarkerKind.GE),)) == set(
+    assert set((VRMarker.from_str("VRMarkerGE1_"),)) == set(
         iprogram0.find_non_eliminated_markers(gcc)
     )
-    assert set((VRMarker("VRMarker0_", VRMarkerKind.LE),)) == set(
+    assert set((VRMarker.from_str("VRMarkerLE0_"),)) == set(
         iprogram0.find_eliminated_markers(gcc, include_all_markers=True)
     )
     assert set() == set(
         iprogram0.find_eliminated_markers(gcc, include_all_markers=False)
     )
-    assert set((VRMarker("VRMarker0_", VRMarkerKind.LE),)) == set(
+    assert set((VRMarker.from_str("VRMarkerLE0_"),)) == set(
         iprogram0.find_eliminated_markers(gcc, include_all_markers=True)
     )
     assert set() == set(
@@ -206,7 +205,7 @@ def test_unreachable() -> None:
     )
     # Making the same marker unreachable twice shouldn't have any effect
     assert iprogram0 == iprogram0.make_markers_unreachable(
-        (VRMarker("VRMarker0_", VRMarkerKind.LE),)
+        (VRMarker.from_str("VRMarkerLE0_"),)
     )
 
 
@@ -227,31 +226,27 @@ def test_disable_and_unreachable() -> None:
     )
     gcc = get_system_gcc_O0()
 
-    iprogram = iprogram.make_markers_unreachable(
-        (VRMarker("VRMarker0_", VRMarkerKind.LE),)
-    )
+    iprogram = iprogram.make_markers_unreachable((VRMarker.from_str("VRMarkerLE0_"),))
     with pytest.raises(AssertionError):
         # We can't disable a marker that was already make unreachable
-        iprogram.disable_markers((VRMarker("VRMarker0_", VRMarkerKind.LE),))
+        iprogram.disable_markers((VRMarker.from_str("VRMarkerLE0_"),))
 
-    iprogram = iprogram.disable_markers((VRMarker("VRMarker0_", VRMarkerKind.GE),))
+    iprogram = iprogram.disable_markers((VRMarker.from_str("VRMarkerGE1_"),))
     with pytest.raises(AssertionError):
         # We can't make ureachable a marker that was already disabled
         iprogram = iprogram.make_markers_unreachable(
-            (VRMarker("VRMarker0_", VRMarkerKind.GE),)
+            (VRMarker.from_str("VRMarkerGE1_"),)
         )
-    assert set((VRMarker("VRMarker0_", VRMarkerKind.LE),)) == set(
+    assert set((VRMarker.from_str("VRMarkerLE0_"),)) == set(
         iprogram.unreachable_markers
     )
-    assert set((VRMarker("VRMarker0_", VRMarkerKind.GE),)) == set(
-        iprogram.disabled_markers
-    )
+    assert set((VRMarker.from_str("VRMarkerGE1_"),)) == set(iprogram.disabled_markers)
 
     assert set(()) == set(iprogram.find_non_eliminated_markers(gcc))
     assert set(
         (
-            VRMarker("VRMarker0_", VRMarkerKind.LE),
-            VRMarker("VRMarker0_", VRMarkerKind.GE),
+            VRMarker.from_str("VRMarkerLE0_"),
+            VRMarker.from_str("VRMarkerGE1_"),
         )
     ) == set(iprogram.find_eliminated_markers(gcc, include_all_markers=True))
     assert set() == set(
@@ -260,3 +255,41 @@ def test_disable_and_unreachable() -> None:
 
     # All markers have already been disabled or made unreachable
     assert iprogram == iprogram.disable_remaining_markers()
+
+
+def test_strategies() -> None:
+    iprogram = instrument_program(
+        SourceProgram(
+            code="""
+        static int foo(int a, int b){
+            return a + b;
+        }
+        int main()
+        {
+            return foo(-1,1);
+        }
+        """,
+            language=Language.C,
+        ),
+        mode=InstrumenterMode.VR,
+    )
+
+    all_marker_strategies = (
+        FunctionCallStrategy(),
+        AsmCommentStrategy(),
+        AsmCommentEmptyOperandsStrategy(),
+        AsmCommentLocalOutOperandStrategy(),
+        AsmCommentGlobalOutOperandStrategy(),
+        AsmCommentVolatileGlobalOutOperandStrategy(),
+        LocalVolatileIntStrategy(),
+        GlobalVolatileIntStrategy(),
+        GlobalIntStrategy(),
+    )
+    gcc = get_system_gcc_O3()
+
+    for strategy in all_marker_strategies:
+        ip = iprogram.with_marker_strategy(strategy)
+        markers = ip.find_non_eliminated_markers(gcc)
+
+        assert VRMarker.from_str("VRMarkerGE3_") in markers
+        assert VRMarker.from_str("VRMarkerLE0_") in markers

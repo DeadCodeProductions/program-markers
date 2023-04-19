@@ -140,24 +140,24 @@ void VRMarkerLE0_(void);
 #ifndef VRMarkerConstantLE0_
 #define VRMarkerConstantLE0_ 0
 #endif
-#if defined DisableVRMarkerGE0_
-#define VRMARKERMACROGE0_(VAR)
-#elif defined UnreachableVRMarkerGE0_
-#define VRMARKERMACROGE0_(VAR)         \
-  if ((VAR) >= VRMarkerConstantGE0_)   \
+#if defined DisableVRMarkerGE1_
+#define VRMARKERMACROGE1_(VAR)
+#elif defined UnreachableVRMarkerGE1_
+#define VRMARKERMACROGE1_(VAR)         \
+  if ((VAR) >= VRMarkerConstantGE1_)   \
     __builtin_unreachable();
 #else
-#define VRMARKERMACROGE0_(VAR)         \
-  if ((VAR) >= VRMarkerConstantGE0_)   \
-    VRMarkerGE0_();
-void VRMarkerGE0_(void);
+#define VRMARKERMACROGE1_(VAR)         \
+  if ((VAR) >= VRMarkerConstantGE1_)   \
+    VRMarkerGE1_();
+void VRMarkerGE1_(void);
 #endif
-#ifndef VRMarkerConstantGE0_
-#define VRMarkerConstantGE0_ 0
+#ifndef VRMarkerConstantGE1_
+#define VRMarkerConstantGE1_ 0
 #endif
 int foo(int a) {
   VRMARKERMACROLE0_(a)
-  VRMARKERMACROGE0_(a)
+  VRMARKERMACROGE1_(a)
   if (a == 0)
     return 1;
   return 0;
@@ -168,12 +168,12 @@ int foo(int a) {
 The ranges that each marker test can be adjucted via macros and individual markers can be disabled or turned into unreachables:
 
 ```
-gcc -E -P -DDisableVRMarkerLE0_ -DVRMarkerConstantGE0_=8 test.c | clang-format
-void VRMarkerGE0_(void);
+gcc -E -P -DDisableVRMarkerLE0_ -DVRMarkerConstantGE1_=8 test.c | clang-format
+void VRMarkerGE1_(void);
 int foo(int a) {
 
   if ((a) >= 8)
-    VRMarkerGE0_();
+    VRMarkerGE1_();
   if (a == 0)
     return 1;
   return 0;

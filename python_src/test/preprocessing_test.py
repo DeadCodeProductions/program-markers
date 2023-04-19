@@ -1,5 +1,6 @@
 from diopter.compiler import Language, SourceProgram
-from program_markers.instrumenter import DCEMarker, instrument_program
+from program_markers.instrumenter import instrument_program
+from program_markers.markers import DCEMarker
 
 from .utils import get_system_gcc_O0
 
@@ -17,8 +18,8 @@ def test_preprocessing() -> None:
             language=Language.C,
         ),
     )
-    m0 = DCEMarker("DCEMarker0_")
-    m1 = DCEMarker("DCEMarker1_")
+    m0 = DCEMarker.from_str("DCEMarker0_")
+    m1 = DCEMarker.from_str("DCEMarker1_")
     assert set((m0, m1)) == set(iprogram.all_markers())
     gcc = get_system_gcc_O0()
 
@@ -35,14 +36,18 @@ def test_preprocessing() -> None:
     assert set((m1,)) == set(iprogram_u.all_markers())
     assert set((m1,)) == set(iprogram_u.find_non_eliminated_markers(gcc))
     assert set() == set(iprogram_u.find_eliminated_markers(gcc))
+    assert "__builtin_unreachable()" in iprogram_u.code
+    assert m1.macro() in iprogram_u.code
 
     # preprocess with a disabled marker
-    iprogram_d = iprogram.make_markers_unreachable(
+    iprogram_d = iprogram.disable_markers(
         [m1]
     ).preprocess_disabled_and_unreachable_markers(gcc)
     assert set((m0,)) == set(iprogram_d.all_markers())
     assert set((m0,)) == set(iprogram_d.find_non_eliminated_markers(gcc))
     assert set() == set(iprogram_d.find_eliminated_markers(gcc))
+    assert m0.macro() in iprogram_d.code
+    assert m1.macro() not in iprogram_d.code
 
     # preprocess with a disabled and an unreachable marker
     iprogram_ud = (
@@ -53,3 +58,5 @@ def test_preprocessing() -> None:
     assert set() == set(iprogram_ud.all_markers())
     assert set() == set(iprogram_ud.find_non_eliminated_markers(gcc))
     assert set() == set(iprogram_ud.find_eliminated_markers(gcc))
+    assert m0.macro() not in iprogram_ud.code
+    assert "__builtin_unreachable()" in iprogram_ud.code

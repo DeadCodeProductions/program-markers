@@ -87,9 +87,13 @@ void RuleActionEditCollector::run(
     }
     case EditMetadataKind::VRMarker: {
       auto N = GetMarkerN()++;
+      // XXX: this will be a program when the two marker kinds are unified
+      // maybe I should just insert two replacements? Or track the numbers
+      // somehow else
+      N *= 2;
       UpdateReplacements("VRMARKERMACROLE" + std::to_string(N) + "_(" +
                          T.Replacement + ")\nVRMARKERMACROGE" +
-                         std::to_string(N) + "_(" + T.Replacement + ")\n");
+                         std::to_string(N + 1) + "_(" + T.Replacement + ")\n");
       break;
     }
     default:
