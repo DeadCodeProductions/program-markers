@@ -61,7 +61,10 @@ def test_disable_markers() -> None:
         iprogram0.find_non_eliminated_markers(gcc)
     )
     assert set((DCEMarker("DCEMarker1_"),)) == set(
-        iprogram0.find_eliminated_markers(gcc)
+        iprogram0.find_eliminated_markers(gcc, include_all_markers=True)
+    )
+    assert set() == set(
+        iprogram0.find_eliminated_markers(gcc, include_all_markers=False)
     )
     # disabling the same marker twice shouldn't have any effect
     assert iprogram0 == iprogram0.disable_markers((DCEMarker("DCEMarker1_"),))
@@ -72,7 +75,10 @@ def test_disable_markers() -> None:
         iprogram1.find_non_eliminated_markers(gcc)
     )
     assert set((DCEMarker("DCEMarker0_"),)) == set(
-        iprogram1.find_eliminated_markers(gcc)
+        iprogram1.find_eliminated_markers(gcc, include_all_markers=True)
+    )
+    assert set() == set(
+        iprogram1.find_eliminated_markers(gcc, include_all_markers=False)
     )
 
     iprogram1_1 = iprogram1.disable_remaining_markers()
@@ -88,7 +94,10 @@ def test_disable_markers() -> None:
             DCEMarker("DCEMarker0_"),
             DCEMarker("DCEMarker1_"),
         )
-    ) == set(iprogram1_1.find_eliminated_markers(gcc))
+    ) == set(iprogram1_1.find_eliminated_markers(gcc, include_all_markers=True))
+    assert set() == set(
+        iprogram1_1.find_eliminated_markers(gcc, include_all_markers=False)
+    )
 
     iprogram2 = iprogram.disable_remaining_markers()
     # disabling all remaining markers twice shouldn't have any effect
@@ -101,7 +110,10 @@ def test_disable_markers() -> None:
     ) == set(iprogram2.disabled_markers)
     assert set(()) == set(iprogram2.find_non_eliminated_markers(gcc))
     assert set((DCEMarker("DCEMarker0_"), DCEMarker("DCEMarker1_"))) == set(
-        iprogram2.find_eliminated_markers(gcc)
+        iprogram2.find_eliminated_markers(gcc, include_all_markers=True)
+    )
+    assert set() == set(
+        iprogram2.find_eliminated_markers(gcc, include_all_markers=False)
     )
 
 
@@ -166,7 +178,10 @@ def test_disable_and_unreachable() -> None:
 
     assert set(()) == set(iprogram.find_non_eliminated_markers(gcc))
     assert set((DCEMarker("DCEMarker0_"), DCEMarker("DCEMarker1_"))) == set(
-        iprogram.find_eliminated_markers(gcc)
+        iprogram.find_eliminated_markers(gcc, include_all_markers=True)
+    )
+    assert set() == set(
+        iprogram.find_eliminated_markers(gcc, include_all_markers=False)
     )
 
     asm = gcc.compile_program(iprogram, ASMCompilationOutput()).output.read()

@@ -418,6 +418,9 @@ class InstrumentedProgram(SourceProgram):
         The VR markers are found by searching for calls or jumps to functions with
         names starting with a known marker prefix (e.g., VRMarkerE123_)
 
+        Args:
+            compilation_setting (CompilationSetting):
+                the setting used to compile the program
         Returns:
             tuple[Marker, ...]:
                 The non_eliminated markers for the given compilation setting.
@@ -432,25 +435,41 @@ class InstrumentedProgram(SourceProgram):
         return non_eliminated_markers
 
     def find_eliminated_markers(
-        self, compilation_setting: CompilationSetting
+        self, compilation_setting: CompilationSetting, include_all_markers: bool = False
     ) -> tuple[Marker, ...]:
         """Compiles the program to ASM with `compilation_setting` and finds
         the eliminated markers.
+
+        Args:
+            compilation_setting (CompilationSetting):
+                the setting used to compile the program
+            include_all_markers (bool):
+                if true disabled and unreachable markers are included
 
         Returns:
             tuple[Marker, ...]:
                 The eliminated markers for the given compilation setting.
         """
-        non_eliminated_markers = set(self.all_markers()) - set(
+        eliminated_markers = set(self.all_markers()) - set(
             self.find_non_eliminated_markers(compilation_setting)
         )
-        return tuple(non_eliminated_markers)
+        if not include_all_markers:
+            eliminated_markers = (
+                eliminated_markers
+                - set(self.unreachable_markers)
+                - set(self.disabled_markers)
+            )
+        return tuple(eliminated_markers)
 
     def find_eliminated_and_non_eliminated_markers(
         self, compilation_setting: CompilationSetting
     ) -> MarkerStatus:
         """Compiles the program to ASM with `compilation_setting` and finds
         eliminated and non_eliminated markers.
+
+        Args:
+            compilation_setting (CompilationSetting):
+                the setting used to compile the program
 
         Returns:
             MarkerStatus:
