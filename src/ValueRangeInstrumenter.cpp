@@ -54,10 +54,8 @@ auto valueRangeRule() {
 
 ValueRangeInstrumenter::ValueRangeInstrumenter(
     std::map<std::string, clang::tooling::Replacements> &FileToReplacements)
-    : FileToReplacements{FileToReplacements}, Rules{{valueRangeRule(),
-                                                     Replacements,
-                                                     FileToNumberMarkerDecls}} {
-}
+    : FileToReplacements{FileToReplacements},
+      Rules{{valueRangeRule(), Replacements, FileToNumberMarkerDecls}} {}
 
 std::string ValueRangeInstrumenter::makeMarkerMacros(size_t MarkerID) {
   auto markerString = [m = MarkerID](StringRef kind, StringRef Op) {
