@@ -20,8 +20,8 @@ public:
       clang::transformer::RewriteRule Rule,
       std::vector<clang::tooling::Replacement> &Replacements,
       std::map<std::string, int> &FileToNumberMarkerDecls)
-      : Rule{Rule}, Replacements{Replacements}, FileToNumberMarkerDecls{
-                                                    FileToNumberMarkerDecls} {}
+      : Rule{Rule}, Replacements{Replacements},
+        FileToNumberMarkerDecls{FileToNumberMarkerDecls} {}
   void
   run(const clang::ast_matchers::MatchFinder::MatchResult &Result) override;
   void registerMatchers(clang::ast_matchers::MatchFinder &Finder);
