@@ -47,20 +47,20 @@ struct RewriterDiagnosticConsumer : public DiagnosticConsumer {
 /// of a Rewriter with default values for testing and provides convenience
 /// methods, which help with writing tests that change files.
 class RewriterTestContext {
- public:
-   RewriterTestContext()
-       : DiagOpts(new DiagnosticOptions()),
-         Diagnostics(IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs),
-                     &*DiagOpts),
-         InMemoryFileSystem(new llvm::vfs::InMemoryFileSystem),
-         OverlayFileSystem(
-             new llvm::vfs::OverlayFileSystem(llvm::vfs::getRealFileSystem())),
-         Files(FileSystemOptions(), OverlayFileSystem),
-         Sources(Diagnostics, Files), Rewrite(Sources, Options) {
-     Diagnostics.setClient(&DiagnosticPrinter, false);
-     // FIXME: To make these tests truly in-memory, we need to overlay the
-     // builtin headers.
-     OverlayFileSystem->pushOverlay(InMemoryFileSystem);
+public:
+  RewriterTestContext()
+      : DiagOpts(new DiagnosticOptions()),
+        Diagnostics(IntrusiveRefCntPtr<DiagnosticIDs>(new DiagnosticIDs),
+                    &*DiagOpts),
+        InMemoryFileSystem(new llvm::vfs::InMemoryFileSystem),
+        OverlayFileSystem(
+            new llvm::vfs::OverlayFileSystem(llvm::vfs::getRealFileSystem())),
+        Files(FileSystemOptions(), OverlayFileSystem),
+        Sources(Diagnostics, Files), Rewrite(Sources, Options) {
+    Diagnostics.setClient(&DiagnosticPrinter, false);
+    // FIXME: To make these tests truly in-memory, we need to overlay the
+    // builtin headers.
+    OverlayFileSystem->pushOverlay(InMemoryFileSystem);
   }
 
   ~RewriterTestContext() {}
