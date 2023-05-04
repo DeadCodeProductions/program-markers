@@ -1,5 +1,11 @@
-on: [ push ]
 name: Lint Python and Format
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
 jobs:
   mypy:
     runs-on: ubuntu-latest
