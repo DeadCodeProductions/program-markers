@@ -1,6 +1,9 @@
 import pytest
 from diopter.compiler import ASMCompilationOutput, Language, SourceProgram
-from program_markers.instrumenter import instrument_program
+from program_markers.instrumenter import (
+    find_non_eliminated_markers_impl,
+    instrument_program,
+)
 from program_markers.markers import (
     AsmCommentEmptyOperandsStrategy,
     AsmCommentGlobalOutOperandStrategy,
@@ -15,6 +18,32 @@ from program_markers.markers import (
 )
 
 from .utils import get_system_gcc_O0, get_system_gcc_O3
+
+
+def test_parsing_with_tailcalls() -> None:
+    asm = """
+    f:                                      # @f
+        xor     edi, edx
+        je      DCEMarker0_                     # TAILCALL
+        ret
+    """
+    markers = (DCEMarker.from_str("DCEMarker0_"),)
+    assert (
+        set(find_non_eliminated_markers_impl(asm, markers, FunctionCallStrategy()))
+    ) == set((DCEMarker.from_str("DCEMarker0_"),))
+
+    asm = """
+    f:
+        cmp     dl, dil
+        je      .L4
+        ret
+.L4:
+        xor     eax, eax
+        jmp     DCEMarker0_
+    """
+    assert (
+        set(find_non_eliminated_markers_impl(asm, markers, FunctionCallStrategy()))
+    ) == set((DCEMarker.from_str("DCEMarker0_"),))
 
 
 def test_instrumentation() -> None:

@@ -292,8 +292,12 @@ class FunctionCallStrategy(MarkerStrategy):
 
     @staticmethod
     def marker_detection_regex() -> re.Pattern[str]:
-        # (call|j[a-z]{1,2}) checks that the instruction either starts with call or j and two letters (thus, including conditional and uncoditional jumps)
-        return re.compile(f".*(call|j[a-z]{{1,2}}).*({'|'.join(marker_prefixes())})([0-9]+)_.*")
+        # (call|j[a-z]{1,2}) checks that the instruction either starts with
+        # call or j and two letters (thus, including conditional
+        # and uncoditional jumps)
+        return re.compile(
+            f".*(call|j[a-z]{{1,2}}).*({'|'.join(marker_prefixes())})([0-9]+)_.*"
+        )
 
     @staticmethod
     def regex_marker_id_group_index() -> int:
