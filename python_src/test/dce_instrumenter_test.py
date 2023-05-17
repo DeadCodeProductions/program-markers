@@ -8,6 +8,7 @@ from program_markers.markers import (
     AsmCommentEmptyOperandsStrategy,
     AsmCommentGlobalOutOperandStrategy,
     AsmCommentLocalOutOperandStrategy,
+    AsmCommentStaticVolatileGlobalOutOperandStrategy,
     AsmCommentStrategy,
     AsmCommentVolatileGlobalOutOperandStrategy,
     DCEMarker,
@@ -15,6 +16,7 @@ from program_markers.markers import (
     GlobalIntStrategy,
     GlobalVolatileIntStrategy,
     LocalVolatileIntStrategy,
+    StaticVolatileGlobalIntStrategy,
 )
 
 from .utils import get_system_gcc_O0, get_system_gcc_O3
@@ -263,9 +265,11 @@ def test_strategies() -> None:
         AsmCommentLocalOutOperandStrategy(),
         AsmCommentGlobalOutOperandStrategy(),
         AsmCommentVolatileGlobalOutOperandStrategy(),
+        AsmCommentStaticVolatileGlobalOutOperandStrategy(),
         LocalVolatileIntStrategy(),
         GlobalVolatileIntStrategy(),
         GlobalIntStrategy(),
+        StaticVolatileGlobalIntStrategy(),
     )
     gcc = get_system_gcc_O3()
 

@@ -319,11 +319,11 @@ class AsmCommentStrategy(MarkerStrategy):
 
     @staticmethod
     def marker_detection_regex() -> Pattern[str]:
-        return re.compile(f".*\\#.*[{'|'.join(marker_prefixes())}]([0-9]+)_.*")
+        return re.compile(f".*\\#.*({'|'.join(marker_prefixes())})([0-9]+)_.*")
 
     @staticmethod
     def regex_marker_id_group_index() -> int:
-        return 1
+        return 2
 
 
 class AsmCommentEmptyOperandsStrategy(AsmCommentStrategy):
@@ -376,10 +376,18 @@ class AsmCommentVolatileGlobalOutOperandStrategy(AsmCommentGlobalOutOperandStrat
         variable_name = f"{marker.prefix()}_JUNK_VAR{marker.id}_"
         return f"volatile int {variable_name};"
 
+
+class AsmCommentStaticVolatileGlobalOutOperandStrategy(
+    AsmCommentGlobalOutOperandStrategy
+):
     @staticmethod
-    def make_macro_definition(marker: Marker) -> str:
+    def name() -> str:
+        return "Asm Comment Static Volatile Global Out Operand"
+
+    @staticmethod
+    def definitions_and_declarations(marker: Marker) -> str:
         variable_name = f"{marker.prefix()}_JUNK_VAR{marker.id}_"
-        return f'asm("# {marker.name}" : "=r" ({variable_name}));'
+        return f"static volatile int {variable_name};"
 
 
 class LocalVolatileIntStrategy(MarkerStrategy):
@@ -441,3 +449,14 @@ class GlobalVolatileIntStrategy(GlobalIntStrategy):
     def definitions_and_declarations(marker: Marker) -> str:
         variable_name = f"{marker.prefix()}_JUNK_VAR{marker.id}_"
         return f"volatile int {variable_name};"
+
+
+class StaticVolatileGlobalIntStrategy(GlobalIntStrategy):
+    @staticmethod
+    def name() -> str:
+        return "Static Volatile Global Int"
+
+    @staticmethod
+    def definitions_and_declarations(marker: Marker) -> str:
+        variable_name = f"{marker.prefix()}_JUNK_VAR{marker.id}_"
+        return f"static volatile int {variable_name};"
