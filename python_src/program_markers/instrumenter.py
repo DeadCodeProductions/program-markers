@@ -462,6 +462,7 @@ def get_instrumenter(
 class InstrumenterMode(Enum):
     DCE = 0
     VR = 1
+    DCE_AND_VR = 2
 
 
 def instrument_program(
@@ -489,26 +490,70 @@ def instrument_program(
     instrumenter_resolved = get_instrumenter(instrumenter, clang)
 
     flags = []
-    match mode:
-        case InstrumenterMode.DCE:
-            flags.append("--mode=dce")
-        case InstrumenterMode.VR:
-            flags.append("--mode=vr")
     if ignore_functions_with_macros:
         flags.append("--ignore-functions-with-macros=1")
     else:
         flags.append("--ignore-functions-with-macros=0")
 
-    result = instrumenter_resolved.run_on_program(
-        program, flags, ClangToolMode.READ_MODIFIED_FILE
-    )
-    assert result.modified_source_code
+    def get_code_and_markers(mode: str) -> tuple[str, list[Marker]]:
+        result = instrumenter_resolved.run_on_program(
+            program, flags + [f"--mode={mode}"], ClangToolMode.READ_MODIFIED_FILE
+        )
+        assert result.modified_source_code
+        directives, instrumented_code = __split_to_marker_directives_and_code(
+            result.modified_source_code
+        )
 
-    directives, instrumented_code = __split_to_marker_directives_and_code(
-        result.modified_source_code
-    )
+        directives_map = __split_marker_directives(directives)
+        return instrumented_code, list(directives_map.keys())
 
-    directives_map = __split_marker_directives(directives)
+    match mode:
+        case InstrumenterMode.DCE:
+            instrumented_code, markers = get_code_and_markers("dce")
+        case InstrumenterMode.VR:
+            instrumented_code, markers = get_code_and_markers("vr")
+        case InstrumenterMode.DCE_AND_VR:
+            result = instrumenter_resolved.run_on_program(
+                program, flags + ["--mode=dce"], ClangToolMode.READ_MODIFIED_FILE
+            )
+            assert result.modified_source_code
+            program_dce = replace(program, code=result.modified_source_code)
+            result = instrumenter_resolved.run_on_program(
+                program_dce, flags + ["--mode=vr"], ClangToolMode.READ_MODIFIED_FILE
+            )
+            assert result.modified_source_code
+            (
+                vr_directives,
+                dce_directives_and_instrumented_code,
+            ) = __split_to_marker_directives_and_code(result.modified_source_code)
+            dce_directives, instrumented_code = __split_to_marker_directives_and_code(
+                dce_directives_and_instrumented_code
+            )
+            vr_markers = list(__split_marker_directives(vr_directives).keys())
+            dce_markers = list(__split_marker_directives(dce_directives).keys())
+            if len(vr_markers) > 0 and len(dce_markers) > 0:
+                # There will be overlap between the two sets of marker ids
+                max_vr_id = max(vr_marker.id for vr_marker in vr_markers)
+                replacements = []
+                new_dce_markers = []
+                for dce_marker in dce_markers:
+                    old_macro = dce_marker.macro()
+                    old_id = dce_marker.id
+                    new_id = old_id + max_vr_id + 1
+                    new_marker = replace(
+                        dce_marker,
+                        id=new_id,
+                        name=dce_marker.name.replace(str(old_id), str(new_id)),
+                    )
+                    new_macro = new_marker.macro()
+                    replacements.append((old_macro, new_macro))
+                    new_dce_markers.append(new_marker)
+                dce_markers = new_dce_markers
+                for old_macro, new_macro in replacements:
+                    instrumented_code = instrumented_code.replace(
+                        old_macro, new_macro, 1
+                    )
+                markers = dce_markers + vr_markers
 
     return InstrumentedProgram(
         code=instrumented_code,
@@ -518,5 +563,5 @@ def instrument_program(
         include_paths=program.include_paths,
         system_include_paths=program.system_include_paths,
         flags=program.flags,
-        enabled_markers=tuple(marker for marker in directives_map.keys()),
+        enabled_markers=tuple(markers),
     )
