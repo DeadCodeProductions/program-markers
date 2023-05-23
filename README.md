@@ -26,12 +26,12 @@ this if statement is dead.
 A __VRMarker__ tests if a compiler can determine subsets of the value ranges of
 variables, for example:
 ```
-if (a <= C)
+if (!(LB <= a and a <= UB))
     VRMarker0_();
 ```
 If `call VRMarker0_();` is not present in the generated assembly code then the
-compiler determined that `a`'s value is always `a > C`. Currently only integer
-variables are instrumented. 
+compiler determined that `a`'s value is always `LB <= a <= UB`. Currently only
+integer variables are instrumented. 
 
 #### To build just the clang tool
 
@@ -125,39 +125,26 @@ int foo(int a) {
 program-markers --mode=vr test.c --
 
 cat test.c | clang-format 
-#if defined DisableVRMarkerLE0_
-#define VRMARKERMACROLE0_(VAR)
-#elif defined UnreachableVRMarkerLE0_
-#define VRMARKERMACROLE0_(VAR)         \
-  if ((VAR) <= VRMarkerConstantLE0_)   \
+#if defined DisableVRMarker0_
+#define VRMARKERMACRO0_(VAR)
+#elif defined UnreachableVRMarker0_
+#define VRMARKERMACRO0_(VAR)                                                   \
+  if (!(VRMarkerLowerBound0_ <= (VAR) && (VAR) <= VRMarkerUpperBound0_))       \
     __builtin_unreachable();
 #else
-#define VRMARKERMACROLE0_(VAR)         \
-  if ((VAR) <= VRMarkerConstantLE0_)   \
-    VRMarkerLE0_();
-void VRMarkerLE0_(void);
+#define VRMARKERMACRO0_(VAR)                                                   \
+  if (!(VRMarkerLowerBound0_ <= (VAR) && (VAR) <= VRMarkerUpperBound0_))       \
+    VRMarker0_();
+void VRMarker0_(void);
 #endif
-#ifndef VRMarkerConstantLE0_
-#define VRMarkerConstantLE0_ 0
+#ifndef VRMarkerLowerBound0_
+#define VRMarkerLowerBound0_ 0
 #endif
-#if defined DisableVRMarkerGE1_
-#define VRMARKERMACROGE1_(VAR)
-#elif defined UnreachableVRMarkerGE1_
-#define VRMARKERMACROGE1_(VAR)         \
-  if ((VAR) >= VRMarkerConstantGE1_)   \
-    __builtin_unreachable();
-#else
-#define VRMARKERMACROGE1_(VAR)         \
-  if ((VAR) >= VRMarkerConstantGE1_)   \
-    VRMarkerGE1_();
-void VRMarkerGE1_(void);
-#endif
-#ifndef VRMarkerConstantGE1_
-#define VRMarkerConstantGE1_ 0
+#ifndef VRMarkerUpperBound0_
+#define VRMarkerUpperBound0_ 0
 #endif
 int foo(int a) {
-  VRMARKERMACROLE0_(a)
-  VRMARKERMACROGE1_(a)
+  VRMARKERMACRO0_(a)
   if (a == 0)
     return 1;
   return 0;
@@ -165,15 +152,14 @@ int foo(int a) {
 ```
 
 
-The ranges that each marker test can be adjucted via macros and individual markers can be disabled or turned into unreachables:
+The ranges that each marker test can be adjucted via macros:
 
 ```
-gcc -E -P -DDisableVRMarkerLE0_ -DVRMarkerConstantGE1_=8 test.c | clang-format
-void VRMarkerGE1_(void);
+gcc -E -P -DVRMarkerLowerBound0_=-4 test.c | clang-format
+void VRMarker0_(void);
 int foo(int a) {
-
-  if ((a) >= 8)
-    VRMarkerGE1_();
+  if (!(-4 <= (a) && (a) <= 0))
+    VRMarker0_();
   if (a == 0)
     return 1;
   return 0;

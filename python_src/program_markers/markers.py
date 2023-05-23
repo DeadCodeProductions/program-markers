@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from enum import Enum
 from re import Pattern
 
 
@@ -50,10 +49,19 @@ class Marker(ABC):
                 """
 
     def emit_tracking_directive(self) -> str:
-        return f"""void {self.name}(void){{__builtin_printf("{self.name}");}}
-                #define {self.macro()} \
-                {self.marker_statement_prefix()}{self.name}();{self.marker_statement_postfix()}
+        return f"""#define {self.macro()} \
+                    {self.marker_statement_prefix()} \
+                    __builtin_printf("{self.name}\\n"); \
+                    {self.marker_statement_postfix()}
                 """
+
+    def emit_tracking_directive_for_refinement(self) -> str:
+        return f"#define {self.macro()}"
+
+    def parse_tracked_output_for_refinement(self, lines: list[str]) -> Marker:
+        for line in lines:
+            assert line.strip() == self.name
+        return self
 
 
 @dataclass(frozen=True)
@@ -90,63 +98,30 @@ class DCEMarker(Marker):
         return f"DCEMARKERMACRO{self.name[len(DCEMarker.prefix()):]}"
 
 
-class VRMarkerKind(Enum):
-    """
-    A VRMarker can either be a LE-Equal(LE):
-        if (var <= VRMarkerConstantLEX_)
-            VRMarkerLEX_
-
-    or a Greater-Equal(GE):
-        if (var >= VRMarkerConstantGEX_)
-            VRMarkerGEX_
-    """
-
-    LE = 0
-    GE = 1
-
-    @staticmethod
-    def from_str(kind: str) -> VRMarkerKind:
-        match kind:
-            case "LE":
-                return VRMarkerKind.LE
-            case "GE":
-                return VRMarkerKind.GE
-            case _:
-                raise ValueError(f"{kind} is not a valid VRMarkerKind")
-
-    def operator(self) -> str:
-        """Returns:
-        str:
-            "<=" or ">="
-        """
-        if self == VRMarkerKind.LE:
-            return "<="
-        else:
-            return ">="
-
-
 @dataclass(frozen=True)
 class VRMarker(Marker):
-    """A value range marker VRMarkerX_, where X is an
-    integer, corresponds to a marker macro and a constant macro:
-    - (VRMarkerLEX_, VRMarkerConstantLEX_) for LE markers
-    - (VRMarkerGEX_ VRMarkerConstantGEX_) for GE markers
+    """
+    A value range marker VRMarkerX_, where X is an
+    integer. VR markers enable range checks via dead
+    code elimination:
 
-    These appear in the source code as:
-        if (var <= VRMarkerConstantLEX_)
-            VRMarkerLEX_
-    or:
-        if (var >= VRMarkerConstantGEX_)
-            VRMarkerGEX_
+    if (!( LowerBound <= var  LowerBound && var <= UpperBound))
+        VRMarkerX_();
+
+    The marker is dead if `var`  in [LowerBound, UpperBound].
 
 
     Attributes:
         marker(str): the marker in the VRMarkerX_ form
-        kind (VRMarkerKind): LE or GE
+        lower_bound (int): the lower bound of the range (inclusive)
+        upper_bound (int): the upper bound of the range (inclusive)
     """
 
-    kind: VRMarkerKind
-    constant: int = 0
+    lower_bound: int = 0
+    upper_bound: int = 0
+
+    def __post_init__(self) -> None:
+        assert self.lower_bound <= self.upper_bound
 
     @classmethod
     def prefix(cls) -> str:
@@ -154,20 +129,15 @@ class VRMarker(Marker):
 
     @staticmethod
     def from_str(marker_str: str) -> VRMarker:
-        """Parsers a string of the form VRMarkerLEX_ | VRMarkerGEX_
+        """Parsers a string of the form VRMarkerX_
 
         Returns:
             VRMarker:
                 the parsed marker
         """
         assert marker_str.startswith(VRMarker.prefix())
-        kind = VRMarkerKind.from_str(
-            marker_str[len(VRMarker.prefix()) : len(VRMarker.prefix()) + 2]
-        )
-        marker_id = int(marker_str[len(VRMarker.prefix()) + len(kind.name) : -1])
-        marker_name = VRMarker.prefix() + str(marker_id) + "_"
-
-        return VRMarker(marker_name, marker_id, kind)
+        marker_id = int(marker_str[len(VRMarker.prefix()) : -1])
+        return VRMarker(marker_str, marker_id)
 
     def macro(self) -> str:
         """Returns the preprocessor macro that can
@@ -175,15 +145,31 @@ class VRMarker(Marker):
 
         Returns:
             str:
-                VRMARKERMACRO{LE,GE}X_(VAR)
+                VRMARKERMACROX_(VAR)
         """
-        return f"VRMARKERMACRO{self.kind.name}{self.name[len(VRMarker.prefix()):]}(VAR)"
+        return f"VRMARKERMACRO{self.id}_(VAR)"
 
     def marker_statement_prefix(self) -> str:
-        return f"if ((VAR) {self.kind.operator()} {self.constant}) " "{ "
+        return (
+            f"if (!(((VAR) >= {self.lower_bound}) && ((VAR) <= {self.upper_bound}))) "
+            "{ "
+        )
 
     def marker_statement_postfix(self) -> str:
         return " }"
+
+    def emit_tracking_directive_for_refinement(self) -> str:
+        # FIXME: I need the VAR type to print it correctly
+        return f""" #define {self.macro()} \
+                        __builtin_printf("{self.name}:%lld\\n", (long long) (VAR));
+                """
+
+    def parse_tracked_output_for_refinement(self, lines: list[str]) -> Marker:
+        values = []
+        for line in lines:
+            assert line.startswith(self.name)
+            values.append(int(line.strip().split(":")[1]))
+        return VRMarker(self.name, self.id, min(values), max(values))
 
 
 MarkerTypes = (DCEMarker, VRMarker)
