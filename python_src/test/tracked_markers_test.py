@@ -56,20 +56,13 @@ def test_vr_marker_tracking() -> None:
     )
     assert set(
         (
-            VRMarker.from_str("VRMarkerLE0_"),
-            VRMarker.from_str("VRMarkerGE1_"),
-            VRMarker.from_str("VRMarkerLE2_"),
-            VRMarker.from_str("VRMarkerGE3_"),
+            VRMarker.from_str("VRMarker0_"),
+            VRMarker.from_str("VRMarker1_"),
         )
     ) == set(iprogram.enabled_markers)
-    iprogram = iprogram.disable_markers(
-        (
-            VRMarker.from_str("VRMarkerLE2_"),
-            VRMarker.from_str("VRMarkerGE3_"),
-        )
-    )
+    iprogram = iprogram.disable_markers((VRMarker.from_str("VRMarker1_"),))
 
     gcc = get_system_gcc_O0()
 
     executed_markers = iprogram.track_reachable_markers((), gcc)
-    assert set((VRMarker.from_str("VRMarkerGE1_"),)) == set(executed_markers)
+    assert set((VRMarker.from_str("VRMarker0_"),)) == set(executed_markers)

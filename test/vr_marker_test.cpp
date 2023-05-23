@@ -11,13 +11,11 @@ TEST_CASE("VRMarkers statement with two variables", "[vr]") {
 
   auto ExpectedCode = "// MARKERS START\n" +
                       markers::ValueRangeInstrumenter::makeMarkerMacros(0) +
-                      markers::ValueRangeInstrumenter::makeMarkerMacros(2) +
+                      markers::ValueRangeInstrumenter::makeMarkerMacros(1) +
                       "// MARKERS END\n" +
                       R"code(int foo(int a, int b){
-                         VRMARKERMACROLE2_(b)
-                         VRMARKERMACROGE3_(b)
-                         VRMARKERMACROLE0_(a)
-                         VRMARKERMACROGE1_(a)
+                         VRMARKERMACRO1_(b)
+                         VRMARKERMACRO0_(a)
                          return a+b; })code";
 
   CAPTURE(Code);
@@ -33,15 +31,13 @@ TEST_CASE("VRMarkers if no compound", "[vr,if]") {
 
   auto ExpectedCode = "// MARKERS START\n" +
                       markers::ValueRangeInstrumenter::makeMarkerMacros(0) +
-                      markers::ValueRangeInstrumenter::makeMarkerMacros(2) +
+                      markers::ValueRangeInstrumenter::makeMarkerMacros(1) +
                       "// MARKERS END\n" +
                       R"code(int foo(int a){
-                         VRMARKERMACROLE0_(a)
-                         VRMARKERMACROGE1_(a)
+                         VRMARKERMACRO0_(a)
                          if ( a > 0)
                            return a+1;
-                         VRMARKERMACROLE2_(a)
-                         VRMARKERMACROGE3_(a)
+                         VRMARKERMACRO1_(a)
                          return a+2; })code";
 
   CAPTURE(Code);
@@ -60,19 +56,16 @@ TEST_CASE("VRMarkers if-else compound", "[vr,if]") {
 
   auto ExpectedCode = "// MARKERS START\n" +
                       markers::ValueRangeInstrumenter::makeMarkerMacros(0) +
+                      markers::ValueRangeInstrumenter::makeMarkerMacros(1) +
                       markers::ValueRangeInstrumenter::makeMarkerMacros(2) +
-                      markers::ValueRangeInstrumenter::makeMarkerMacros(4) +
                       "// MARKERS END\n" +
                       R"code(int foo(int a){
-                         VRMARKERMACROLE0_(a)
-                         VRMARKERMACROGE1_(a)
+                         VRMARKERMACRO0_(a)
                          if ( a > 0) {
-                           VRMARKERMACROLE2_(a)
-                           VRMARKERMACROGE3_(a)
+                           VRMARKERMACRO1_(a)
                            return a+1;
                          } else {
-                           VRMARKERMACROLE4_(a)
-                           VRMARKERMACROGE5_(a)
+                           VRMARKERMACRO2_(a)
                            return a+2; 
                          }
                          })code";
@@ -91,19 +84,16 @@ TEST_CASE("VRMarkers for loop", "[vr,for]") {
 
   auto ExpectedCode = "// MARKERS START\n" +
                       markers::ValueRangeInstrumenter::makeMarkerMacros(0) +
+                      markers::ValueRangeInstrumenter::makeMarkerMacros(1) +
                       markers::ValueRangeInstrumenter::makeMarkerMacros(2) +
-                      markers::ValueRangeInstrumenter::makeMarkerMacros(4) +
                       "// MARKERS END\n" +
                       R"code(int foo(int a){
                               int s = 0;
-                              VRMARKERMACROLE2_(s)
-                              VRMARKERMACROGE3_(s)
-                              VRMARKERMACROLE0_(a)
-                              VRMARKERMACROGE1_(a)
+                              VRMARKERMACRO1_(s)
+                              VRMARKERMACRO0_(a)
                               for(int i = 0; i < a; i++)
                                   s+=1;
-                              VRMARKERMACROLE4_(s)
-                              VRMARKERMACROGE5_(s)
+                              VRMARKERMACRO2_(s)
                               return s;
                               })code";
 
@@ -121,19 +111,16 @@ TEST_CASE("VRMarkers do while", "[vr,do]") {
 
   auto ExpectedCode = "// MARKERS START\n" +
                       markers::ValueRangeInstrumenter::makeMarkerMacros(0) +
+                      markers::ValueRangeInstrumenter::makeMarkerMacros(1) +
                       markers::ValueRangeInstrumenter::makeMarkerMacros(2) +
-                      markers::ValueRangeInstrumenter::makeMarkerMacros(4) +
                       "// MARKERS END\n" +
                       R"code(int foo(int a){
-                              VRMARKERMACROLE0_(a)
-                              VRMARKERMACROGE1_(a)
+                              VRMARKERMACRO0_(a)
                               do{
-                              VRMARKERMACROLE4_(a)
-                              VRMARKERMACROGE5_(a)
+                              VRMARKERMACRO2_(a)
                               --a;
                               }while(a);
-                              VRMARKERMACROLE2_(a)
-                              VRMARKERMACROGE3_(a)
+                              VRMARKERMACRO1_(a)
                               return a;
                               })code";
 
@@ -154,20 +141,17 @@ TEST_CASE("VRMarkers switch", "[vr,switch]") {
 
   auto ExpectedCode = "// MARKERS START\n" +
                       markers::ValueRangeInstrumenter::makeMarkerMacros(0) +
+                      markers::ValueRangeInstrumenter::makeMarkerMacros(1) +
                       markers::ValueRangeInstrumenter::makeMarkerMacros(2) +
-                      markers::ValueRangeInstrumenter::makeMarkerMacros(4) +
                       "// MARKERS END\n" +
                       R"code(int foo(int a){
-                              VRMARKERMACROLE0_(a)
-                              VRMARKERMACROGE1_(a)
+                              VRMARKERMACRO0_(a)
                               switch(a){
                                   case 1:
-                                      VRMARKERMACROLE2_(a)
-                                      VRMARKERMACROGE3_(a)
+                                      VRMARKERMACRO1_(a)
                                       return a;
                                   default: {
-                                      VRMARKERMACROLE4_(a)
-                                      VRMARKERMACROGE5_(a)
+                                      VRMARKERMACRO2_(a)
                                       return a+1;
                                   }
                               }

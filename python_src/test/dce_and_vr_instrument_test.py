@@ -22,10 +22,9 @@ def test_instrumentation() -> None:
 
     all_markers = set(
         (
-            VRMarker.from_str("VRMarkerLE0_"),
-            VRMarker.from_str("VRMarkerGE1_"),
+            VRMarker.from_str("VRMarker0_"),
+            DCEMarker.from_str("DCEMarker1_"),
             DCEMarker.from_str("DCEMarker2_"),
-            DCEMarker.from_str("DCEMarker3_"),
         )
     )
 
