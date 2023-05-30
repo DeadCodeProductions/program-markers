@@ -14,8 +14,8 @@ TEST_CASE("VRMarkers statement with two variables", "[vr]") {
                       markers::ValueRangeInstrumenter::makeMarkerMacros(1) +
                       "// MARKERS END\n" +
                       R"code(int foo(int a, int b){
-                         VRMARKERMACRO1_(b)
-                         VRMARKERMACRO0_(a)
+                         VRMARKERMACRO1_(b,"int")
+                         VRMARKERMACRO0_(a,"int")
                          return a+b; })code";
 
   CAPTURE(Code);
@@ -34,10 +34,10 @@ TEST_CASE("VRMarkers if no compound", "[vr,if]") {
                       markers::ValueRangeInstrumenter::makeMarkerMacros(1) +
                       "// MARKERS END\n" +
                       R"code(int foo(int a){
-                         VRMARKERMACRO0_(a)
+                         VRMARKERMACRO0_(a,"int")
                          if ( a > 0)
                            return a+1;
-                         VRMARKERMACRO1_(a)
+                         VRMARKERMACRO1_(a,"int")
                          return a+2; })code";
 
   CAPTURE(Code);
@@ -45,7 +45,7 @@ TEST_CASE("VRMarkers if no compound", "[vr,if]") {
 }
 
 TEST_CASE("VRMarkers if-else compound", "[vr,if]") {
-  auto Code = std::string{R"code(int foo(int a){
+  auto Code = std::string{R"code(int foo(long a){
         if (a > 0) {
           return a+1;
         }
@@ -59,13 +59,13 @@ TEST_CASE("VRMarkers if-else compound", "[vr,if]") {
                       markers::ValueRangeInstrumenter::makeMarkerMacros(1) +
                       markers::ValueRangeInstrumenter::makeMarkerMacros(2) +
                       "// MARKERS END\n" +
-                      R"code(int foo(int a){
-                         VRMARKERMACRO0_(a)
+                      R"code(int foo(long a){
+                         VRMARKERMACRO0_(a,"long")
                          if ( a > 0) {
-                           VRMARKERMACRO1_(a)
+                           VRMARKERMACRO1_(a,"long")
                            return a+1;
                          } else {
-                           VRMARKERMACRO2_(a)
+                           VRMARKERMACRO2_(a,"long")
                            return a+2; 
                          }
                          })code";
@@ -76,7 +76,7 @@ TEST_CASE("VRMarkers if-else compound", "[vr,if]") {
 
 TEST_CASE("VRMarkers for loop", "[vr,for]") {
   auto Code = std::string{R"code(int foo(int a){
-        int s = 0;
+        long s = 0;
         for(int i = 0; i < a; i++)
             s+=1;
         return s;
@@ -88,12 +88,12 @@ TEST_CASE("VRMarkers for loop", "[vr,for]") {
                       markers::ValueRangeInstrumenter::makeMarkerMacros(2) +
                       "// MARKERS END\n" +
                       R"code(int foo(int a){
-                              int s = 0;
-                              VRMARKERMACRO1_(s)
-                              VRMARKERMACRO0_(a)
+                              long s = 0;
+                              VRMARKERMACRO1_(s,"long")
+                              VRMARKERMACRO0_(a,"int")
                               for(int i = 0; i < a; i++)
                                   s+=1;
-                              VRMARKERMACRO2_(s)
+                              VRMARKERMACRO2_(s,"long")
                               return s;
                               })code";
 
@@ -102,7 +102,7 @@ TEST_CASE("VRMarkers for loop", "[vr,for]") {
 }
 
 TEST_CASE("VRMarkers do while", "[vr,do]") {
-  auto Code = std::string{R"code(int foo(int a){
+  auto Code = std::string{R"code(int foo(unsigned int a){
         do{
         --a;
         }while(a);
@@ -114,13 +114,13 @@ TEST_CASE("VRMarkers do while", "[vr,do]") {
                       markers::ValueRangeInstrumenter::makeMarkerMacros(1) +
                       markers::ValueRangeInstrumenter::makeMarkerMacros(2) +
                       "// MARKERS END\n" +
-                      R"code(int foo(int a){
-                              VRMARKERMACRO0_(a)
+                      R"code(int foo(unsigned int a){
+                              VRMARKERMACRO0_(a,"unsigned int")
                               do{
-                              VRMARKERMACRO2_(a)
+                              VRMARKERMACRO2_(a,"unsigned int")
                               --a;
                               }while(a);
-                              VRMARKERMACRO1_(a)
+                              VRMARKERMACRO1_(a,"unsigned int")
                               return a;
                               })code";
 
@@ -145,13 +145,13 @@ TEST_CASE("VRMarkers switch", "[vr,switch]") {
                       markers::ValueRangeInstrumenter::makeMarkerMacros(2) +
                       "// MARKERS END\n" +
                       R"code(int foo(int a){
-                              VRMARKERMACRO0_(a)
+                              VRMARKERMACRO0_(a,"int")
                               switch(a){
                                   case 1:
-                                      VRMARKERMACRO1_(a)
+                                      VRMARKERMACRO1_(a,"int")
                                       return a;
                                   default: {
-                                      VRMARKERMACRO2_(a)
+                                      VRMARKERMACRO2_(a,"int")
                                       return a+1;
                                   }
                               }

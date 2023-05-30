@@ -56,13 +56,40 @@ def test_vr_marker_tracking() -> None:
     )
     assert set(
         (
-            VRMarker.from_str("VRMarker0_"),
-            VRMarker.from_str("VRMarker1_"),
+            VRMarker.from_str("VRMarker0_", "int"),
+            VRMarker.from_str("VRMarker1_", "int"),
         )
     ) == set(iprogram.enabled_markers)
-    iprogram = iprogram.disable_markers((VRMarker.from_str("VRMarker1_"),))
+    iprogram = iprogram.disable_markers((VRMarker.from_str("VRMarker1_", "int"),))
 
     gcc = get_system_gcc_O0()
 
     executed_markers = iprogram.track_reachable_markers((), gcc)
-    assert set((VRMarker.from_str("VRMarker0_"),)) == set(executed_markers)
+    assert set((VRMarker.from_str("VRMarker0_", "int"),)) == set(executed_markers)
+
+
+def test_vr_marker_int_max() -> None:
+    iprogram = instrument_program(
+        SourceProgram(
+            code="""
+    int main(int argc, char* argv[]){
+         unsigned long a = 18446744073709551615UL;
+         return a-a;
+    }
+    """,
+            language=Language.C,
+        ),
+        mode=InstrumenterMode.VR,
+    )
+    assert set((VRMarker.from_str("VRMarker0_", "unsigned long"),)) == set(
+        iprogram.enabled_markers
+    )
+    gcc = get_system_gcc_O0()
+
+    rprogram, reachable_markers = iprogram.refine_markers_with_runtime_information(
+        (), gcc
+    )
+    for marker in reachable_markers:
+        assert isinstance(marker, VRMarker)
+        assert marker.upper_bound == 18446744073709551615
+        assert marker.lower_bound == 18446744073709551615

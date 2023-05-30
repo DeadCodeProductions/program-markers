@@ -126,13 +126,13 @@ program-markers --mode=vr test.c --
 
 cat test.c | clang-format 
 #if defined DisableVRMarker0_
-#define VRMARKERMACRO0_(VAR)
+#define VRMARKERMACRO0_(VAR, TYPE)
 #elif defined UnreachableVRMarker0_
-#define VRMARKERMACRO0_(VAR)                                                   \
+#define VRMARKERMACRO0_(VAR, TYPE)                                                   \
   if (!(VRMarkerLowerBound0_ <= (VAR) && (VAR) <= VRMarkerUpperBound0_))       \
     __builtin_unreachable();
 #else
-#define VRMARKERMACRO0_(VAR)                                                   \
+#define VRMARKERMACRO0_(VAR, TYPE)                                                   \
   if (!(VRMarkerLowerBound0_ <= (VAR) && (VAR) <= VRMarkerUpperBound0_))       \
     VRMarker0_();
 void VRMarker0_(void);
@@ -144,7 +144,7 @@ void VRMarker0_(void);
 #define VRMarkerUpperBound0_ 0
 #endif
 int foo(int a) {
-  VRMARKERMACRO0_(a)
+  VRMARKERMACRO0_(a,"int")
   if (a == 0)
     return 1;
   return 0;
