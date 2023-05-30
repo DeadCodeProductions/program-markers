@@ -33,7 +33,9 @@ auto valueRangeRule() {
       hasAncestor(
           /* Find all variables declared within the surrounding function*/
           functionDecl(forEachDescendant(varDecl(
-              varDecl(hasType(isInteger())).bind("var"),
+              varDecl(hasType(isInteger()),
+                      anyOf(parmVarDecl(), hasInitializer(anything())))
+                  .bind("var"),
               hasAncestor(
                   /* Filter for variables used in declRefExprs within the
                    * matches statement, we need some shenanigans to add a

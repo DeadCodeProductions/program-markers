@@ -160,3 +160,14 @@ TEST_CASE("VRMarkers switch", "[vr,switch]") {
   CAPTURE(Code);
   compare_code(formatCode(ExpectedCode), runVRInstrumenterOnCode(Code, false));
 }
+
+TEST_CASE("VRMarkers unitialized", "[vr,switch]") {
+  auto Code = std::string{R"code(int foo(){
+        int a;
+        a = 0;
+        return a;
+        })code"};
+
+  CAPTURE(Code);
+  compare_code(formatCode(Code), runVRInstrumenterOnCode(Code, false));
+}
