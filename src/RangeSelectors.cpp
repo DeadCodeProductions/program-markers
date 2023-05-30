@@ -113,4 +113,19 @@ RangeSelector variableFromDeclRef(std::string ID) {
   };
 }
 
+RangeSelector variableTypeFromVarDecl(std::string ID) {
+  return [ID](const clang::ast_matchers::MatchFinder::MatchResult &Result)
+             -> Expected<CharSourceRange> {
+    Expected<DynTypedNode> Node = getNode(Result.Nodes, ID);
+    if (!Node) {
+      llvm::outs() << "ERROR";
+      return Node.takeError();
+    }
+    const auto &SM = *Result.SourceManager;
+    const auto *VD = Node->get<VarDecl>();
+    return SM.getExpansionRange(
+        VD->getTypeSourceInfo()->getTypeLoc().getSourceRange());
+  };
+}
+
 } // namespace markers

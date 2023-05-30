@@ -113,10 +113,13 @@ class VRMarker(Marker):
 
     Attributes:
         marker(str): the marker in the VRMarkerX_ form
+        id (int): the id of the marker
+        variable_type (str): the type of the instrumented variable
         lower_bound (int): the lower bound of the range (inclusive)
         upper_bound (int): the upper bound of the range (inclusive)
     """
 
+    variable_type: str
     lower_bound: int = 0
     upper_bound: int = 0
 
@@ -128,7 +131,7 @@ class VRMarker(Marker):
         return "VRMarker"
 
     @staticmethod
-    def from_str(marker_str: str) -> VRMarker:
+    def from_str(marker_str: str, variable_type: str) -> VRMarker:
         """Parsers a string of the form VRMarkerX_
 
         Returns:
@@ -137,7 +140,7 @@ class VRMarker(Marker):
         """
         assert marker_str.startswith(VRMarker.prefix())
         marker_id = int(marker_str[len(VRMarker.prefix()) : -1])
-        return VRMarker(marker_str, marker_id)
+        return VRMarker(marker_str, marker_id, variable_type)
 
     def macro(self) -> str:
         """Returns the preprocessor macro that can
@@ -145,9 +148,9 @@ class VRMarker(Marker):
 
         Returns:
             str:
-                VRMARKERMACROX_(VAR)
+                VRMARKERMACROX_(VAR, TYPE)
         """
-        return f"VRMARKERMACRO{self.id}_(VAR)"
+        return f"VRMARKERMACRO{self.id}_(VAR, TYPE)"
 
     def marker_statement_prefix(self) -> str:
         return (
@@ -159,9 +162,16 @@ class VRMarker(Marker):
         return " }"
 
     def emit_tracking_directive_for_refinement(self) -> str:
-        # FIXME: I need the VAR type to print it correctly
+        format_specifier = {
+            "short": "%hd",
+            "int": "%d",
+            "long": "%ld",
+            "unsigned short": "%hu",
+            "unsigned int": "%u",
+            "unsigned long": "%lu",
+        }[self.variable_type]
         return f""" #define {self.macro()} \
-                        __builtin_printf("{self.name}:%lld\\n", (long long) (VAR));
+                        __builtin_printf("{self.name}:{format_specifier}\\n", (VAR));
                 """
 
     def parse_tracked_output_for_refinement(self, lines: list[str]) -> Marker:
@@ -169,7 +179,9 @@ class VRMarker(Marker):
         for line in lines:
             assert line.startswith(self.name)
             values.append(int(line.strip().split(":")[1]))
-        return VRMarker(self.name, self.id, min(values), max(values))
+        return VRMarker(
+            self.name, self.id, self.variable_type, min(values), max(values)
+        )
 
 
 MarkerTypes = (DCEMarker, VRMarker)

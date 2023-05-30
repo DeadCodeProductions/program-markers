@@ -49,7 +49,8 @@ auto valueRangeRule() {
                               .bind("ref")))))))))));
   return makeRule(matcher,
                   addVRMarkerBefore(statementWithMacrosExpanded("stmt"),
-                                    cat(variableFromDeclRef("ref"))));
+                                    cat(variableFromDeclRef("ref"), ",\"",
+                                        variableTypeFromVarDecl("var"), "\"")));
 };
 
 ValueRangeInstrumenter::ValueRangeInstrumenter(
@@ -60,7 +61,7 @@ ValueRangeInstrumenter::ValueRangeInstrumenter(
 std::string ValueRangeInstrumenter::makeMarkerMacros(size_t MarkerID) {
   auto ID = std::to_string(MarkerID);
   auto Marker = "VRMarker" + ID + "_";
-  auto MarkerMacro = "VRMARKERMACRO" + ID + "_(VAR)";
+  auto MarkerMacro = "VRMARKERMACRO" + ID + "_(VAR, TYPE)";
   auto Condition = "!(VRMarkerLowerBound" + ID +
                    "_ <= (VAR) && (VAR) <= VRMarkerUpperBound" + ID + "_)";
 
