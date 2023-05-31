@@ -347,3 +347,60 @@ def test_strategies() -> None:
 
         assert marker0 not in markers
         assert marker1 in markers
+
+
+def test_variable_name_and_type() -> None:
+    iprogram = instrument_program(
+        SourceProgram(
+            code="""
+        static int foo(long a, int b){
+            return a + b;
+        }
+        """,
+            language=Language.C,
+        ),
+        mode=InstrumenterMode.VR,
+    )
+
+    markers = [
+        marker for marker in iprogram.all_markers() if isinstance(marker, VRMarker)
+    ]
+    assert len(markers) == 2
+    assert {marker.get_variable_name_and_type(iprogram.code) for marker in markers} == {
+        ("a", '"long"'),
+        ("b", '"int"'),
+    }
+
+
+def test_number_occurences() -> None:
+    iprogram = instrument_program(
+        SourceProgram(
+            code="""
+        static int foo(long a, int b){
+            return a + b;
+        }
+        """,
+            language=Language.C,
+        ),
+        mode=InstrumenterMode.VR,
+    )
+
+    markers = [
+        marker for marker in iprogram.all_markers() if isinstance(marker, VRMarker)
+    ]
+    assert len(markers) == 2
+    for marker in markers:
+        assert marker.number_occurences_in_code(iprogram.code) == 1
+
+    code = """
+        static int foo(long a, int b){
+            VRMARKERMACRO0_(a, "long")
+            VRMARKERMACRO0_(a, "long")
+            VRMARKERMACRO1_(b, "int")
+            return a + b;
+        }
+        """
+
+    markers = sorted(markers, key=lambda m: m.id)
+    assert markers[0].number_occurences_in_code(code) == 2
+    assert markers[1].number_occurences_in_code(code) == 1
