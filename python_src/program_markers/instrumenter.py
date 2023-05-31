@@ -622,6 +622,7 @@ def instrument_program(
     mode: InstrumenterMode = InstrumenterMode.DCE,
     instrumenter: Optional[ClangTool] = None,
     clang: Optional[CompilerExe] = None,
+    timeout: int | None = None,
 ) -> InstrumentedProgram:
     """Instrument a given program i.e. put markers in the file.
 
@@ -634,6 +635,8 @@ def instrument_program(
             The instrumenter
         clang (CompilerExe):
             Which clang to use for searching the standard include paths
+        timeout (int | None):
+            Optional timeout in seconds for the instrumenter
     Returns:
         InstrumentedProgram: The instrumented version of program
     """
@@ -648,7 +651,10 @@ def instrument_program(
 
     def get_code_and_markers(mode: str) -> tuple[str, list[Marker]]:
         result = instrumenter_resolved.run_on_program(
-            program, flags + [f"--mode={mode}"], ClangToolMode.READ_MODIFIED_FILE
+            program,
+            flags + [f"--mode={mode}"],
+            ClangToolMode.READ_MODIFIED_FILE,
+            timeout=timeout,
         )
         assert result.modified_source_code
         directives, instrumented_code = __split_to_marker_directives_and_code(
@@ -665,12 +671,18 @@ def instrument_program(
             instrumented_code, markers = get_code_and_markers("vr")
         case InstrumenterMode.DCE_AND_VR:
             result = instrumenter_resolved.run_on_program(
-                program, flags + ["--mode=dce"], ClangToolMode.READ_MODIFIED_FILE
+                program,
+                flags + ["--mode=dce"],
+                ClangToolMode.READ_MODIFIED_FILE,
+                timeout=timeout,
             )
             assert result.modified_source_code
             program_dce = replace(program, code=result.modified_source_code)
             result = instrumenter_resolved.run_on_program(
-                program_dce, flags + ["--mode=vr"], ClangToolMode.READ_MODIFIED_FILE
+                program_dce,
+                flags + ["--mode=vr"],
+                ClangToolMode.READ_MODIFIED_FILE,
+                timeout=timeout,
             )
             assert result.modified_source_code
             (
