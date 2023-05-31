@@ -150,7 +150,18 @@ class VRMarker(Marker):
             str:
                 VRMARKERMACROX_(VAR, TYPE)
         """
-        return f"VRMARKERMACRO{self.id}_(VAR, TYPE)"
+        return f"{self.macro_without_arguments()}(VAR, TYPE)"
+
+    def macro_without_arguments(self) -> str:
+        """Returns the preprocessor macro that can
+        be defined before compiling the program
+        without its arguments
+
+        Returns:
+            str:
+                VRMARKERMACROX_
+        """
+        return f"VRMARKERMACRO{self.id}_"
 
     def marker_statement_prefix(self) -> str:
         return (
@@ -182,6 +193,44 @@ class VRMarker(Marker):
         return VRMarker(
             self.name, self.id, self.variable_type, min(values), max(values)
         )
+
+    def get_variable_name_and_type(self, instrumented_code: str) -> tuple[str, str]:
+        """Returns the name and type of the instrumented variable.
+        The marker macro must appear only once in the instrumented code.
+
+        Args:
+            instrumented_code (str):
+                the instrumented code containing the marker
+
+        Returns:
+            tuple[str, str]:
+                the name and type
+        """
+        macro = self.macro_without_arguments()
+        reg = re.compile(rf"{macro}\((?P<name>[^,]+),\s*(?P<type>[^)]+)\)")
+        matches = [match for match in reg.finditer(instrumented_code)]
+        assert (
+            len(matches) == 1
+        ), f"Expected exactly one match for {macro} in {instrumented_code}"
+        match = matches[0]
+        return match.group("name"), match.group("type")
+
+    def number_occurences_in_code(self, instrumented_code: str) -> int:
+        """Returns number of types a marker appears in the instrumented code.
+
+        This is useful, e.g., when reducing a program and a marker is duplicated.
+
+        Args:
+            instrumented_code (str):
+                the instrumented code containing the marker
+
+        Returns:
+            int:
+                the number of occurences
+        """
+        macro = self.macro_without_arguments()
+        reg = re.compile(f"{macro}")
+        return len(reg.findall(instrumented_code))
 
 
 MarkerTypes = (DCEMarker, VRMarker)
