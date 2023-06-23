@@ -257,7 +257,9 @@ class InstrumentedProgram(SourceProgram):
         tracked_program = replace(
             self, enabled_markers=tuple(), tracked_markers=tuple(self.enabled_markers)
         )
-        result = setting.compile_program(tracked_program, ExeCompilationOutput())
+        result = setting.compile_program(
+            tracked_program, ExeCompilationOutput(), timeout=timeout
+        )
         output = result.output.run(args, timeout=timeout)
         return tuple(
             marker for marker in self.enabled_markers if marker.name in output.stdout
@@ -297,7 +299,9 @@ class InstrumentedProgram(SourceProgram):
             enabled_markers=tuple(),
             tracked_for_refinement_markers=tuple(self.enabled_markers),
         )
-        result = setting.compile_program(tracked_program, ExeCompilationOutput())
+        result = setting.compile_program(
+            tracked_program, ExeCompilationOutput(), timeout=timeout
+        )
         output = result.output.run(args, timeout=timeout)
         marker_names = {marker.name: marker for marker in self.enabled_markers}
         marker_lines: dict[Marker, list[str]] = defaultdict(list)
