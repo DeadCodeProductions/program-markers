@@ -109,7 +109,8 @@ RangeSelector variableFromDeclRef(std::string ID) {
       return Node.takeError();
     }
     const auto &SM = *Result.SourceManager;
-    return SM.getExpansionRange(Node->get<DeclRefExpr>()->getLocation());
+    return SM.getExpansionRange(
+        Node->get<DeclRefExpr>()->getDecl()->getLocation());
   };
 }
 

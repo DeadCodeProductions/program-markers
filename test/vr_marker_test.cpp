@@ -171,3 +171,30 @@ TEST_CASE("VRMarkers unitialized", "[vr,switch]") {
   CAPTURE(Code);
   compare_code(formatCode(Code), runVRInstrumenterOnCode(Code, false));
 }
+
+TEST_CASE("VRMarkers Variable in Macro", "[vr]") {
+  auto Code = std::string{R"code(
+  #define MACRO(a) a*2
+
+  int foo(int a){
+    int b = MACRO(a);
+    return b;
+  })code"};
+
+  auto ExpectedCode = "// MARKERS START\n" +
+                      markers::ValueRangeInstrumenter::makeMarkerMacros(0) +
+                      markers::ValueRangeInstrumenter::makeMarkerMacros(1) +
+                      "// MARKERS END\n" +
+                      R"code(
+                      #define MACRO(a) a*2
+
+                      int foo(int a){
+                        VRMARKERMACRO0_(a,"int")
+                        int b = MACRO(a);
+                        VRMARKERMACRO1_(b,"int")
+                        return b;
+                      })code";
+
+  CAPTURE(Code);
+  compare_code(formatCode(ExpectedCode), runVRInstrumenterOnCode(Code, false));
+}
