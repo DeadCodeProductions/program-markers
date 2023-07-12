@@ -473,62 +473,65 @@ class InstrumentedProgram(SourceProgram):
         )
 
 
-def __variable_type_of_VRMarker(vr_marker_macro: str, instrumented_code: str) -> str:
-    """Finds the variable type for the given VRMarker macro
+def __get_vr_macro_type_map(instrumented_code: str) -> dict[str, str]:
+    """Finds the variable type for each VRMarker instance
+    in the instrumented code.
     Args:
-        vr_marker_macro (str):
-            a marker marker in the form VRMarkerX_,
         instrumented_code (str):
             the output of the instrumenter (the variable types
             of VRMarkers are parsed from the instrumented_code)
     Returns:
-        str:
-            the instrumented variable type
+        dict[str,str]:
+            the variable type for each instance of VRMarkerX_
+            in the instrumented code
     """
-    dummy_marker = VRMarker.from_str(vr_marker_macro, "dummy")
-    instr_macro = dummy_marker.macro().split("(")[0]
+
+    def convert_variable_type(variable_type: str) -> str:
+        type_map = {
+            "uint8_t": "unsigned int",
+            "int8_t": "int",
+            "uint16_t": "unsigned short",
+            "int16_t": "short",
+            "uint32_t": "unsigned int",
+            "int32_t": "int",
+            "uint64_t": "unsigned long",
+            "int64_t": "long",
+        }
+        if variable_type in type_map:
+            variable_type = type_map[variable_type]
+        assert variable_type in [
+            "short",
+            "int",
+            "long",
+            "unsigned short",
+            "unsigned int",
+            "unsigned long",
+        ], f"Unexpected variable type for VRMarker: {variable_type} in {line}"
+        return variable_type
+
+    macroprefix = VRMarker.macroprefix()
+    vr_macro_type_map = {}
     for line in instrumented_code.splitlines():
-        if instr_macro in line:
-            line = line[line.index(instr_macro) :]
-            line = line[: line.find(")")]
-            variable_type = (line.split(",")[1].replace('"', "")).strip()
-            if variable_type == "uint16_t":
-                variable_type = "unsigned short"
-            elif variable_type == "int16_t":
-                variable_type = "short"
-            elif variable_type == "uint32_t":
-                variable_type = "unsigned int"
-            elif variable_type == "uint64_t":
-                variable_type = "unsigned long"
-            elif variable_type == "uint8_t":
-                variable_type = "unsigned int"
-            elif variable_type == "int32_t":
-                variable_type = "int"
-            elif variable_type == "int64_t":
-                variable_type = "long"
-            elif variable_type == "int8_t":
-                variable_type = "int"
-
-            assert variable_type in [
-                "short",
-                "int",
-                "long",
-                "unsigned short",
-                "unsigned int",
-                "unsigned long",
-            ], f"Unexpected variable type for VRMarker: {variable_type} in {line}"
-            return variable_type
-    raise ValueError(f"Could not find variable type for {vr_marker_macro}")
+        if macroprefix not in line:
+            continue
+        line = line[line.index(macroprefix) :]
+        line = line[: line.find(")")]
+        macro = line.split("(")[0]
+        variable_type = convert_variable_type(
+            (line.split(",")[1].replace('"', "")).strip()
+        )
+        vr_macro_type_map[macro.replace(macroprefix, VRMarker.prefix())] = variable_type
+    return vr_macro_type_map
 
 
-def __str_to_marker(marker_macro: str, instrumented_code: str) -> Marker:
+def __str_to_marker(marker_macro: str, vr_macro_type_map: dict[str, str]) -> Marker:
     """Converts the `marker_macro` string into a `Marker.
     Args:
         marker_macro (str):
             a marker in the form PrefixMarkerX_, e.g., DCEMarker32_.
-        instrumented_code (str):
-            the output of the instrumenter (the variable types
-            of VRMarkers are parsed from the instrumented_code)
+        vr_macro_type_map (dict[str,str]):
+            a mapping from VRMarker macros to their variable types
+            e.g., {"VRMarker0_": "int", "VRMarker1_": "short"}
     Returns:
         Marker:
             a `Marker` object
@@ -537,13 +540,11 @@ def __str_to_marker(marker_macro: str, instrumented_code: str) -> Marker:
         return DCEMarker.from_str(marker_macro)
     else:
         assert marker_macro.startswith(VRMarker.prefix())
-        return VRMarker.from_str(
-            marker_macro, __variable_type_of_VRMarker(marker_macro, instrumented_code)
-        )
+        return VRMarker.from_str(marker_macro, vr_macro_type_map[marker_macro])
 
 
 def __split_marker_directives(
-    directives: str, instrumented_code: str
+    directives: str, vr_macro_type_map: dict[str, str]
 ) -> dict[Marker, str]:
     """Maps each set of preprocessor directive in `directives` to the
     appropriate markers.
@@ -551,9 +552,9 @@ def __split_marker_directives(
     Args:
         directives (str):
             the marker preprocessor directives added by the instrumenter
-        instrumented_code (str):
-            the output of the instrumenter (the variable types
-            of VRMarkers are parsed from the instrumented_code)
+        vr_macro_type_map (dict[str,str]):
+            a mapping from VRMarker macros to their variable types
+            e.g., {"VRMarker0_": "int", "VRMarker1_": "short"}
     Returns:
         dict[Marker, str]:
             a mapping from each marker to its preprocessor directives
@@ -561,7 +562,7 @@ def __split_marker_directives(
     directives_map = {}
     for directive in directives.split("//MARKER_DIRECTIVES:")[1:]:
         marker_macro = directive[: directive.find("\n")]
-        directives_map[__str_to_marker(marker_macro, instrumented_code)] = directive[
+        directives_map[__str_to_marker(marker_macro, vr_macro_type_map)] = directive[
             len(marker_macro) :
         ]
     return directives_map
@@ -664,8 +665,12 @@ def instrument_program(
         directives, instrumented_code = __split_to_marker_directives_and_code(
             result.modified_source_code
         )
+        if mode == "vr":
+            vr_macro_type_map = __get_vr_macro_type_map(instrumented_code)
+        else:
+            vr_macro_type_map = {}
 
-        directives_map = __split_marker_directives(directives, instrumented_code)
+        directives_map = __split_marker_directives(directives, vr_macro_type_map)
         return instrumented_code, list(directives_map.keys())
 
     match mode:
@@ -697,11 +702,11 @@ def instrument_program(
                 dce_directives_and_instrumented_code
             )
             vr_markers = list(
-                __split_marker_directives(vr_directives, instrumented_code).keys()
+                __split_marker_directives(
+                    vr_directives, __get_vr_macro_type_map(instrumented_code)
+                ).keys()
             )
-            dce_markers = list(
-                __split_marker_directives(dce_directives, instrumented_code).keys()
-            )
+            dce_markers = list(__split_marker_directives(dce_directives, {}).keys())
             if len(vr_markers) > 0 and len(dce_markers) > 0:
                 # There will be overlap between the two sets of marker ids
                 max_vr_id = max(vr_marker.id for vr_marker in vr_markers)
