@@ -130,6 +130,10 @@ class VRMarker(Marker):
     def prefix(cls) -> str:
         return "VRMarker"
 
+    @classmethod
+    def macroprefix(cls) -> str:
+        return "VRMARKERMACRO"
+
     @staticmethod
     def from_str(marker_str: str, variable_type: str) -> VRMarker:
         """Parsers a string of the form VRMarkerX_
@@ -161,7 +165,7 @@ class VRMarker(Marker):
             str:
                 VRMARKERMACROX_
         """
-        return f"VRMARKERMACRO{self.id}_"
+        return f"{VRMarker.macroprefix()}{self.id}_"
 
     def marker_statement_prefix(self) -> str:
         return (
