@@ -36,6 +36,26 @@ def test_dce_marker_tracking() -> None:
     assert set((DCEMarker.from_str("DCEMarker1_"),)) == set(executed_markers_with_args)
 
 
+def test_dce_marker_tracking_loop() -> None:
+    iprogram = instrument_program(
+        SourceProgram(
+            code="""
+    int main(){
+         for(int i = 0 ; i < 10; i++){
+         }
+         return 0;
+    }
+    """,
+            language=Language.C,
+        ),
+    )
+    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram.enabled_markers)
+    gcc = get_system_gcc_O0()
+
+    executed_markers = iprogram.track_reachable_markers((), gcc)
+    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(executed_markers)
+
+
 def test_vr_marker_tracking() -> None:
     iprogram = instrument_program(
         SourceProgram(

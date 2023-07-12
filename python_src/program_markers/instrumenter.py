@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from dataclasses import dataclass, replace
 from enum import Enum
 from functools import cache
@@ -304,15 +303,16 @@ class InstrumentedProgram(SourceProgram):
         )
         output = result.output.run(args, timeout=timeout)
         marker_names = {marker.name: marker for marker in self.enabled_markers}
-        marker_lines: dict[Marker, list[str]] = defaultdict(list)
+        marker_lines: dict[Marker, str] = {}
         for output_line in output.stdout.splitlines():
             for marker_name, marker in marker_names.items():
                 if marker_name in output_line:
-                    marker_lines[marker].append(output_line)
+                    assert marker not in marker_lines
+                    marker_lines[marker] = output_line
 
         refined_markers = tuple(
-            marker.parse_tracked_output_for_refinement(lines)
-            for marker, lines in marker_lines.items()
+            marker.parse_tracked_output_for_refinement(line)
+            for marker, line in marker_lines.items()
         )
         return self.replace_markers(refined_markers), refined_markers
 

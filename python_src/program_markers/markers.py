@@ -58,10 +58,8 @@ class Marker(ABC):
     def emit_tracking_directive_for_refinement(self) -> str:
         return f"#define {self.macro()}"
 
-    def parse_tracked_output_for_refinement(self, lines: list[str]) -> Marker:
-        for line in lines:
-            assert line.strip() == self.name
-        return self
+    def parse_tracked_output_for_refinement(self, output: str) -> Marker:
+        raise RuntimeError("This should never be called, DCEMarkers cannot be refined")
 
 
 @dataclass(frozen=True)
@@ -185,18 +183,42 @@ class VRMarker(Marker):
             "unsigned int": "%u",
             "unsigned long": "%lu",
         }[self.variable_type]
-        return f""" #define {self.macro()} \
-                        __builtin_printf("{self.name}:{format_specifier}\\n", (VAR));
-                """
+        return f"""
+int {self.name}_ENCOUNTERED = 0;
+{self.variable_type} {self.name}_LB;
+{self.variable_type} {self.name}_UB;
 
-    def parse_tracked_output_for_refinement(self, lines: list[str]) -> Marker:
-        values = []
-        for line in lines:
-            assert line.startswith(self.name)
-            values.append(int(line.strip().split(":")[1]))
-        return VRMarker(
-            self.name, self.id, self.variable_type, min(values), max(values)
-        )
+void track_{self.name}({self.variable_type} v) {{
+    if (!{self.name}_ENCOUNTERED) {{
+        {self.name}_LB = v;
+        {self.name}_UB = v;
+        {self.name}_ENCOUNTERED = 1;
+        return;
+    }}
+    if (v < {self.name}_LB) {{
+        {self.name}_LB = v;
+    }}
+    if (v > {self.name}_UB) {{
+        {self.name}_UB = v;
+    }}
+}}
+
+__attribute__((destructor))
+void {self.name}_print() {{
+    __builtin_printf(
+        "{self.name}:{format_specifier}-{format_specifier}\\n",
+        {self.name}_LB, {self.name}_UB);
+}}
+
+#define {self.macro()} \
+        track_{self.name}(VAR);
+"""
+
+    def parse_tracked_output_for_refinement(self, output: str) -> Marker:
+        output = output.strip()
+        assert output.startswith(self.name)
+        lb, ub = output.split(":")[1].split("-")
+        return VRMarker(self.name, self.id, self.variable_type, int(lb), int(ub))
 
     def get_variable_name_and_type(self, instrumented_code: str) -> tuple[str, str]:
         """Returns the name and type of the instrumented variable.
