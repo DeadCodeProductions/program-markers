@@ -49,9 +49,16 @@ class Marker(ABC):
                 """
 
     def emit_tracking_directive(self) -> str:
-        return f"""#define {self.macro()} \
+        return f""" int {self.name}_ENCOUNTERED = 0;
+                    __attribute__((destructor))
+                    void {self.name}_print() {{
+                        if ({self.name}_ENCOUNTERED == 1) {{
+                        __builtin_printf("{self.name}\\n");
+                        }}
+                    }}
+                    #define {self.macro()} \
                     {self.marker_statement_prefix()} \
-                    __builtin_printf("{self.name}\\n"); \
+                    {self.name}_ENCOUNTERED  = 1;    \
                     {self.marker_statement_postfix()}
                 """
 
