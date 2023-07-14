@@ -205,9 +205,11 @@ void track_{self.name}({self.variable_type} v) {{
 
 __attribute__((destructor))
 void {self.name}_print() {{
+    if ({self.name}_ENCOUNTERED == 1) {{
     __builtin_printf(
-        "{self.name}:{format_specifier}-{format_specifier}\\n",
+        "{self.name}:{format_specifier}/{format_specifier}\\n",
         {self.name}_LB, {self.name}_UB);
+    }}
 }}
 
 #define {self.macro()} \
@@ -217,7 +219,7 @@ void {self.name}_print() {{
     def parse_tracked_output_for_refinement(self, output: str) -> Marker:
         output = output.strip()
         assert output.startswith(self.name)
-        lb, ub = output.split(":")[1].split("-")
+        lb, ub = output.split(":")[1].split("/")
         return VRMarker(self.name, self.id, self.variable_type, int(lb), int(ub))
 
     def get_variable_name_and_type(self, instrumented_code: str) -> tuple[str, str]:
