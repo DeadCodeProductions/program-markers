@@ -4,7 +4,7 @@ from dataclasses import dataclass, replace
 from enum import Enum
 from functools import cache
 from pathlib import Path
-from typing import Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from diopter.compiler import (
     ASMCompilationOutput,
@@ -13,6 +13,7 @@ from diopter.compiler import (
     CompilationSetting,
     CompilerExe,
     ExeCompilationOutput,
+    Language,
     SourceProgram,
 )
 from program_markers.markers import (
@@ -60,11 +61,12 @@ def find_non_eliminated_markers_impl(
 @dataclass(frozen=True, kw_only=True)
 class InstrumentedProgram(SourceProgram):
     marker_strategy: MarkerStrategy
-    enabled_markers: tuple[Marker, ...] = tuple()
+    enabled_markers: tuple[Marker, ...]
     disabled_markers: tuple[Marker, ...] = tuple()
     unreachable_markers: tuple[Marker, ...] = tuple()
     tracked_markers: tuple[Marker, ...] = tuple()
     tracked_for_refinement_markers: tuple[Marker, ...] = tuple()
+    aborted_markers: tuple[Marker, ...] = tuple()
 
     def __post_init__(self) -> None:
         """Sanity checks"""
@@ -94,29 +96,21 @@ class InstrumentedProgram(SourceProgram):
             marker_ids.add(marker.id)
 
     def generate_preprocessor_directives(self) -> str:
-        return (
-            "\n".join(
-                marker.emit_enabled_directive(self.marker_strategy)
-                for marker in self.enabled_markers
-            )
-            + "\n"
-            + "\n".join(
-                marker.emit_disabling_directive() for marker in self.disabled_markers
-            )
-            + "\n"
-            + "\n".join(
-                marker.emit_unreachable_directive()
-                for marker in self.unreachable_markers
-            )
-            + "\n"
-            + "\n".join(
-                marker.emit_tracking_directive() for marker in self.tracked_markers
-            )
-            + "\n"
-            + "\n".join(
-                marker.emit_tracking_directive_for_refinement()
-                for marker in self.tracked_for_refinement_markers
-            )
+        return "\n".join(
+            marker.emit_abort_directive(self.marker_strategy)
+            for marker in self.aborted_markers
+        ) + "\n" "\n".join(
+            marker.emit_enabled_directive(self.marker_strategy)
+            for marker in self.enabled_markers
+        ) + "\n" + "\n".join(
+            marker.emit_disabling_directive() for marker in self.disabled_markers
+        ) + "\n" + "\n".join(
+            marker.emit_unreachable_directive() for marker in self.unreachable_markers
+        ) + "\n" + "\n".join(
+            marker.emit_tracking_directive() for marker in self.tracked_markers
+        ) + "\n" + "\n".join(
+            marker.emit_tracking_directive_for_refinement()
+            for marker in self.tracked_for_refinement_markers
         )
 
     def get_modified_code(self) -> str:
@@ -377,6 +371,31 @@ class InstrumentedProgram(SourceProgram):
             enabled_markers=tuple(new_enabled_markers),
         )
 
+    def make_markers_aborted(self, markers: Sequence[Marker]) -> InstrumentedProgram:
+        """Make `markers` calls to abort().
+
+        Args:
+            markes (Sequence[Marker]):
+                the markers to turn into abort() calls
+
+        - markers already made aborted
+
+        Returns:
+            InstrumentedProgram:
+                A similar InstrumentedProgram as self but with `markers` make
+                aborted
+        """
+        if not self.enabled_markers:
+            return self
+
+        assert set(markers) <= set(self.enabled_markers) | set(self.aborted_markers)
+
+        return replace(
+            self,
+            aborted_markers=tuple(set(self.aborted_markers) | set(markers)),
+            enabled_markers=tuple(set(self.enabled_markers) - set(markers)),
+        )
+
     def disable_remaining_markers(
         self, do_not_disable: Sequence[Marker] = tuple()
     ) -> InstrumentedProgram:
@@ -470,6 +489,74 @@ class InstrumentedProgram(SourceProgram):
         return replace(
             self,
             marker_strategy=marker_strategy,
+        )
+
+    def to_json_dict_impl(self) -> dict[str, Any]:
+        """Serializes the InstrumentedProgram specific attributes to a
+        JSON-serializable dict.
+
+        Returns:
+            dict[str, Any]:
+                the serialized InstrumentedProgram
+        """
+        j = SourceProgram.to_json_dict_impl(self)
+        j["kind"] = "InstrumentedProgram"
+        j["marker_strategy"] = self.marker_strategy.to_json_dict()
+        j["enabled_markers"] = [m.to_json_dict() for m in self.enabled_markers]
+        j["disabled_markers"] = [m.to_json_dict() for m in self.disabled_markers]
+        j["unreachable_markers"] = [m.to_json_dict() for m in self.unreachable_markers]
+        j["tracked_markers"] = [m.to_json_dict() for m in self.tracked_markers]
+        j["tracked_for_refinement_markers"] = [
+            m.to_json_dict() for m in self.tracked_for_refinement_markers
+        ]
+        j["aborted_markers"] = [m.to_json_dict() for m in self.aborted_markers]
+        return j
+
+    @staticmethod
+    def from_json_dict_impl(
+        d: dict[str, Any],
+        language: Language,
+        defined_macros: tuple[str, ...],
+        include_paths: tuple[str, ...],
+        system_include_paths: tuple[str, ...],
+        flags: tuple[str, ...],
+    ) -> InstrumentedProgram:
+        """Returns an instrumented program  parsed from a json dictionary.
+        Args:
+           d (dict[str, Any]):
+               the dictionary
+           language (Language):
+               the program's language
+           defined_macros (tuple[str,...]):
+               macros that will be defined when compiling this program
+           include_paths (tuple[str,...]):
+               include paths which will be passed to the compiler (with -I)
+           system_include_paths (tuple[str,...]):
+               system include paths which will be passed to the compiler (with -isystem)
+           flags (tuple[str,...]):
+               flags, prefixed with a dash ("-") that will be passed to the compiler
+        """
+        assert d["kind"] == "InstrumentedProgram"
+
+        def parse_markers(ms: list[dict[str, Any]]) -> tuple[Marker, ...]:
+            return tuple(Marker.from_json_dict(m) for m in ms)
+
+        return InstrumentedProgram(
+            language=language,
+            defined_macros=defined_macros,
+            include_paths=include_paths,
+            system_include_paths=system_include_paths,
+            flags=flags,
+            code=d["code"],
+            marker_strategy=MarkerStrategy.from_json_dict(d["marker_strategy"]),
+            enabled_markers=parse_markers(d["enabled_markers"]),
+            disabled_markers=parse_markers(d["disabled_markers"]),
+            unreachable_markers=parse_markers(d["unreachable_markers"]),
+            tracked_markers=parse_markers(d["tracked_markers"]),
+            tracked_for_refinement_markers=parse_markers(
+                d["tracked_for_refinement_markers"]
+            ),
+            aborted_markers=parse_markers(d["aborted_markers"]),
         )
 
 
