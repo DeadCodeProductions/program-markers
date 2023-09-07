@@ -25,5 +25,5 @@ repos:
     rev: v1.3.0
     hooks:
     -   id: mypy
-        additional_dependencies: [diopter==0.0.22, pytest==7.2.0]
+        additional_dependencies: [diopter==0.0.26, pytest==7.2.0]
         args: [--strict]
