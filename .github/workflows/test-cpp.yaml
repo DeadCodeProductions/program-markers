@@ -10,7 +10,7 @@ jobs:
   catchpp:
     strategy:
       matrix:
-        version: [14,15]
+        version: [14,15,16]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -19,6 +19,7 @@ jobs:
         run: |
           sudo apt-key adv --keyserver keyserver.ubuntu.com --recv-keys 15CF4D18AF4F7421
           sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-15 main'
+          sudo add-apt-repository 'deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-16 main'
           sudo apt remove clang-14 clang-13 clang-12 llvm-14 llvm-13 llvm-12
           sudo apt-get update
           sudo apt-get install ninja-build catch2 clang-${{ matrix.version }} libclang-${{ matrix.version }}-dev libclang-cpp${{ matrix.version }}-dev
