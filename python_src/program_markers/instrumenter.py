@@ -695,12 +695,13 @@ def get_instrumenter(
             except:  # noqa: E722
                 pass
             if not clang:
-                try:
-                    clang = CompilerExe.from_path(Path("clang-15"))
-                except:  # noqa: E722
-                    pass
-            if not clang:
-                clang = CompilerExe.from_path(Path("clang-14"))
+                for clang_path in ("clang-16", "clang-15", "clang-14"):
+                    try:
+                        clang = CompilerExe.from_path(Path(clang_path))
+                        break
+                    except:  # noqa: E722
+                        pass
+        assert clang, "Could not find clang"
 
         instrumenter = ClangTool.init_with_paths_from_clang(
             Path(__file__).parent / "program-markers", clang
