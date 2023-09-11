@@ -218,9 +218,12 @@ class VRMarker(Marker):
 
     def emit_tracking_directive_for_refinement(self) -> str:
         format_specifier = {
+            "bool": "%d",
+            "char": "%d",
             "short": "%hd",
             "int": "%d",
             "long": "%ld",
+            "unsigned char": "%u",
             "unsigned short": "%hu",
             "unsigned int": "%u",
             "unsigned long": "%lu",

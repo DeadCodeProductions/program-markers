@@ -581,6 +581,7 @@ def __get_vr_macro_type_map(instrumented_code: str) -> dict[str, str]:
 
     def convert_variable_type(variable_type: str) -> str:
         type_map = {
+            "_Bool": "bool",
             "uint8_t": "unsigned int",
             "int8_t": "int",
             "uint16_t": "unsigned short",
@@ -593,9 +594,12 @@ def __get_vr_macro_type_map(instrumented_code: str) -> dict[str, str]:
         if variable_type in type_map:
             variable_type = type_map[variable_type]
         assert variable_type in [
+            "bool",
+            "char",
             "short",
             "int",
             "long",
+            "unsigned char",
             "unsigned short",
             "unsigned int",
             "unsigned long",
