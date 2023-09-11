@@ -1,6 +1,7 @@
 #include "ValueRangeInstrumenter.h"
 
 #include <clang/ASTMatchers/ASTMatchers.h>
+#include <llvm/Support/Error.h>
 #include <sstream>
 #include <string>
 
@@ -20,6 +21,37 @@ ASTEdit addVRMarkerBefore(RangeSelector &&Selection, Stencil Text) {
                      EditMetadataKind::VRMarker);
 }
 
+class VRMacroStencil : public StencilInterface {
+public:
+  VRMacroStencil() = default;
+
+  llvm::Error eval(const MatchFinder::MatchResult &Match,
+                   std::string *Result) const override {
+    const auto *VD = Match.Nodes.getNodeAs<VarDecl>("var");
+    if (VD == nullptr)
+      return llvm::make_error<llvm::StringError>(llvm::errc::invalid_argument,
+                                                 "var is not bound");
+    auto VarName = VD->getNameAsString();
+    auto Type =
+        VD->getType().getCanonicalType().getUnqualifiedType().getAsString();
+    Result->append(VarName + ",\"" + Type + "\"");
+    return llvm::Error::success();
+  }
+
+  std::string toString() const override { return "VRMacroStencil"; }
+};
+
+auto makeVRMacroStencil() { return std::make_unique<VRMacroStencil>(); }
+
+AST_MATCHER(VarDecl, hasNotEnumType) {
+  (void)Finder;
+  (void)Builder;
+  const auto &TD = Node.getType()->getAsTagDecl();
+  if (TD == nullptr)
+    return true;
+  return !TD->isEnum();
+};
+
 auto valueRangeRule() {
   auto matcher = stmt(
       isNotInConstexprOrConstevalFunction(), isNotInFunctionWithMacrosMatcher(),
@@ -36,6 +68,8 @@ auto valueRangeRule() {
               varDecl(hasType(isInteger()),
                       anyOf(parmVarDecl(), hasInitializer(anything())))
                   .bind("var"),
+              // Don't instrument enum variables
+              hasNotEnumType(),
               hasAncestor(
                   /* Filter for variables used in declRefExprs within the
                    * matches statement, we need some shenanigans to add a
@@ -51,8 +85,7 @@ auto valueRangeRule() {
                               .bind("ref")))))))))));
   return makeRule(matcher,
                   addVRMarkerBefore(statementWithMacrosExpanded("stmt"),
-                                    cat(variableFromDeclRef("ref"), ",\"",
-                                        variableTypeFromVarDecl("var"), "\"")));
+                                    makeVRMacroStencil()));
 };
 
 ValueRangeInstrumenter::ValueRangeInstrumenter(

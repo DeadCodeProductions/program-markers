@@ -198,3 +198,24 @@ TEST_CASE("VRMarkers Variable in Macro", "[vr]") {
   CAPTURE(Code);
   compare_code(formatCode(ExpectedCode), runVRInstrumenterOnCode(Code, false));
 }
+
+TEST_CASE("VRMarkers enums", "[vr]") {
+  auto Code = std::string{R"code(
+        enum E {A,B,C};
+
+        class C {
+        public:
+            enum E2 {A,B};
+            E2 test() const {
+                return E2::A;
+            }
+        };
+        using E2 = C::E2;
+        int foo(E e, const class C c){
+        const E2 e2 = c.test();
+        return e + e2;
+        })code"};
+
+  CAPTURE(Code);
+  compare_code(formatCode(Code), runVRInstrumenterOnCode(Code, false));
+}
