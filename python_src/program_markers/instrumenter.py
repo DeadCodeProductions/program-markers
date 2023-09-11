@@ -661,6 +661,10 @@ def __split_marker_directives(
     return directives_map
 
 
+class NoInstrumentationAddedError(Exception):
+    pass
+
+
 def __split_to_marker_directives_and_code(instrumented_code: str) -> tuple[str, str]:
     """Splits the instrumented code into the marker preprocessor
     directives and the actual code.
@@ -674,7 +678,8 @@ def __split_to_marker_directives_and_code(instrumented_code: str) -> tuple[str, 
     """
     markers_start = "//MARKERS START\n"
     markers_end = "//MARKERS END\n"
-    assert instrumented_code.startswith(markers_start), instrumented_code
+    if not instrumented_code.startswith(markers_start):
+        raise NoInstrumentationAddedError
     markers_end_idx = instrumented_code.find(markers_end)
     assert markers_end_idx != -1, instrumented_code
     code_idx = markers_end_idx + len(markers_end)
