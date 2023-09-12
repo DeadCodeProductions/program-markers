@@ -1,9 +1,10 @@
 import pytest
-from diopter.compiler import Language, SourceProgram
+from diopter.compiler import Language, ObjectCompilationOutput, SourceProgram
 from program_markers.instrumenter import (
     InstrumenterMode,
     find_non_eliminated_markers_impl,
     instrument_program,
+    rename_markers,
 )
 from program_markers.markers import (
     AsmCommentEmptyOperandsStrategy,
@@ -404,3 +405,45 @@ def test_number_occurences() -> None:
     markers = sorted(markers, key=lambda m: m.id)
     assert markers[0].number_occurences_in_code(code) == 2
     assert markers[1].number_occurences_in_code(code) == 1
+
+
+def test_marker_renaming() -> None:
+    iprogram = instrument_program(
+        SourceProgram(
+            code="""
+    int foo(int a, int b){
+        if (a+b)
+            return 1;
+        return 0;
+    }
+    """,
+            language=Language.C,
+        ),
+        mode=InstrumenterMode.VR,
+    )
+    iprogram0, iprogram1 = rename_markers((iprogram, iprogram))
+
+    assert set(
+        (
+            VRMarker.from_str("VRMarker0_", "int"),
+            VRMarker.from_str("VRMarker1_", "int"),
+        )
+    ) == set(iprogram0.enabled_markers)
+    assert set(
+        (
+            VRMarker.from_str("VRMarker2_", "int"),
+            VRMarker.from_str("VRMarker3_", "int"),
+        )
+    ) == set(iprogram1.enabled_markers)
+
+    assert (
+        VRMarker.from_str("VRMarker2_", "int").macro_without_arguments()
+        in iprogram1.code
+    ), iprogram1.code
+    assert (
+        VRMarker.from_str("VRMarker3_", "int").macro_without_arguments()
+        in iprogram1.code
+    ), iprogram1.code
+
+    gcc = get_system_gcc_O0()
+    gcc.compile_program(iprogram1, ObjectCompilationOutput())

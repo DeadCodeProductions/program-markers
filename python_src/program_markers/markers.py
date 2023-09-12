@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 from abc import ABC, abstractmethod
-from dataclasses import dataclass, fields
+from dataclasses import dataclass, fields, replace
 from re import Pattern
 from typing import Any
 
@@ -25,6 +25,14 @@ class Marker(ABC):
 
     @abstractmethod
     def macro(self) -> str:
+        raise NotImplementedError
+
+    @abstractmethod
+    def macro_without_arguments(self) -> str:
+        """Returns the preprocessor macro that can
+        be defined before compiling the program
+        without its arguments (if any)
+        """
         raise NotImplementedError
 
     def marker_statement_prefix(self) -> str:
@@ -91,6 +99,11 @@ class Marker(ABC):
             case _:
                 raise ValueError(f"Unknown marker kind {j['kind']}")
 
+    def update_id(self, new_id: int) -> Marker:
+        return replace(
+            self, name=self.name.replace(str(self.id), str(new_id)), id=new_id
+        )
+
 
 @dataclass(frozen=True)
 class DCEMarker(Marker):
@@ -124,6 +137,10 @@ class DCEMarker(Marker):
                 DCEMARKERMACROX_
         """
         return f"DCEMARKERMACRO{self.name[len(DCEMarker.prefix()):]}"
+
+    def macro_without_arguments(self) -> str:
+        """Same as self.macro()"""
+        return self.macro()
 
     def to_json_dict(self) -> dict[str, Any]:
         j = {"kind": "DCEMarker", "name": self.name, "id": self.id}

@@ -60,6 +60,64 @@ def find_non_eliminated_markers_impl(
     return tuple(non_eliminated_markers)
 
 
+def rename_markers(
+    programs: Sequence[InstrumentedProgram],
+) -> list[InstrumentedProgram]:
+    """Rename all the markers in `programs` to be unique.
+    Args:
+        programs (Sequence[InstrumentedProgram]):
+            the programs whose markers to rename
+    Returns:
+        list[InstrumentedProgram]:
+            the programs with renamed markers
+    """
+    current_marker_id = len(programs[0].all_markers())
+
+    def collect_markers(
+        markers: tuple[Marker, ...], replacements: dict[str, str]
+    ) -> tuple[Marker, ...]:
+        nonlocal current_marker_id
+        new_markers = []
+        for marker in markers:
+            new_marker = marker.update_id(current_marker_id)
+            current_marker_id += 1
+            new_markers.append(new_marker)
+            replacements[
+                marker.macro_without_arguments()
+            ] = new_marker.macro_without_arguments()
+        return tuple(new_markers)
+
+    new_programs = [programs[0]]
+    for program in programs[1:]:
+        replacements: dict[str, str] = {}
+        new_enabled_markers = collect_markers(program.enabled_markers, replacements)
+        new_disabled_markers = collect_markers(program.disabled_markers, replacements)
+        new_unreachable_markers = collect_markers(
+            program.unreachable_markers, replacements
+        )
+        new_tracked_markers = collect_markers(program.tracked_markers, replacements)
+        new_tracked_for_refinement_markers = collect_markers(
+            program.tracked_for_refinement_markers, replacements
+        )
+        new_aborted_markers = collect_markers(program.aborted_markers, replacements)
+        new_code = program.code
+        for old, new in replacements.items():
+            new_code = new_code.replace(old, new)
+        new_programs.append(
+            replace(
+                program,
+                code=new_code,
+                enabled_markers=new_enabled_markers,
+                disabled_markers=new_disabled_markers,
+                unreachable_markers=new_unreachable_markers,
+                tracked_markers=new_tracked_markers,
+                tracked_for_refinement_markers=new_tracked_for_refinement_markers,
+                aborted_markers=new_aborted_markers,
+            )
+        )
+    return new_programs
+
+
 @dataclass(frozen=True, kw_only=True)
 class InstrumentedProgram(SourceProgram):
     marker_strategy: MarkerStrategy

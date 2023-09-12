@@ -1,8 +1,14 @@
 import pytest
-from diopter.compiler import ASMCompilationOutput, Language, SourceProgram
+from diopter.compiler import (
+    ASMCompilationOutput,
+    Language,
+    ObjectCompilationOutput,
+    SourceProgram,
+)
 from program_markers.instrumenter import (
     find_non_eliminated_markers_impl,
     instrument_program,
+    rename_markers,
 )
 from program_markers.markers import (
     AsmCommentEmptyOperandsStrategy,
@@ -285,3 +291,32 @@ def test_strategies() -> None:
 
         assert (DCEMarker.from_str(f"{DCEMarker.prefix()}1_")) in markers
         assert (DCEMarker.from_str(f"{DCEMarker.prefix()}2_")) in markers
+
+
+def test_marker_renaming() -> None:
+    iprogram = instrument_program(
+        SourceProgram(
+            code="""
+    int foo(int a){
+        if (a)
+            return 1;
+        return 0;
+    }
+    """,
+            language=Language.C,
+        ),
+    )
+    iprogram0, iprogram1 = rename_markers((iprogram, iprogram))
+
+    assert set(
+        (DCEMarker.from_str("DCEMarker0_"), DCEMarker.from_str("DCEMarker1_"))
+    ) == set(iprogram0.enabled_markers)
+    assert set(
+        (DCEMarker.from_str("DCEMarker2_"), DCEMarker.from_str("DCEMarker3_"))
+    ) == set(iprogram1.enabled_markers)
+
+    assert DCEMarker.from_str("DCEMarker2_").macro() in iprogram1.code
+    assert DCEMarker.from_str("DCEMarker3_").macro() in iprogram1.code
+
+    gcc = get_system_gcc_O0()
+    gcc.compile_program(iprogram1, ObjectCompilationOutput())
