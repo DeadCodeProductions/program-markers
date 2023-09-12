@@ -10,6 +10,8 @@ from diopter.compiler import (
     ASMCompilationOutput,
     ClangTool,
     ClangToolMode,
+    CompilationOutputType,
+    CompilationResult,
     CompilationSetting,
     CompilerExe,
     ExeCompilationOutput,
@@ -264,6 +266,66 @@ class InstrumentedProgram(SourceProgram):
             marker for marker in self.enabled_markers if marker.name in output.stdout
         )
 
+    def compile_program_for_refinement(
+        self,
+        setting: CompilationSetting,
+        output: CompilationOutputType,
+        timeout: int | None = None,
+    ) -> CompilationResult[CompilationOutputType]:
+        """Compiles the program with tracking code for markers.
+        The markers' emit_tracking_directive_for_refinement are used to print
+        runtime information relevant to each marker.
+
+        Ars:
+            setting (CompilationSetting):
+                the compiler used to compile to program
+            output (CompilationOutputType):
+                the type of output to use
+            timeout (int | None):
+                if not None, abort after `timeout` seconds
+        Returns:
+            CompilationOutputType:
+                the output of the compilation
+        """
+        tracked_program = replace(
+            self,
+            enabled_markers=tuple(),
+            tracked_for_refinement_markers=tuple(self.enabled_markers),
+        )
+        return setting.compile_program(tracked_program, output, timeout=timeout)
+
+    def process_tracked_output_for_refinement(
+        self,
+        output: str,
+    ) -> tuple[InstrumentedProgram, tuple[Marker, ...]]:
+        """Processes the output of a program compiled with tracking code for
+        markers.  The output is parsed with parse_tracked_output_for_refinement
+        and each refined marker is updated.
+
+
+        Ars:
+            output (str):
+                the output (printed in stdout) of the program
+        Returns:
+            tuple[InstrumentedProgram, tuple[Marker, ...]]:
+                the refined program with the updated
+                markers and the refined markers
+        """
+
+        marker_names = {marker.name: marker for marker in self.enabled_markers}
+        marker_lines: dict[Marker, str] = {}
+        for output_line in output.splitlines():
+            for marker_name, marker in marker_names.items():
+                if marker_name in output_line:
+                    assert marker not in marker_lines
+                    marker_lines[marker] = output_line
+
+        refined_markers = tuple(
+            marker.parse_tracked_output_for_refinement(line)
+            for marker, line in marker_lines.items()
+        )
+        return self.replace_markers(refined_markers), refined_markers
+
     def refine_markers_with_runtime_information(
         self,
         args: tuple[str, ...],
@@ -293,28 +355,10 @@ class InstrumentedProgram(SourceProgram):
                 markers and the refined markers
         """
 
-        tracked_program = replace(
-            self,
-            enabled_markers=tuple(),
-            tracked_for_refinement_markers=tuple(self.enabled_markers),
-        )
-        result = setting.compile_program(
-            tracked_program, ExeCompilationOutput(), timeout=timeout
-        )
-        output = result.output.run(args, timeout=timeout)
-        marker_names = {marker.name: marker for marker in self.enabled_markers}
-        marker_lines: dict[Marker, str] = {}
-        for output_line in output.stdout.splitlines():
-            for marker_name, marker in marker_names.items():
-                if marker_name in output_line:
-                    assert marker not in marker_lines
-                    marker_lines[marker] = output_line
-
-        refined_markers = tuple(
-            marker.parse_tracked_output_for_refinement(line)
-            for marker, line in marker_lines.items()
-        )
-        return self.replace_markers(refined_markers), refined_markers
+        output = self.compile_program_for_refinement(
+            setting, ExeCompilationOutput(), timeout
+        ).output.run(args, timeout=timeout)
+        return self.process_tracked_output_for_refinement(output.stdout)
 
     def disable_markers(self, dmarkers: Sequence[Marker]) -> InstrumentedProgram:
         """Disables the given markers by setting the relevant macros.
