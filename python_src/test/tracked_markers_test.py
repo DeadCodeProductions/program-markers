@@ -1,4 +1,4 @@
-from diopter.compiler import Language, SourceProgram
+from diopter.compiler import ExeCompilationOutput, Language, SourceProgram
 from program_markers.instrumenter import InstrumenterMode, instrument_program
 from program_markers.markers import DCEMarker, VRMarker
 
@@ -109,6 +109,37 @@ def test_vr_marker_int_max() -> None:
     rprogram, reachable_markers = iprogram.refine_markers_with_runtime_information(
         (), gcc
     )
+    for marker in reachable_markers:
+        assert isinstance(marker, VRMarker)
+        assert marker.upper_bound == 18446744073709551615
+        assert marker.lower_bound == 18446744073709551615
+
+
+def test_vr_marker_int_max_separate_compilation() -> None:
+    iprogram = instrument_program(
+        SourceProgram(
+            code="""
+    int main(int argc, char* argv[]){
+         unsigned long a = 18446744073709551615UL;
+         return a-a;
+    }
+    """,
+            language=Language.C,
+        ),
+        mode=InstrumenterMode.VR,
+    )
+    assert set((VRMarker.from_str("VRMarker0_", "unsigned long"),)) == set(
+        iprogram.enabled_markers
+    )
+    gcc = get_system_gcc_O0()
+
+    result = iprogram.compile_program_for_refinement(gcc, ExeCompilationOutput())
+    output = result.output.run()
+
+    rprogram, reachable_markers = iprogram.process_tracked_output_for_refinement(
+        output.stdout
+    )
+
     for marker in reachable_markers:
         assert isinstance(marker, VRMarker)
         assert marker.upper_bound == 18446744073709551615
