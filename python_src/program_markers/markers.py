@@ -240,17 +240,20 @@ class VRMarker(Marker):
             "short": "%hd",
             "int": "%d",
             "long": "%ld",
+            "long long": "%lld",
             "unsigned char": "%u",
             "unsigned short": "%hu",
             "unsigned int": "%u",
             "unsigned long": "%lu",
+            "unsigned long long": "%llu",
         }[self.variable_type]
+        variable_type = self.variable_type if self.variable_type != "bool" else "int"
         return f"""
 int {self.name}_ENCOUNTERED = 0;
-{self.variable_type} {self.name}_LB;
-{self.variable_type} {self.name}_UB;
+{variable_type} {self.name}_LB;
+{variable_type} {self.name}_UB;
 
-void track_{self.name}({self.variable_type} v) {{
+void track_{self.name}({variable_type} v) {{
     if (!{self.name}_ENCOUNTERED) {{
         {self.name}_LB = v;
         {self.name}_UB = v;

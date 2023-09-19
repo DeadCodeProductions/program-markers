@@ -684,6 +684,7 @@ def __get_vr_macro_type_map(instrumented_code: str) -> dict[str, str]:
     def convert_variable_type(variable_type: str) -> str:
         type_map = {
             "_Bool": "bool",
+            "signed char": "char",
             "uint8_t": "unsigned int",
             "int8_t": "int",
             "uint16_t": "unsigned short",
@@ -701,10 +702,12 @@ def __get_vr_macro_type_map(instrumented_code: str) -> dict[str, str]:
             "short",
             "int",
             "long",
+            "long long",
             "unsigned char",
             "unsigned short",
             "unsigned int",
             "unsigned long",
+            "unsigned long long",
         ], f"Unexpected variable type for VRMarker: {variable_type} in {line}"
         return variable_type
 
