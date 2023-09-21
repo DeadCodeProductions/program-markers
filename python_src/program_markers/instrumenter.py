@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections import defaultdict
 from dataclasses import dataclass, replace
 from enum import Enum
@@ -373,10 +374,16 @@ class InstrumentedProgram(SourceProgram):
 
         marker_names = {marker.name: marker for marker in self.enabled_markers}
         marker_lines: dict[Marker, list[str]] = defaultdict(list)
-        for output_line in output.splitlines():
-            for marker_name, marker in marker_names.items():
-                if marker_name in output_line:
-                    marker_lines[marker].append(output_line)
+        pattern = r"<MarkerTracking>(.*?)<\/MarkerTracking>"
+        matches = re.findall(pattern, output)
+        for match in matches:
+            # Maybe I should move the parsing/splitting to the Marker class?
+            # else I'd have to keep this code in sync with whatever changes
+            # in the printing in Marker.emit_tracking_directive_for_refinement
+            marker_name = match.split(":")[0]
+            if marker_name not in marker_names:
+                continue
+            marker_lines[marker_names[marker_name]].append(match)
 
         refined_markers = tuple(
             marker.parse_tracked_output_for_refinement(lines)
