@@ -272,7 +272,7 @@ __attribute__((destructor))
 void {self.name}_print() {{
     if ({self.name}_ENCOUNTERED == 1) {{
     __builtin_printf(
-        "{self.name}:{format_specifier}/{format_specifier}\\n",
+        "<MarkerTracking>{self.name}:{format_specifier}/{format_specifier}</MarkerTracking>\\n",
         {self.name}_LB, {self.name}_UB);
     }}
 }}
