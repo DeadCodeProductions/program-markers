@@ -115,6 +115,15 @@ def test_vr_marker_int_max() -> None:
         assert marker.lower_bound == 18446744073709551615
 
 
+def test_vr_marker_multiple_tracked_lines() -> None:
+    m = VRMarker("VRMarker0_", 0, "int").parse_tracked_output_for_refinement(
+        ("VRMarker0_:0/15", "VRMarker0_:-10/5")
+    )
+    assert isinstance(m, VRMarker)
+    assert m.lower_bound == -10
+    assert m.upper_bound == 15
+
+
 def test_vr_marker_int_max_separate_compilation() -> None:
     iprogram = instrument_program(
         SourceProgram(
@@ -135,9 +144,11 @@ def test_vr_marker_int_max_separate_compilation() -> None:
 
     result = iprogram.compile_program_for_refinement(gcc, ExeCompilationOutput())
     output = result.output.run()
+    # duplicate output to test if tracking works with multiple lines
+    output_str = output.stdout + "\n" + output.stdout
 
     rprogram, reachable_markers = iprogram.process_tracked_output_for_refinement(
-        output.stdout
+        output_str
     )
 
     for marker in reachable_markers:

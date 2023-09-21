@@ -4,7 +4,7 @@ import re
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, fields, replace
 from re import Pattern
-from typing import Any
+from typing import Any, Sequence
 
 
 @dataclass(frozen=True)
@@ -82,7 +82,7 @@ class Marker(ABC):
     def emit_tracking_directive_for_refinement(self) -> str:
         return f"#define {self.macro()}"
 
-    def parse_tracked_output_for_refinement(self, output: str) -> Marker:
+    def parse_tracked_output_for_refinement(self, output: Sequence[str]) -> Marker:
         raise RuntimeError("This should never be called, DCEMarkers cannot be refined")
 
     @abstractmethod
@@ -281,11 +281,18 @@ void {self.name}_print() {{
         track_{self.name}(VAR);
 """
 
-    def parse_tracked_output_for_refinement(self, output: str) -> Marker:
-        output = output.strip()
-        assert output.startswith(self.name)
-        lb, ub = output.split(":")[1].split("/")
-        return VRMarker(self.name, self.id, self.variable_type, int(lb), int(ub))
+    def parse_tracked_output_for_refinement(self, output: Sequence[str]) -> Marker:
+        lbs = []
+        ubs = []
+        for line in output:
+            line = line.strip()
+            assert line.startswith(self.name)
+            lb, ub = line.split(":")[1].split("/")
+            lbs.append(int(lb))
+            ubs.append(int(ub))
+        assert lbs
+        assert ubs
+        return VRMarker(self.name, self.id, self.variable_type, min(lbs), max(ubs))
 
     def get_variable_name_and_type(self, instrumented_code: str) -> tuple[str, str]:
         """Returns the name and type of the instrumented variable.
