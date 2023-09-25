@@ -408,7 +408,20 @@ def test_number_occurences() -> None:
 
 
 def test_marker_renaming() -> None:
-    iprogram = instrument_program(
+    iprogram_0 = instrument_program(
+        SourceProgram(
+            code="""
+    int foo(int a){
+        if (a)
+            return 1;
+        return 0;
+    }
+    """,
+            language=Language.C,
+        ),
+        mode=InstrumenterMode.VR,
+    )
+    iprogram_1 = instrument_program(
         SourceProgram(
             code="""
     int foo(int a, int b){
@@ -421,27 +434,30 @@ def test_marker_renaming() -> None:
         ),
         mode=InstrumenterMode.VR,
     )
-    iprogram0, iprogram1 = rename_markers((iprogram, iprogram))
 
+    iprogram0, iprogram1 = rename_markers((iprogram_0, iprogram_1))
+
+    assert set((VRMarker.from_str("VRMarker0_", "int"),)) == set(
+        iprogram0.enabled_markers
+    )
     assert set(
         (
-            VRMarker.from_str("VRMarker0_", "int"),
             VRMarker.from_str("VRMarker1_", "int"),
-        )
-    ) == set(iprogram0.enabled_markers)
-    assert set(
-        (
             VRMarker.from_str("VRMarker2_", "int"),
-            VRMarker.from_str("VRMarker3_", "int"),
         )
     ) == set(iprogram1.enabled_markers)
 
     assert (
-        VRMarker.from_str("VRMarker2_", "int").macro_without_arguments()
+        VRMarker.from_str("VRMarker0_", "int").macro_without_arguments()
+        in iprogram0.code
+    ), iprogram0.code
+
+    assert (
+        VRMarker.from_str("VRMarker1_", "int").macro_without_arguments()
         in iprogram1.code
     ), iprogram1.code
     assert (
-        VRMarker.from_str("VRMarker3_", "int").macro_without_arguments()
+        VRMarker.from_str("VRMarker2_", "int").macro_without_arguments()
         in iprogram1.code
     ), iprogram1.code
 
