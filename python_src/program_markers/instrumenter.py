@@ -76,22 +76,23 @@ def rename_markers(
     current_marker_id = len(programs[0].all_markers())
 
     def collect_markers(
-        markers: tuple[Marker, ...], replacements: dict[str, str]
+        markers: tuple[Marker, ...], replacements: dict[tuple[str, int], str]
     ) -> tuple[Marker, ...]:
         nonlocal current_marker_id
         new_markers = []
         for marker in markers:
+            assert (marker.macro_without_arguments(), marker.id) not in replacements
             new_marker = marker.update_id(current_marker_id)
             current_marker_id += 1
             new_markers.append(new_marker)
             replacements[
-                marker.macro_without_arguments()
+                (marker.macro_without_arguments(), marker.id)
             ] = new_marker.macro_without_arguments()
         return tuple(new_markers)
 
     new_programs = [programs[0]]
     for program in programs[1:]:
-        replacements: dict[str, str] = {}
+        replacements: dict[tuple[str, int], str] = {}
         new_enabled_markers = collect_markers(program.enabled_markers, replacements)
         new_disabled_markers = collect_markers(program.disabled_markers, replacements)
         new_unreachable_markers = collect_markers(
@@ -103,7 +104,9 @@ def rename_markers(
         )
         new_aborted_markers = collect_markers(program.aborted_markers, replacements)
         new_code = program.code
-        for old, new in replacements.items():
+        for (old, marker_id), new in sorted(
+            replacements.items(), key=lambda x: x[0][1], reverse=True
+        ):
             new_code = new_code.replace(old, new)
         new_programs.append(
             replace(
