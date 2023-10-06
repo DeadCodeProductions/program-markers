@@ -2,6 +2,7 @@ import pytest
 from diopter.compiler import Language, Source, SourceProgram
 from program_markers.iprogram import InstrumentedProgram
 from program_markers.markers import (
+    AbortEmitter,
     AsmCommentDetectionStrategy,
     AsmCommentEmptyOperandsDetectionStrategy,
     AsmCommentGlobalOutOperandDetectionStrategy,
@@ -9,6 +10,8 @@ from program_markers.markers import (
     AsmCommentStaticVolatileGlobalOutOperandDetectionStrategy,
     AsmCommentVolatileGlobalOutOperandDetectionStrategy,
     DCEMarker,
+    DisableEmitter,
+    EnableEmitter,
     FunctionCallDetectionStrategy,
     GlobalIntDetectionStrategy,
     GlobalVolatileIntDetectionStrategy,
@@ -16,6 +19,9 @@ from program_markers.markers import (
     Marker,
     MarkerDetectionStrategy,
     StaticVolatileGlobalIntDetectionStrategy,
+    TrackingEmitter,
+    TrackingForRefinementEmitter,
+    UnreachableEmitter,
     VRMarker,
 )
 
@@ -84,7 +90,11 @@ def test_instrumented_program() -> None:
         system_include_paths=("sa", "sb"),
         flags=("-fPIC", "-fno-omit-frame-pointer"),
         code="bla bla",
-        enabled_markers=(make_dce_marker(1), make_vr_marker(2, 1, 10)),
+        markers=(make_dce_marker(1), make_vr_marker(2, 1, 10)),
+        directive_emitters={
+            make_dce_marker(1): EnableEmitter(FunctionCallDetectionStrategy()),
+            make_vr_marker(2, 1, 10): EnableEmitter(FunctionCallDetectionStrategy()),
+        },
         marker_strategy=FunctionCallDetectionStrategy(),
     )
 
@@ -96,22 +106,36 @@ def test_instrumented_program() -> None:
     with pytest.raises(AssertionError):
         SourceProgram.from_json_dict(p0.to_json_dict())
 
+    marker_strategy = AsmCommentDetectionStrategy()
+    ee = EnableEmitter(marker_strategy)
+    de = DisableEmitter()
+    ue = UnreachableEmitter()
+    te = TrackingEmitter()
+    tfre = TrackingForRefinementEmitter()
+    ae = AbortEmitter()
+    marker_directives = {
+        make_dce_marker(1): ee,
+        make_vr_marker(10, 1, 10): ee,
+        make_dce_marker(2): de,
+        make_vr_marker(11, 4, 10): de,
+        make_dce_marker(3): ue,
+        make_vr_marker(12, 1, 40): ue,
+        make_dce_marker(4): te,
+        make_vr_marker(13, 1, 11): te,
+        make_dce_marker(5): tfre,
+        make_dce_marker(6): ae,
+        make_vr_marker(7, 1, 12): ae,
+        make_dce_marker(8): ae,
+        make_vr_marker(9, 1, 13): ae,
+    }
+
     p1 = InstrumentedProgram(
         language=Language.CPP,
         defined_macros=("M1",),
         system_include_paths=("sa",),
         code="bla bla blac",
-        enabled_markers=(make_dce_marker(1), make_vr_marker(10, 1, 10)),
-        disabled_markers=(make_dce_marker(2), make_vr_marker(11, 4, 10)),
-        unreachable_markers=(make_dce_marker(3), make_vr_marker(12, 1, 40)),
-        tracked_markers=(make_dce_marker(4), make_vr_marker(13, 1, 11)),
-        tracked_for_refinement_markers=(make_dce_marker(5),),
-        aborted_markers=(
-            make_dce_marker(6),
-            make_vr_marker(7, 1, 12),
-            make_dce_marker(8),
-            make_vr_marker(9, 1, 13),
-        ),
+        markers=tuple(marker_directives.keys()),
+        directive_emitters=marker_directives,
         marker_strategy=AsmCommentDetectionStrategy(),
     )
 

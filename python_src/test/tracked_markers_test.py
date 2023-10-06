@@ -24,7 +24,7 @@ def test_dce_marker_tracking() -> None:
     )
     assert set(
         (DCEMarker.from_str("DCEMarker0_"), DCEMarker.from_str("DCEMarker1_"))
-    ) == set(iprogram.enabled_markers)
+    ) == set(iprogram.enabled_markers())
     gcc = get_system_gcc_O0()
 
     executed_markers_without_args = iprogram.track_reachable_markers((), gcc)
@@ -49,7 +49,7 @@ def test_dce_marker_tracking_loop() -> None:
             language=Language.C,
         ),
     )
-    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram.enabled_markers)
+    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram.enabled_markers())
     gcc = get_system_gcc_O0()
 
     executed_markers = iprogram.track_reachable_markers((), gcc)
@@ -79,7 +79,7 @@ def test_vr_marker_tracking() -> None:
             VRMarker.from_str("VRMarker0_", "int"),
             VRMarker.from_str("VRMarker1_", "int"),
         )
-    ) == set(iprogram.enabled_markers)
+    ) == set(iprogram.enabled_markers())
     iprogram = iprogram.disable_markers((VRMarker.from_str("VRMarker1_", "int"),))
 
     gcc = get_system_gcc_O0()
@@ -102,7 +102,7 @@ def test_vr_marker_int_max() -> None:
         mode=InstrumenterMode.VR,
     )
     assert set((VRMarker.from_str("VRMarker0_", "unsigned long"),)) == set(
-        iprogram.enabled_markers
+        iprogram.enabled_markers()
     )
     gcc = get_system_gcc_O0()
 
@@ -138,7 +138,7 @@ def test_vr_marker_int_max_separate_compilation() -> None:
         mode=InstrumenterMode.VR,
     )
     assert set((VRMarker.from_str("VRMarker0_", "unsigned long"),)) == set(
-        iprogram.enabled_markers
+        iprogram.enabled_markers()
     )
     gcc = get_system_gcc_O0()
 
