@@ -28,7 +28,7 @@ def test_instrumentation() -> None:
         )
     )
 
-    assert all_markers == set(iprogram.enabled_markers)
+    assert all_markers == set(iprogram.enabled_markers())
 
     gcc = get_system_gcc_O0()
     assert all_markers == set(iprogram.find_non_eliminated_markers(gcc))

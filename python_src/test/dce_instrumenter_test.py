@@ -74,7 +74,7 @@ def test_instrumentation() -> None:
     )
     assert set(
         (DCEMarker.from_str("DCEMarker0_"), DCEMarker.from_str("DCEMarker1_"))
-    ) == set(iprogram.enabled_markers)
+    ) == set(iprogram.enabled_markers())
 
     gcc = get_system_gcc_O0()
     assert set(
@@ -110,8 +110,10 @@ def test_disable_markers() -> None:
         iprogram.disable_markers((DCEMarker.from_str("DCEMarker2_"),))
 
     iprogram0 = iprogram.disable_markers((DCEMarker.from_str("DCEMarker1_"),))
-    assert set((DCEMarker.from_str("DCEMarker1_"),)) == set(iprogram0.disabled_markers)
-    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram0.enabled_markers)
+    assert set((DCEMarker.from_str("DCEMarker1_"),)) == set(
+        iprogram0.disabled_markers()
+    )
+    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram0.enabled_markers())
     assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(
         iprogram0.find_non_eliminated_markers(gcc)
     )
@@ -125,7 +127,9 @@ def test_disable_markers() -> None:
     assert iprogram0 == iprogram0.disable_markers((DCEMarker.from_str("DCEMarker1_"),))
 
     iprogram1 = iprogram.disable_markers((DCEMarker.from_str("DCEMarker0_"),))
-    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram1.disabled_markers)
+    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(
+        iprogram1.disabled_markers()
+    )
     assert set((DCEMarker.from_str("DCEMarker1_"),)) == set(
         iprogram1.find_non_eliminated_markers(gcc)
     )
@@ -142,7 +146,7 @@ def test_disable_markers() -> None:
             DCEMarker.from_str("DCEMarker0_"),
             DCEMarker.from_str("DCEMarker1_"),
         )
-    ) == set(iprogram1_1.disabled_markers)
+    ) == set(iprogram1_1.disabled_markers())
     assert set() == set(iprogram1_1.find_non_eliminated_markers(gcc))
     assert set(
         (
@@ -162,7 +166,7 @@ def test_disable_markers() -> None:
             DCEMarker.from_str("DCEMarker0_"),
             DCEMarker.from_str("DCEMarker1_"),
         )
-    ) == set(iprogram2.disabled_markers)
+    ) == set(iprogram2.disabled_markers())
     assert set(()) == set(iprogram2.find_non_eliminated_markers(gcc))
     assert set(
         (DCEMarker.from_str("DCEMarker0_"), DCEMarker.from_str("DCEMarker1_"))
@@ -197,9 +201,9 @@ def test_unreachable() -> None:
     # Making the same marker unreachable twice shouldn't have any effect
     iprogram == iprogram.make_markers_unreachable((DCEMarker.from_str("DCEMarker1_"),))
     assert set((DCEMarker.from_str("DCEMarker1_"),)) == set(
-        iprogram.unreachable_markers
+        iprogram.unreachable_markers()
     )
-    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram.enabled_markers)
+    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram.enabled_markers())
 
     asm = gcc.compile_program(iprogram, ASMCompilationOutput()).output.read()
     assert "bar" not in asm
@@ -232,9 +236,9 @@ def test_disable_and_unreachable() -> None:
         # We can't make ureachable a marker that was already disabled
         iprogram.make_markers_unreachable((DCEMarker.from_str("DCEMarker0_"),))
     assert set((DCEMarker.from_str("DCEMarker1_"),)) == set(
-        iprogram.unreachable_markers
+        iprogram.unreachable_markers()
     )
-    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram.disabled_markers)
+    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram.disabled_markers())
 
     assert set(()) == set(iprogram.find_non_eliminated_markers(gcc))
     assert set(
@@ -315,10 +319,10 @@ def test_marker_renaming() -> None:
 
     assert set(
         (DCEMarker.from_str("DCEMarker0_"), DCEMarker.from_str("DCEMarker1_"))
-    ) == set(iprogram0.enabled_markers)
+    ) == set(iprogram0.enabled_markers())
     assert set(
         (DCEMarker.from_str("DCEMarker2_"), DCEMarker.from_str("DCEMarker3_"))
-    ) == set(iprogram1.enabled_markers)
+    ) == set(iprogram1.enabled_markers())
 
     assert DCEMarker.from_str("DCEMarker2_").macro() in iprogram1.code
     assert DCEMarker.from_str("DCEMarker3_").macro() in iprogram1.code

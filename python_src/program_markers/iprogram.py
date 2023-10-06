@@ -14,7 +14,18 @@ from diopter.compiler import (
     Language,
     SourceProgram,
 )
-from program_markers.markers import Marker, MarkerDetectionStrategy
+from program_markers.markers import (
+    AbortEmitter,
+    DisableEmitter,
+    EnableEmitter,
+    Marker,
+    MarkerDetectionStrategy,
+    MarkerDirectiveEmitter,
+    NoEmitter,
+    TrackingEmitter,
+    TrackingForRefinementEmitter,
+    UnreachableEmitter,
+)
 
 
 def find_non_eliminated_markers_impl(
@@ -58,36 +69,33 @@ def rename_markers(
         list[InstrumentedProgram]:
             the programs with renamed markers
     """
-    current_marker_id = len(programs[0].all_markers())
+    current_marker_id = len(programs[0].markers)
 
     def collect_markers(
-        markers: tuple[Marker, ...], replacements: dict[tuple[str, int], str]
-    ) -> tuple[Marker, ...]:
+        markers: tuple[Marker, ...],
+        directive_emitters: dict[Marker, MarkerDirectiveEmitter],
+        replacements: dict[tuple[str, int], str],
+    ) -> tuple[tuple[Marker, ...], dict[Marker, MarkerDirectiveEmitter]]:
         nonlocal current_marker_id
         new_markers = []
+        new_directive_emitters = {}
         for marker in markers:
             assert (marker.macro_without_arguments(), marker.id) not in replacements
             new_marker = marker.update_id(current_marker_id)
             current_marker_id += 1
             new_markers.append(new_marker)
+            new_directive_emitters[new_marker] = directive_emitters[marker]
             replacements[
                 (marker.macro_without_arguments(), marker.id)
             ] = new_marker.macro_without_arguments()
-        return tuple(new_markers)
+        return tuple(new_markers), new_directive_emitters
 
     new_programs = [programs[0]]
     for program in programs[1:]:
         replacements: dict[tuple[str, int], str] = {}
-        new_enabled_markers = collect_markers(program.enabled_markers, replacements)
-        new_disabled_markers = collect_markers(program.disabled_markers, replacements)
-        new_unreachable_markers = collect_markers(
-            program.unreachable_markers, replacements
+        new_markers, new_directive_emitters = collect_markers(
+            program.markers, program.directive_emitters, replacements
         )
-        new_tracked_markers = collect_markers(program.tracked_markers, replacements)
-        new_tracked_for_refinement_markers = collect_markers(
-            program.tracked_for_refinement_markers, replacements
-        )
-        new_aborted_markers = collect_markers(program.aborted_markers, replacements)
         new_code = program.code
         for (old, marker_id), new in sorted(
             replacements.items(), key=lambda x: x[0][1], reverse=True
@@ -97,12 +105,8 @@ def rename_markers(
             replace(
                 program,
                 code=new_code,
-                enabled_markers=new_enabled_markers,
-                disabled_markers=new_disabled_markers,
-                unreachable_markers=new_unreachable_markers,
-                tracked_markers=new_tracked_markers,
-                tracked_for_refinement_markers=new_tracked_for_refinement_markers,
-                aborted_markers=new_aborted_markers,
+                markers=new_markers,
+                directive_emitters=new_directive_emitters,
             )
         )
     return new_programs
@@ -111,62 +115,51 @@ def rename_markers(
 @dataclass(frozen=True, kw_only=True)
 class InstrumentedProgram(SourceProgram):
     marker_strategy: MarkerDetectionStrategy
-    enabled_markers: tuple[Marker, ...]
-    disabled_markers: tuple[Marker, ...] = tuple()
-    unreachable_markers: tuple[Marker, ...] = tuple()
-    tracked_markers: tuple[Marker, ...] = tuple()
-    tracked_for_refinement_markers: tuple[Marker, ...] = tuple()
-    aborted_markers: tuple[Marker, ...] = tuple()
+    markers: tuple[Marker, ...]
+    directive_emitters: dict[Marker, MarkerDirectiveEmitter]
 
     def __post_init__(self) -> None:
-        """Sanity checks"""
-
-        # There is no overlap between enabled, disabled,
-        # unreachable, and tracked markers
-        enabled_markers = set(self.enabled_markers)
-        disabled_markers = set(self.disabled_markers)
-        unreachable_markers = set(self.unreachable_markers)
-        tracked_markers = set(self.tracked_markers)
-        tracked_for_refinement_markers = set(self.tracked_for_refinement_markers)
-        aborted_markers = set(self.aborted_markers)
-        assert enabled_markers.isdisjoint(disabled_markers)
-        assert enabled_markers.isdisjoint(unreachable_markers)
-        assert enabled_markers.isdisjoint(tracked_markers)
-        assert enabled_markers.isdisjoint(tracked_for_refinement_markers)
-        assert enabled_markers.isdisjoint(aborted_markers)
-        assert disabled_markers.isdisjoint(unreachable_markers)
-        assert disabled_markers.isdisjoint(tracked_markers)
-        assert disabled_markers.isdisjoint(tracked_for_refinement_markers)
-        assert disabled_markers.isdisjoint(aborted_markers)
-        assert unreachable_markers.isdisjoint(tracked_markers)
-        assert unreachable_markers.isdisjoint(tracked_for_refinement_markers)
-        assert unreachable_markers.isdisjoint(aborted_markers)
-        assert tracked_markers.isdisjoint(tracked_for_refinement_markers)
-        assert tracked_markers.isdisjoint(aborted_markers)
-        assert tracked_for_refinement_markers.isdisjoint(aborted_markers)
-
         # All markers ids are unique
         marker_ids = set()
-        for marker in self.all_markers():
+        for marker in self.markers:
             assert marker.id not in marker_ids
             marker_ids.add(marker.id)
 
+        for marker in self.markers:
+            assert marker in self.directive_emitters
+
+    def enabled_markers(self) -> tuple[Marker, ...]:
+        """Returns the enabled markers."""
+
+        return tuple(
+            marker
+            for marker, emitter in self.directive_emitters.items()
+            if isinstance(emitter, EnableEmitter)
+        )
+
+    def disabled_markers(self) -> tuple[Marker, ...]:
+        """Returns the disabled markers."""
+
+        return tuple(
+            marker
+            for marker, emitter in self.directive_emitters.items()
+            if isinstance(emitter, DisableEmitter)
+        )
+
+    def unreachable_markers(self) -> tuple[Marker, ...]:
+        """Returns the unreachable markers."""
+
+        return tuple(
+            marker
+            for marker, emitter in self.directive_emitters.items()
+            if isinstance(emitter, UnreachableEmitter)
+        )
+
     def generate_preprocessor_directives(self) -> str:
+        """Returns the necessary preprocessor directives for markers."""
         return "\n".join(
-            marker.emit_abort_directive(self.marker_strategy)
-            for marker in self.aborted_markers
-        ) + "\n" "\n".join(
-            marker.emit_enabled_directive(self.marker_strategy)
-            for marker in self.enabled_markers
-        ) + "\n" + "\n".join(
-            marker.emit_disabling_directive() for marker in self.disabled_markers
-        ) + "\n" + "\n".join(
-            marker.emit_unreachable_directive() for marker in self.unreachable_markers
-        ) + "\n" + "\n".join(
-            marker.emit_tracking_directive() for marker in self.tracked_markers
-        ) + "\n" + "\n".join(
-            marker.emit_tracking_directive_for_refinement()
-            for marker in self.tracked_for_refinement_markers
+            emitter.emit_directive(marker)
+            for marker, emitter in self.directive_emitters.items()
         )
 
     def get_modified_code(self) -> str:
@@ -184,21 +177,6 @@ class InstrumentedProgram(SourceProgram):
         """
 
         return self.generate_preprocessor_directives() + "\n" + self.code
-
-    def all_markers(self) -> tuple[Marker, ...]:
-        """Return all of this program's markers.
-
-        Returns:
-            tuple[Marker, ...]:
-                All markers
-        """
-        return (
-            self.enabled_markers
-            + self.disabled_markers
-            + self.unreachable_markers
-            + self.tracked_markers
-            + self.tracked_for_refinement_markers
-        )
 
     def find_non_eliminated_markers(
         self, compilation_setting: CompilationSetting
@@ -222,9 +200,9 @@ class InstrumentedProgram(SourceProgram):
             self, ASMCompilationOutput()
         ).output.read()
         non_eliminated_markers = find_non_eliminated_markers_impl(
-            asm, self.enabled_markers, self.marker_strategy
+            asm, self.enabled_markers(), self.marker_strategy
         )
-        assert set(non_eliminated_markers) <= set(self.all_markers())
+        assert set(non_eliminated_markers) <= set(self.markers)
         return non_eliminated_markers
 
     def find_eliminated_markers(
@@ -243,16 +221,16 @@ class InstrumentedProgram(SourceProgram):
             tuple[Marker, ...]:
                 The eliminated markers for the given compilation setting.
         """
-        eliminated_markers = set(self.all_markers()) - set(
+        eliminated_markers = set(self.markers) - set(
             self.find_non_eliminated_markers(compilation_setting)
         )
         if not include_all_markers:
-            eliminated_markers = eliminated_markers & set(self.enabled_markers)
+            eliminated_markers = eliminated_markers & set(self.enabled_markers())
         return tuple(eliminated_markers)
 
     def replace_markers(self, new_markers: tuple[Marker, ...]) -> InstrumentedProgram:
         """Replaces the markers in the program with the new ones.
-        Each original marker whose id matches of the new ones is replaced,
+        Each original marker whose id matches one of the new ones is replaced,
         any markers whose id is not included in `new_markers` is maintained.
 
         Args:
@@ -263,23 +241,23 @@ class InstrumentedProgram(SourceProgram):
                 the new program with the new markers
         """
         new_markers_dict = {marker.id: marker for marker in new_markers}
-        new_enabled_markers = tuple(
-            new_markers_dict.get(marker.id, marker) for marker in self.enabled_markers
+        old_markers_dict = {marker.id: marker for marker in self.markers}
+        unchanged_markers = tuple(
+            old_markers_dict[id_]
+            for id_ in set(old_markers_dict) - set(new_markers_dict)
         )
-        new_disabled_markers = tuple(
-            new_markers_dict.get(marker.id, marker) for marker in self.disabled_markers
-        )
-        new_unreachable_markers = tuple(
-            new_markers_dict.get(marker.id, marker)
-            for marker in self.unreachable_markers
-        )
-        assert len(self.tracked_markers) == 0
-        assert len(self.tracked_for_refinement_markers) == 0
+        new_markers = unchanged_markers + new_markers
+        new_directive_emitters = {}
+        for marker in unchanged_markers:
+            new_directive_emitters[marker] = self.directive_emitters[marker]
+        for marker in new_markers:
+            new_directive_emitters[marker] = self.directive_emitters[
+                old_markers_dict[marker.id]
+            ]
         return replace(
             self,
-            enabled_markers=new_enabled_markers,
-            disabled_markers=new_disabled_markers,
-            unreachable_markers=new_unreachable_markers,
+            markers=new_markers,
+            directive_emitters=new_directive_emitters,
         )
 
     def track_reachable_markers(
@@ -289,6 +267,7 @@ class InstrumentedProgram(SourceProgram):
         timeout: int | None = None,
     ) -> tuple[Marker, ...]:
         """Runs the program and tracks which markers are reachable(executed).
+        Only enabled markers (EnableEmitter) are tracked.
         Ureachable and disabled markers are ignored.
 
         Ars:
@@ -303,15 +282,19 @@ class InstrumentedProgram(SourceProgram):
                 the markers that were "encountered" during execution
         """
 
-        tracked_program = replace(
-            self, enabled_markers=tuple(), tracked_markers=tuple(self.enabled_markers)
-        )
+        new_emitters = self.directive_emitters.copy()
+        tracked_markers = self.enabled_markers()
+        te = TrackingEmitter()
+        for marker in tracked_markers:
+            new_emitters[marker] = te
+
+        tracked_program = replace(self, directive_emitters=new_emitters)
         result = setting.compile_program(
             tracked_program, ExeCompilationOutput(), timeout=timeout
         )
         output = result.output.run(args, timeout=timeout)
         return tuple(
-            marker for marker in self.enabled_markers if marker.name in output.stdout
+            marker for marker in tracked_markers if marker.name in output.stdout
         )
 
     def compile_program_for_refinement(
@@ -321,6 +304,7 @@ class InstrumentedProgram(SourceProgram):
         timeout: int | None = None,
     ) -> CompilationResult[CompilationOutputType]:
         """Compiles the program with tracking code for markers.
+        Only enabled markers (EnableEmitter) are tracked.
         The markers' emit_tracking_directive_for_refinement are used to print
         runtime information relevant to each marker.
 
@@ -335,10 +319,14 @@ class InstrumentedProgram(SourceProgram):
             CompilationOutputType:
                 the output of the compilation
         """
+
+        new_emitters = self.directive_emitters.copy()
+        tfre = TrackingForRefinementEmitter()
+        for marker in self.enabled_markers():
+            new_emitters[marker] = tfre
         tracked_program = replace(
             self,
-            enabled_markers=tuple(),
-            tracked_for_refinement_markers=tuple(self.enabled_markers),
+            directive_emitters=new_emitters,
         )
         return setting.compile_program(tracked_program, output, timeout=timeout)
 
@@ -360,7 +348,7 @@ class InstrumentedProgram(SourceProgram):
                 markers and the refined markers
         """
 
-        marker_names = {marker.name: marker for marker in self.enabled_markers}
+        marker_names = {marker.name: marker for marker in self.enabled_markers()}
         marker_lines: dict[Marker, list[str]] = defaultdict(list)
         pattern = r"<MarkerTracking>(.*?)<\/MarkerTracking>"
         matches = re.findall(pattern, output)
@@ -414,12 +402,11 @@ class InstrumentedProgram(SourceProgram):
         return self.process_tracked_output_for_refinement(output.stdout)
 
     def disable_markers(self, dmarkers: Sequence[Marker]) -> InstrumentedProgram:
-        """Disables the given markers by setting the relevant macros.
+        """Disables the given markers by switching them to the DisableEmitter.
 
+        Only enabled markers (EnableEmitter) can be disabled.
         Markers that have already been disabled are ignored. If any of the
-        markers are not in self.markers an AssertionError will be raised.  An
-        AssertionError error is also raised if markers have been previously
-        made unreachable.
+        markers are not in self.enabled() an AssertionError will be raised.
 
         Args:
             markers (Sequence[Marker]):
@@ -430,16 +417,17 @@ class InstrumentedProgram(SourceProgram):
                 A copy of self with the additional disabled markers
         """
 
-        dmarkers_set = set(dmarkers)
-        assert dmarkers_set <= set(self.enabled_markers + self.disabled_markers)
+        dmarkers_set = set(dmarkers) - set(self.disabled_markers())
+        assert dmarkers_set <= set(self.enabled_markers())
 
-        dmarkers_set |= set(self.disabled_markers)
-        new_enabled_markers = set(self.enabled_markers) - dmarkers_set
+        new_directive_emitters = self.directive_emitters.copy()
+        de = DisableEmitter()
+        for marker in dmarkers_set:
+            new_directive_emitters[marker] = de
 
         return replace(
             self,
-            enabled_markers=tuple(new_enabled_markers),
-            disabled_markers=tuple(dmarkers_set),
+            directive_emitters=new_directive_emitters,
         )
 
     def make_markers_unreachable(
@@ -448,10 +436,7 @@ class InstrumentedProgram(SourceProgram):
         """Makes the given markers unreachable by setting the relevant macros.
 
         Markers that have already been made unreachable are ignored. If any of
-        the markers are not in self.enabled_markers an AssertionError will be raised.
-        An AssertionError error is also raised if markers have been previously
-        disabled.
-
+        the markers are not in self.enabled_markers() an AssertionError will be raised.
 
         Args:
             markers (Sequence[Marker]):
@@ -462,17 +447,14 @@ class InstrumentedProgram(SourceProgram):
                 A copy of self with the additional unreachable markers
         """
 
-        umarkers_set = set(umarkers)
-        assert umarkers_set <= set(self.enabled_markers + self.unreachable_markers)
-        assert umarkers_set.isdisjoint(self.disabled_markers)
+        umarkers_set = set(umarkers) - set(self.unreachable_markers())
+        assert umarkers_set <= set(self.enabled_markers())
+        new_directive_emitters = self.directive_emitters.copy()
+        ue = UnreachableEmitter()
+        for marker in umarkers_set:
+            new_directive_emitters[marker] = ue
 
-        umarkers_set |= set(self.unreachable_markers)
-        new_enabled_markers = set(self.enabled_markers) - umarkers_set
-        return replace(
-            self,
-            unreachable_markers=tuple(umarkers_set),
-            enabled_markers=tuple(new_enabled_markers),
-        )
+        return replace(self, directive_emitters=new_directive_emitters)
 
     def make_markers_aborted(self, markers: Sequence[Marker]) -> InstrumentedProgram:
         """Make `markers` calls to abort().
@@ -481,55 +463,55 @@ class InstrumentedProgram(SourceProgram):
             markes (Sequence[Marker]):
                 the markers to turn into abort() calls
 
-        - markers already made aborted
-
         Returns:
             InstrumentedProgram:
                 A similar InstrumentedProgram as self but with `markers` make
                 aborted
         """
-        if not self.enabled_markers:
-            return self
 
-        assert set(markers) <= set(self.enabled_markers) | set(self.aborted_markers)
-
-        return replace(
-            self,
-            aborted_markers=tuple(set(self.aborted_markers) | set(markers)),
-            enabled_markers=tuple(set(self.enabled_markers) - set(markers)),
+        aborted_markers = set(
+            marker
+            for marker, emitter in self.directive_emitters.items()
+            if isinstance(emitter, AbortEmitter)
         )
+        abort_set = set(markers) - aborted_markers
+        assert abort_set <= set(self.enabled_markers())
+        new_directive_emitters = self.directive_emitters.copy()
+        ae = AbortEmitter()
+        for marker in abort_set:
+            new_directive_emitters[marker] = ae
+
+        return replace(self, directive_emitters=new_directive_emitters)
 
     def disable_remaining_markers(
         self, do_not_disable: Sequence[Marker] = tuple()
     ) -> InstrumentedProgram:
-        """Disable all remaining markers by setting the relevant macros.
+        """Disable all remaining enabled markers by setting the relevant macros.
 
         Args:
             do_not_disable (Sequence[Marker]):
                 markers that will not be modified
-
-        The following are unaffected:
-        - already disabled markers
-        - markers already made unreachable
-        - markers in `do_not_disable` (optional argument)
 
         Returns:
             InstrumentedProgram:
                 A similar InstrumentedProgram as self but with all remaining
                 markers disabled and the corresponding macros defined.
         """
-        if not self.enabled_markers:
-            return self
 
-        new_disabled_markers = set(self.disabled_markers) | (
-            set(self.enabled_markers) - set(do_not_disable)
+        new_disabled_markers = (
+            set(self.enabled_markers())
+            - set(do_not_disable)
+            - set(self.disabled_markers())
         )
-        new_enabled_markers = set(self.enabled_markers) - new_disabled_markers
+
+        new_directive_emitters = self.directive_emitters.copy()
+        de = DisableEmitter()
+        for marker in new_disabled_markers:
+            new_directive_emitters[marker] = de
 
         return replace(
             self,
-            disabled_markers=tuple(new_disabled_markers),
-            enabled_markers=tuple(new_enabled_markers),
+            directive_emitters=new_directive_emitters,
         )
 
     def preprocess_disabled_and_unreachable_markers(
@@ -559,21 +541,25 @@ class InstrumentedProgram(SourceProgram):
         # their directives. It still includes the macros in the code, e.g.,
         # DCEMarker0_, but since their directives are missing they won't be
         # expanded.
+
+        ne = NoEmitter()
+        new_directive_emitters = self.directive_emitters.copy()
+        for marker in self.enabled_markers():
+            new_directive_emitters[marker] = ne
+
         program_with_markers_removed = replace(
             self,
-            enabled_markers=tuple(),
-            disabled_markers=self.disabled_markers,
-            unreachable_markers=self.unreachable_markers,
+            directive_emitters=new_directive_emitters,
         )
         pprogram = setting.preprocess_program(
             program_with_markers_removed, make_compiler_agnostic=make_compiler_agnostic
         )
 
+        ee = EnableEmitter(self.marker_strategy)
         return replace(
             pprogram,
-            enabled_markers=self.enabled_markers,
-            disabled_markers=tuple(),
-            unreachable_markers=tuple(),
+            markers=self.enabled_markers(),
+            directive_emitters={marker: ee for marker in self.enabled_markers()},
         )
 
     def with_marker_strategy(
@@ -589,9 +575,20 @@ class InstrumentedProgram(SourceProgram):
             InstrumentedProgram:
                 the new program
         """
+        new_emitters = self.directive_emitters.copy()
+        ee = EnableEmitter(marker_strategy)
+        for marker, emitter in new_emitters.items():
+            if isinstance(emitter, EnableEmitter):
+                new_emitters[marker] = ee
+            elif hasattr(emitter, "strategy"):
+                raise ValueError(
+                    f"emitter {emitter} has a strategy attribute "
+                    "but I don't know how to handle this"
+                )
         return replace(
             self,
             marker_strategy=marker_strategy,
+            directive_emitters=new_emitters,
         )
 
     def to_json_dict_impl(self) -> dict[str, Any]:
@@ -605,14 +602,11 @@ class InstrumentedProgram(SourceProgram):
         j = SourceProgram.to_json_dict_impl(self)
         j["kind"] = "InstrumentedProgram"
         j["marker_strategy"] = self.marker_strategy.to_json_dict()
-        j["enabled_markers"] = [m.to_json_dict() for m in self.enabled_markers]
-        j["disabled_markers"] = [m.to_json_dict() for m in self.disabled_markers]
-        j["unreachable_markers"] = [m.to_json_dict() for m in self.unreachable_markers]
-        j["tracked_markers"] = [m.to_json_dict() for m in self.tracked_markers]
-        j["tracked_for_refinement_markers"] = [
-            m.to_json_dict() for m in self.tracked_for_refinement_markers
+        j["directive_emitters"] = [
+            (m.to_json_dict(), e.to_json_dict())
+            for m, e in self.directive_emitters.items()
         ]
-        j["aborted_markers"] = [m.to_json_dict() for m in self.aborted_markers]
+        j["markers"] = [m.to_json_dict() for m in self.markers]
         return j
 
     @staticmethod
@@ -641,8 +635,12 @@ class InstrumentedProgram(SourceProgram):
         """
         assert d["kind"] == "InstrumentedProgram"
 
-        def parse_markers(ms: list[dict[str, Any]]) -> tuple[Marker, ...]:
-            return tuple(Marker.from_json_dict(m) for m in ms)
+        directive_emitters = {
+            Marker.from_json_dict(m): MarkerDirectiveEmitter.from_json_dict(directive)
+            for m, directive in d["directive_emitters"]
+        }
+
+        markers = tuple(Marker.from_json_dict(m) for m in d["markers"])
 
         return InstrumentedProgram(
             language=language,
@@ -654,12 +652,6 @@ class InstrumentedProgram(SourceProgram):
             marker_strategy=MarkerDetectionStrategy.from_json_dict(
                 d["marker_strategy"]
             ),
-            enabled_markers=parse_markers(d["enabled_markers"]),
-            disabled_markers=parse_markers(d["disabled_markers"]),
-            unreachable_markers=parse_markers(d["unreachable_markers"]),
-            tracked_markers=parse_markers(d["tracked_markers"]),
-            tracked_for_refinement_markers=parse_markers(
-                d["tracked_for_refinement_markers"]
-            ),
-            aborted_markers=parse_markers(d["aborted_markers"]),
+            markers=markers,
+            directive_emitters=directive_emitters,
         )

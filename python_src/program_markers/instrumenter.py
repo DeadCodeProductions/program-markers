@@ -9,6 +9,7 @@ from diopter.compiler import ClangTool, ClangToolMode, CompilerExe, SourceProgra
 from program_markers.iprogram import InstrumentedProgram
 from program_markers.markers import (
     DCEMarker,
+    EnableEmitter,
     FunctionCallDetectionStrategy,
     Marker,
     VRMarker,
@@ -291,6 +292,7 @@ def instrument_program(
                     )
                 markers = dce_markers + vr_markers
 
+    ee = EnableEmitter(FunctionCallDetectionStrategy())
     return InstrumentedProgram(
         code=instrumented_code,
         marker_strategy=FunctionCallDetectionStrategy(),
@@ -299,5 +301,6 @@ def instrument_program(
         include_paths=program.include_paths,
         system_include_paths=program.system_include_paths,
         flags=program.flags,
-        enabled_markers=tuple(markers),
+        markers=tuple(markers),
+        directive_emitters={m: ee for m in markers},
     )

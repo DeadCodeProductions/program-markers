@@ -75,7 +75,7 @@ def test_instrumentation() -> None:
             VRMarker.from_str("VRMarker0_", "int"),
             VRMarker.from_str("VRMarker1_", "int"),
         )
-    ) == set(iprogram.enabled_markers)
+    ) == set(iprogram.enabled_markers())
 
     gcc = get_system_gcc_O0()
     assert set(
@@ -109,7 +109,7 @@ def test_disable_markers() -> None:
 
     iprogram0 = iprogram.disable_markers((VRMarker.from_str("VRMarker0_", "int"),))
     assert set((VRMarker.from_str("VRMarker0_", "int"),)) == set(
-        iprogram0.disabled_markers
+        iprogram0.disabled_markers()
     )
     assert set((VRMarker.from_str("VRMarker1_", "int"),)) == set(
         iprogram0.find_non_eliminated_markers(gcc)
@@ -128,7 +128,7 @@ def test_disable_markers() -> None:
     iprogram1 = iprogram.disable_remaining_markers()
     assert set(
         (VRMarker.from_str("VRMarker0_", "int"), VRMarker.from_str("VRMarker1_", "int"))
-    ) == set(iprogram1.disabled_markers)
+    ) == set(iprogram1.disabled_markers())
     assert set() == set(iprogram1.find_non_eliminated_markers(gcc))
     assert set(
         (
@@ -146,7 +146,7 @@ def test_disable_markers() -> None:
             VRMarker.from_str("VRMarker0_", "int"),
             VRMarker.from_str("VRMarker1_", "int"),
         )
-    ) == set(iprogram1_1.disabled_markers)
+    ) == set(iprogram1_1.disabled_markers())
     assert set() == set(iprogram1_1.find_non_eliminated_markers(gcc))
     assert set(
         (
@@ -163,7 +163,7 @@ def test_disable_markers() -> None:
     assert iprogram2 == iprogram2.disable_remaining_markers()
     assert set(
         (VRMarker.from_str("VRMarker0_", "int"), VRMarker.from_str("VRMarker1_", "int"))
-    ) == set(iprogram2.disabled_markers)
+    ) == set(iprogram2.disabled_markers())
     assert set(()) == set(iprogram2.find_non_eliminated_markers(gcc))
     assert set(
         (VRMarker.from_str("VRMarker0_", "int"), VRMarker.from_str("VRMarker1_", "int"))
@@ -197,7 +197,7 @@ def test_unreachable() -> None:
         (VRMarker.from_str("VRMarker0_", "int"),)
     )
     assert set((VRMarker.from_str("VRMarker0_", "int"),)) == set(
-        iprogram0.unreachable_markers
+        iprogram0.unreachable_markers()
     )
     assert set((VRMarker.from_str("VRMarker1_", "int"),)) == set(
         iprogram0.find_non_eliminated_markers(gcc)
@@ -251,10 +251,10 @@ def test_disable_and_unreachable() -> None:
             (VRMarker.from_str("VRMarker1_", "int"),)
         )
     assert set((VRMarker.from_str("VRMarker0_", "int"),)) == set(
-        iprogram.unreachable_markers
+        iprogram.unreachable_markers()
     )
     assert set((VRMarker.from_str("VRMarker1_", "int"),)) == set(
-        iprogram.disabled_markers
+        iprogram.disabled_markers()
     )
 
     assert set(()) == set(iprogram.find_non_eliminated_markers(gcc))
@@ -328,9 +328,9 @@ def test_strategies() -> None:
         ),
         mode=InstrumenterMode.VR,
     )
-    marker0 = iprogram.enabled_markers[0]
+    marker0 = iprogram.enabled_markers()[0]
     marker0 = VRMarker(marker0.name, marker0.id, "int", -10, 10)
-    marker1 = iprogram.enabled_markers[1]
+    marker1 = iprogram.enabled_markers()[1]
     iprogram = iprogram.replace_markers((marker0,))
 
     all_marker_strategies = (
@@ -367,9 +367,7 @@ def test_variable_name_and_type() -> None:
         mode=InstrumenterMode.VR,
     )
 
-    markers = [
-        marker for marker in iprogram.all_markers() if isinstance(marker, VRMarker)
-    ]
+    markers = [marker for marker in iprogram.markers if isinstance(marker, VRMarker)]
     assert len(markers) == 2
     assert {marker.get_variable_name_and_type(iprogram.code) for marker in markers} == {
         ("a", '"long"'),
@@ -390,9 +388,7 @@ def test_number_occurences() -> None:
         mode=InstrumenterMode.VR,
     )
 
-    markers = [
-        marker for marker in iprogram.all_markers() if isinstance(marker, VRMarker)
-    ]
+    markers = [marker for marker in iprogram.markers if isinstance(marker, VRMarker)]
     assert len(markers) == 2
     for marker in markers:
         assert marker.number_occurences_in_code(iprogram.code) == 1
@@ -442,14 +438,14 @@ def test_marker_renaming() -> None:
     iprogram0, iprogram1 = rename_markers((iprogram_0, iprogram_1))
 
     assert set((VRMarker.from_str("VRMarker0_", "int"),)) == set(
-        iprogram0.enabled_markers
+        iprogram0.enabled_markers()
     )
     assert set(
         (
             VRMarker.from_str("VRMarker1_", "int"),
             VRMarker.from_str("VRMarker2_", "int"),
         )
-    ) == set(iprogram1.enabled_markers)
+    ) == set(iprogram1.enabled_markers())
 
     assert (
         VRMarker.from_str("VRMarker0_", "int").macro_without_arguments()
