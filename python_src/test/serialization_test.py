@@ -1,21 +1,21 @@
 import pytest
 from diopter.compiler import Language, Source, SourceProgram
-from program_markers.instrumenter import InstrumentedProgram
+from program_markers.iprogram import InstrumentedProgram
 from program_markers.markers import (
-    AsmCommentEmptyOperandsStrategy,
-    AsmCommentGlobalOutOperandStrategy,
-    AsmCommentLocalOutOperandStrategy,
-    AsmCommentStaticVolatileGlobalOutOperandStrategy,
-    AsmCommentStrategy,
-    AsmCommentVolatileGlobalOutOperandStrategy,
+    AsmCommentDetectionStrategy,
+    AsmCommentEmptyOperandsDetectionStrategy,
+    AsmCommentGlobalOutOperandDetectionStrategy,
+    AsmCommentLocalOutOperandDetectionStrategy,
+    AsmCommentStaticVolatileGlobalOutOperandDetectionStrategy,
+    AsmCommentVolatileGlobalOutOperandDetectionStrategy,
     DCEMarker,
-    FunctionCallStrategy,
-    GlobalIntStrategy,
-    GlobalVolatileIntStrategy,
-    LocalVolatileIntStrategy,
+    FunctionCallDetectionStrategy,
+    GlobalIntDetectionStrategy,
+    GlobalVolatileIntDetectionStrategy,
+    LocalVolatileIntDetectionStrategy,
     Marker,
-    MarkerStrategy,
-    StaticVolatileGlobalIntStrategy,
+    MarkerDetectionStrategy,
+    StaticVolatileGlobalIntDetectionStrategy,
     VRMarker,
 )
 
@@ -52,24 +52,28 @@ def test_serialize_marker() -> None:
 
 def test_serialize_strategy() -> None:
     strategies = (
-        AsmCommentStrategy(),
-        AsmCommentEmptyOperandsStrategy(),
-        AsmCommentLocalOutOperandStrategy(),
-        AsmCommentGlobalOutOperandStrategy(),
-        AsmCommentVolatileGlobalOutOperandStrategy(),
-        AsmCommentStaticVolatileGlobalOutOperandStrategy(),
-        StaticVolatileGlobalIntStrategy(),
-        GlobalIntStrategy(),
-        GlobalVolatileIntStrategy(),
-        LocalVolatileIntStrategy(),
-        FunctionCallStrategy(),
+        AsmCommentDetectionStrategy(),
+        AsmCommentEmptyOperandsDetectionStrategy(),
+        AsmCommentLocalOutOperandDetectionStrategy(),
+        AsmCommentGlobalOutOperandDetectionStrategy(),
+        AsmCommentVolatileGlobalOutOperandDetectionStrategy(),
+        AsmCommentStaticVolatileGlobalOutOperandDetectionStrategy(),
+        StaticVolatileGlobalIntDetectionStrategy(),
+        GlobalIntDetectionStrategy(),
+        GlobalVolatileIntDetectionStrategy(),
+        LocalVolatileIntDetectionStrategy(),
+        FunctionCallDetectionStrategy(),
     )
     for strategy in strategies:
-        assert MarkerStrategy.from_json_dict(strategy.to_json_dict()) == strategy
+        assert (
+            MarkerDetectionStrategy.from_json_dict(strategy.to_json_dict()) == strategy
+        )
 
-    assert MarkerStrategy.from_json_dict(
-        AsmCommentStrategy().to_json_dict()
-    ) != MarkerStrategy.from_json_dict(GlobalVolatileIntStrategy().to_json_dict())
+    assert MarkerDetectionStrategy.from_json_dict(
+        AsmCommentDetectionStrategy().to_json_dict()
+    ) != MarkerDetectionStrategy.from_json_dict(
+        GlobalVolatileIntDetectionStrategy().to_json_dict()
+    )
 
 
 def test_instrumented_program() -> None:
@@ -81,7 +85,7 @@ def test_instrumented_program() -> None:
         flags=("-fPIC", "-fno-omit-frame-pointer"),
         code="bla bla",
         enabled_markers=(make_dce_marker(1), make_vr_marker(2, 1, 10)),
-        marker_strategy=FunctionCallStrategy(),
+        marker_strategy=FunctionCallDetectionStrategy(),
     )
 
     assert p0 == InstrumentedProgram.from_json_dict(p0.to_json_dict())
@@ -108,7 +112,7 @@ def test_instrumented_program() -> None:
             make_dce_marker(8),
             make_vr_marker(9, 1, 13),
         ),
-        marker_strategy=AsmCommentStrategy(),
+        marker_strategy=AsmCommentDetectionStrategy(),
     )
 
     assert p1 == InstrumentedProgram.from_json_dict(p1.to_json_dict())

@@ -5,24 +5,21 @@ from diopter.compiler import (
     ObjectCompilationOutput,
     SourceProgram,
 )
-from program_markers.instrumenter import (
-    find_non_eliminated_markers_impl,
-    instrument_program,
-    rename_markers,
-)
+from program_markers.instrumenter import instrument_program
+from program_markers.iprogram import find_non_eliminated_markers_impl, rename_markers
 from program_markers.markers import (
-    AsmCommentEmptyOperandsStrategy,
-    AsmCommentGlobalOutOperandStrategy,
-    AsmCommentLocalOutOperandStrategy,
-    AsmCommentStaticVolatileGlobalOutOperandStrategy,
-    AsmCommentStrategy,
-    AsmCommentVolatileGlobalOutOperandStrategy,
+    AsmCommentDetectionStrategy,
+    AsmCommentEmptyOperandsDetectionStrategy,
+    AsmCommentGlobalOutOperandDetectionStrategy,
+    AsmCommentLocalOutOperandDetectionStrategy,
+    AsmCommentStaticVolatileGlobalOutOperandDetectionStrategy,
+    AsmCommentVolatileGlobalOutOperandDetectionStrategy,
     DCEMarker,
-    FunctionCallStrategy,
-    GlobalIntStrategy,
-    GlobalVolatileIntStrategy,
-    LocalVolatileIntStrategy,
-    StaticVolatileGlobalIntStrategy,
+    FunctionCallDetectionStrategy,
+    GlobalIntDetectionStrategy,
+    GlobalVolatileIntDetectionStrategy,
+    LocalVolatileIntDetectionStrategy,
+    StaticVolatileGlobalIntDetectionStrategy,
 )
 
 from .utils import get_system_gcc_O0, get_system_gcc_O3
@@ -37,7 +34,11 @@ def test_parsing_with_tailcalls() -> None:
     """
     markers = (DCEMarker.from_str("DCEMarker0_"),)
     assert (
-        set(find_non_eliminated_markers_impl(asm, markers, FunctionCallStrategy()))
+        set(
+            find_non_eliminated_markers_impl(
+                asm, markers, FunctionCallDetectionStrategy()
+            )
+        )
     ) == set((DCEMarker.from_str("DCEMarker0_"),))
 
     asm = """
@@ -50,7 +51,11 @@ def test_parsing_with_tailcalls() -> None:
         jmp     DCEMarker0_
     """
     assert (
-        set(find_non_eliminated_markers_impl(asm, markers, FunctionCallStrategy()))
+        set(
+            find_non_eliminated_markers_impl(
+                asm, markers, FunctionCallDetectionStrategy()
+            )
+        )
     ) == set((DCEMarker.from_str("DCEMarker0_"),))
 
 
@@ -265,17 +270,17 @@ def test_strategies() -> None:
     )
 
     all_marker_strategies = (
-        FunctionCallStrategy(),
-        AsmCommentStrategy(),
-        AsmCommentEmptyOperandsStrategy(),
-        AsmCommentLocalOutOperandStrategy(),
-        AsmCommentGlobalOutOperandStrategy(),
-        AsmCommentVolatileGlobalOutOperandStrategy(),
-        AsmCommentStaticVolatileGlobalOutOperandStrategy(),
-        LocalVolatileIntStrategy(),
-        GlobalVolatileIntStrategy(),
-        GlobalIntStrategy(),
-        StaticVolatileGlobalIntStrategy(),
+        FunctionCallDetectionStrategy(),
+        AsmCommentDetectionStrategy(),
+        AsmCommentEmptyOperandsDetectionStrategy(),
+        AsmCommentLocalOutOperandDetectionStrategy(),
+        AsmCommentGlobalOutOperandDetectionStrategy(),
+        AsmCommentVolatileGlobalOutOperandDetectionStrategy(),
+        AsmCommentStaticVolatileGlobalOutOperandDetectionStrategy(),
+        LocalVolatileIntDetectionStrategy(),
+        GlobalVolatileIntDetectionStrategy(),
+        GlobalIntDetectionStrategy(),
+        StaticVolatileGlobalIntDetectionStrategy(),
     )
     gcc = get_system_gcc_O3()
 
