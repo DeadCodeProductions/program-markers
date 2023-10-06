@@ -1,21 +1,17 @@
 import pytest
 from diopter.compiler import Language, ObjectCompilationOutput, SourceProgram
-from program_markers.instrumenter import (
-    InstrumenterMode,
-    find_non_eliminated_markers_impl,
-    instrument_program,
-    rename_markers,
-)
+from program_markers.instrumenter import InstrumenterMode, instrument_program
+from program_markers.iprogram import find_non_eliminated_markers_impl, rename_markers
 from program_markers.markers import (
-    AsmCommentEmptyOperandsStrategy,
-    AsmCommentGlobalOutOperandStrategy,
-    AsmCommentLocalOutOperandStrategy,
-    AsmCommentStrategy,
-    AsmCommentVolatileGlobalOutOperandStrategy,
-    FunctionCallStrategy,
-    GlobalIntStrategy,
-    GlobalVolatileIntStrategy,
-    LocalVolatileIntStrategy,
+    AsmCommentDetectionStrategy,
+    AsmCommentEmptyOperandsDetectionStrategy,
+    AsmCommentGlobalOutOperandDetectionStrategy,
+    AsmCommentLocalOutOperandDetectionStrategy,
+    AsmCommentVolatileGlobalOutOperandDetectionStrategy,
+    FunctionCallDetectionStrategy,
+    GlobalIntDetectionStrategy,
+    GlobalVolatileIntDetectionStrategy,
+    LocalVolatileIntDetectionStrategy,
     VRMarker,
 )
 
@@ -35,7 +31,11 @@ def test_asm_parsing() -> None:
         VRMarker.from_str("VRMarker1_", "int"),
     )
     assert (
-        set(find_non_eliminated_markers_impl(asm, markers, FunctionCallStrategy()))
+        set(
+            find_non_eliminated_markers_impl(
+                asm, markers, FunctionCallDetectionStrategy()
+            )
+        )
     ) == set(
         (
             VRMarker.from_str("VRMarker0_", "int"),
@@ -48,7 +48,11 @@ def test_asm_parsing() -> None:
     call	VRMarker1_@PLT
 """
     assert (
-        set(find_non_eliminated_markers_impl(asm, markers, FunctionCallStrategy()))
+        set(
+            find_non_eliminated_markers_impl(
+                asm, markers, FunctionCallDetectionStrategy()
+            )
+        )
     ) == set((VRMarker.from_str("VRMarker1_", "int"),))
 
 
@@ -330,15 +334,15 @@ def test_strategies() -> None:
     iprogram = iprogram.replace_markers((marker0,))
 
     all_marker_strategies = (
-        FunctionCallStrategy(),
-        AsmCommentStrategy(),
-        AsmCommentEmptyOperandsStrategy(),
-        AsmCommentLocalOutOperandStrategy(),
-        AsmCommentGlobalOutOperandStrategy(),
-        AsmCommentVolatileGlobalOutOperandStrategy(),
-        LocalVolatileIntStrategy(),
-        GlobalVolatileIntStrategy(),
-        GlobalIntStrategy(),
+        FunctionCallDetectionStrategy(),
+        AsmCommentDetectionStrategy(),
+        AsmCommentEmptyOperandsDetectionStrategy(),
+        AsmCommentLocalOutOperandDetectionStrategy(),
+        AsmCommentGlobalOutOperandDetectionStrategy(),
+        AsmCommentVolatileGlobalOutOperandDetectionStrategy(),
+        LocalVolatileIntDetectionStrategy(),
+        GlobalVolatileIntDetectionStrategy(),
+        GlobalIntDetectionStrategy(),
     )
     gcc = get_system_gcc_O3()
 
