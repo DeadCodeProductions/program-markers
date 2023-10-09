@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from enum import Enum
 from functools import cache
+from itertools import dropwhile, takewhile
 from pathlib import Path
 
 from diopter.compiler import ClangTool, ClangToolMode, CompilerExe, SourceProgram
@@ -94,60 +95,12 @@ def __str_to_marker(marker_macro: str, vr_macro_type_map: dict[str, str]) -> Mar
     if marker_macro.startswith(DCEMarker.prefix()):
         return DCEMarker.from_str(marker_macro)
     else:
-        assert marker_macro.startswith(VRMarker.prefix())
+        assert marker_macro.startswith(VRMarker.prefix()), marker_macro
         return VRMarker.from_str(marker_macro, vr_macro_type_map[marker_macro])
-
-
-def __split_marker_directives(
-    directives: str, vr_macro_type_map: dict[str, str]
-) -> dict[Marker, str]:
-    """Maps each set of preprocessor directive in `directives` to the
-    appropriate markers.
-
-    Args:
-        directives (str):
-            the marker preprocessor directives added by the instrumenter
-        vr_macro_type_map (dict[str,str]):
-            a mapping from VRMarker macros to their variable types
-            e.g., {"VRMarker0_": "int", "VRMarker1_": "short"}
-    Returns:
-        dict[Marker, str]:
-            a mapping from each marker to its preprocessor directives
-    """
-    directives_map = {}
-    for directive in directives.split("//MARKER_DIRECTIVES:")[1:]:
-        marker_macro = directive[: directive.find("\n")]
-        directives_map[__str_to_marker(marker_macro, vr_macro_type_map)] = directive[
-            len(marker_macro) :
-        ]
-    return directives_map
 
 
 class NoInstrumentationAddedError(Exception):
     pass
-
-
-def __split_to_marker_directives_and_code(instrumented_code: str) -> tuple[str, str]:
-    """Splits the instrumented code into the marker preprocessor
-    directives and the actual code.
-
-    Args:
-        instrumented_code (str): the output of the instrumenter
-
-    Returns:
-        tuple[str,str]:
-            marker preprocessor directives, instrumented code
-    """
-    markers_start = "//MARKERS START\n"
-    markers_end = "//MARKERS END\n"
-    if not instrumented_code.startswith(markers_start):
-        raise NoInstrumentationAddedError
-    markers_end_idx = instrumented_code.find(markers_end)
-    assert markers_end_idx != -1, instrumented_code
-    code_idx = markers_end_idx + len(markers_end)
-    directives = instrumented_code[len(markers_start) : markers_end_idx]
-    code = instrumented_code[code_idx:]
-    return directives, code
 
 
 @cache
@@ -176,10 +129,46 @@ def get_instrumenter(
     return instrumenter
 
 
+def parse_marker_names(instrumenter_output: str) -> list[str]:
+    markers_start = "//MARKERS START\n"
+    markers_end = "//MARKERS END\n"
+    lines: list[str] = list(
+        dropwhile(
+            lambda x: x.startswith(markers_start),
+            instrumenter_output.strip().splitlines(),
+        )
+    )
+    if not lines:
+        raise NoInstrumentationAddedError
+    return list(takewhile(lambda x: not x.startswith(markers_end), lines[1:]))[:-1]
+
+
 class InstrumenterMode(Enum):
     DCE = 0
     VR = 1
     DCE_AND_VR = 2
+
+
+def add_temporary_disable_directives(source: str, markers: list[Marker]) -> str:
+    temp_directives = ["//TEMP_DIRECTIVES_START\n"]
+    for marker in markers:
+        assert isinstance(marker, DCEMarker)
+        temp_directives.append(f"#define {marker.macro()}")
+    temp_directives.append("//TEMP_DIRECTIVES_END\n")
+    return "\n".join(temp_directives) + "\n" + source
+
+
+def remove_temporary_disable_directives(source: str) -> str:
+    lines = source.strip().splitlines()
+    pre_lines = list(
+        takewhile(lambda x: not x.startswith("//TEMP_DIRECTIVES_START"), lines)
+    )
+    post_lines = list(
+        dropwhile(
+            lambda x: not x.startswith("//TEMP_DIRECTIVES_END"), lines[len(pre_lines) :]
+        )
+    )
+    return "\n".join(pre_lines) + "\n" + "\n".join(post_lines)
 
 
 def instrument_program(
@@ -190,7 +179,7 @@ def instrument_program(
     clang: CompilerExe | None = None,
     timeout: int | None = None,
 ) -> InstrumentedProgram:
-    """Instrument a given program i.e. put markers in the file.
+    """Instrument a given program i.e. put markers in the source code.
 
     Args:
         program (Source):
@@ -209,7 +198,7 @@ def instrument_program(
 
     instrumenter_resolved = get_instrumenter(instrumenter, clang)
 
-    flags = []
+    flags = ["--no-preprocessor-directives"]
     if ignore_functions_with_macros:
         flags.append("--ignore-functions-with-macros=1")
     else:
@@ -219,20 +208,22 @@ def instrument_program(
         result = instrumenter_resolved.run_on_program(
             program,
             flags + [f"--mode={mode}"],
-            ClangToolMode.READ_MODIFIED_FILE,
+            ClangToolMode.CAPTURE_OUT_ERR_AND_READ_MODIFIED_FILED,
             timeout=timeout,
         )
         assert result.modified_source_code
-        directives, instrumented_code = __split_to_marker_directives_and_code(
-            result.modified_source_code
-        )
+        assert result.stdout
+        instrumented_code = result.modified_source_code
+        marker_names = parse_marker_names(result.stdout)
         if mode == "vr":
             vr_macro_type_map = __get_vr_macro_type_map(instrumented_code)
         else:
             vr_macro_type_map = {}
 
-        directives_map = __split_marker_directives(directives, vr_macro_type_map)
-        return instrumented_code, list(directives_map.keys())
+        return instrumented_code, [
+            __str_to_marker(marker_name, vr_macro_type_map)
+            for marker_name in marker_names
+        ]
 
     match mode:
         case InstrumenterMode.DCE:
@@ -243,31 +234,36 @@ def instrument_program(
             result = instrumenter_resolved.run_on_program(
                 program,
                 flags + ["--mode=dce"],
-                ClangToolMode.READ_MODIFIED_FILE,
+                ClangToolMode.CAPTURE_OUT_ERR_AND_READ_MODIFIED_FILED,
                 timeout=timeout,
             )
             assert result.modified_source_code
-            program_dce = replace(program, code=result.modified_source_code)
+            assert result.stdout
+            dce_markers = [
+                __str_to_marker(name, {}) for name in parse_marker_names(result.stdout)
+            ]
+            program_dce = replace(
+                program,
+                code=add_temporary_disable_directives(
+                    result.modified_source_code, dce_markers
+                ),
+            )
             result = instrumenter_resolved.run_on_program(
                 program_dce,
                 flags + ["--mode=vr"],
-                ClangToolMode.READ_MODIFIED_FILE,
+                ClangToolMode.CAPTURE_OUT_ERR_AND_READ_MODIFIED_FILED,
                 timeout=timeout,
             )
             assert result.modified_source_code
-            (
-                vr_directives,
-                dce_directives_and_instrumented_code,
-            ) = __split_to_marker_directives_and_code(result.modified_source_code)
-            dce_directives, instrumented_code = __split_to_marker_directives_and_code(
-                dce_directives_and_instrumented_code
+            assert result.stdout
+            instrumented_code = remove_temporary_disable_directives(
+                result.modified_source_code
             )
+            vr_macro_type_map = __get_vr_macro_type_map(instrumented_code)
             vr_markers = list(
-                __split_marker_directives(
-                    vr_directives, __get_vr_macro_type_map(instrumented_code)
-                ).keys()
+                __str_to_marker(name, vr_macro_type_map)
+                for name in parse_marker_names(result.stdout)
             )
-            dce_markers = list(__split_marker_directives(dce_directives, {}).keys())
             if len(vr_markers) > 0 and len(dce_markers) > 0:
                 # There will be overlap between the two sets of marker ids
                 max_vr_id = max(vr_marker.id for vr_marker in vr_markers)

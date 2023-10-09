@@ -21,7 +21,7 @@ private:
   std::map<std::string, clang::tooling::Replacements> &FileToReplacements;
   std::vector<RuleActionEditCollector> Rules;
   std::vector<clang::tooling::Replacement> Replacements;
-  std::map<std::string, int> FileToNumberMarkerDecls;
+  std::map<std::string, size_t> FileToNumberMarkerDecls;
 };
 
 } // namespace markers
