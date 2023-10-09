@@ -19,7 +19,7 @@ public:
   RuleActionEditCollector(
       clang::transformer::RewriteRule Rule,
       std::vector<clang::tooling::Replacement> &Replacements,
-      std::map<std::string, int> &FileToNumberMarkerDecls)
+      std::map<std::string, size_t> &FileToNumberMarkerDecls)
       : Rule{Rule}, Replacements{Replacements},
         FileToNumberMarkerDecls{FileToNumberMarkerDecls} {}
   void
@@ -29,7 +29,7 @@ public:
 private:
   clang::transformer::RewriteRule Rule;
   std::vector<clang::tooling::Replacement> &Replacements;
-  std::map<std::string, int> &FileToNumberMarkerDecls;
+  std::map<std::string, size_t> &FileToNumberMarkerDecls;
 };
 
 } // namespace markers

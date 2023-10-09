@@ -5,6 +5,7 @@
 #include <sstream>
 #include <string>
 
+#include "CommandLine.h"
 #include "Matchers.h"
 #include "RangeSelectors.h"
 
@@ -116,21 +117,32 @@ std::string ValueRangeInstrumenter::makeMarkerMacros(size_t MarkerID) {
 }
 
 void ValueRangeInstrumenter::applyReplacements() {
-  for (const auto &[File, NumberMarkerDecls] : FileToNumberMarkerDecls) {
-    std::stringstream ss;
-    auto gen = [i = 0]() mutable {
-      auto m = i++;
-      return makeMarkerMacros(m);
-    };
-    ss << "//MARKERS START\n";
-    std::generate_n(std::ostream_iterator<std::string>(ss), NumberMarkerDecls,
-                    gen);
-    ss << "//MARKERS END\n";
-    auto Decls = ss.str();
-    auto R = Replacement(File, 0, 0, Decls);
-    if (auto Err = FileToReplacements[File].add(R))
-      llvm_unreachable(llvm::toString(std::move(Err)).c_str());
-  }
+  if (FileToReplacements.size() > 1)
+    llvm_unreachable("ValueRangeInstrumenter only supports one file");
+
+  if (NoPreprocessorDirectives) {
+    for (const auto &[File, NumberMarkerDecls] : FileToNumberMarkerDecls) {
+      llvm::outs() << "//MARKERS START\n";
+      for (size_t i = 0; i < NumberMarkerDecls; ++i)
+        llvm::outs() << "VRMarker" << i << "_\n";
+      llvm::outs() << "//MARKERS END\n";
+    }
+  } else
+    for (const auto &[File, NumberMarkerDecls] : FileToNumberMarkerDecls) {
+      std::stringstream ss;
+      auto gen = [i = 0]() mutable {
+        auto m = i++;
+        return makeMarkerMacros(m);
+      };
+      ss << "//MARKERS START\n";
+      std::generate_n(std::ostream_iterator<std::string>(ss), NumberMarkerDecls,
+                      gen);
+      ss << "//MARKERS END\n";
+      auto Decls = ss.str();
+      auto R = Replacement(File, 0, 0, Decls);
+      if (auto Err = FileToReplacements[File].add(R))
+        llvm_unreachable(llvm::toString(std::move(Err)).c_str());
+    }
 
   for (auto Rit = Replacements.rbegin(); Rit != Replacements.rend(); ++Rit) {
     auto &R = *Rit;
