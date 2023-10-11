@@ -260,6 +260,28 @@ class InstrumentedProgram(SourceProgram):
             directive_emitters=new_directive_emitters,
         )
 
+    def compile_program_for_tracking(
+        self,
+        setting: CompilationSetting,
+        output: CompilationOutputType,
+        timeout: int | None = None,
+    ) -> CompilationResult[CompilationOutputType]:
+        new_emitters = self.directive_emitters.copy()
+        tracked_markers = self.enabled_markers()
+        te = TrackingEmitter()
+        for marker in tracked_markers:
+            new_emitters[marker] = te
+
+        tracked_program = replace(self, directive_emitters=new_emitters)
+        return setting.compile_program(tracked_program, output, timeout=timeout)
+
+    def process_tracking_reachable_markers_output(
+        self, output: str
+    ) -> tuple[Marker, ...]:
+        return tuple(
+            marker for marker in self.enabled_markers() if marker.name in output
+        )
+
     def track_reachable_markers(
         self,
         args: tuple[str, ...],
@@ -281,21 +303,11 @@ class InstrumentedProgram(SourceProgram):
             tuple[Marker, ...]:
                 the markers that were "encountered" during execution
         """
-
-        new_emitters = self.directive_emitters.copy()
-        tracked_markers = self.enabled_markers()
-        te = TrackingEmitter()
-        for marker in tracked_markers:
-            new_emitters[marker] = te
-
-        tracked_program = replace(self, directive_emitters=new_emitters)
-        result = setting.compile_program(
-            tracked_program, ExeCompilationOutput(), timeout=timeout
+        result = self.compile_program_for_tracking(
+            setting, ExeCompilationOutput(), timeout=timeout
         )
         output = result.output.run(args, timeout=timeout)
-        return tuple(
-            marker for marker in tracked_markers if marker.name in output.stdout
-        )
+        return self.process_tracking_reachable_markers_output(output.stdout)
 
     def compile_program_for_refinement(
         self,
