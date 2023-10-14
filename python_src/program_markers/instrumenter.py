@@ -300,3 +300,9 @@ def instrument_program(
         markers=tuple(markers),
         directive_emitters={m: ee for m in markers},
     )
+
+
+# Instrument_file calls instrument_program and writes the result to a file
+# (filename argument) plus an include file for the directives. It can use
+# the temp InstrumentedProgram to serialize everything and read it back in.
+# I can also add a debug mode that checks if the parsed is the same as the original.
