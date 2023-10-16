@@ -5,24 +5,21 @@ from diopter.compiler import (
     ObjectCompilationOutput,
     SourceProgram,
 )
-from program_markers.instrumenter import (
-    find_non_eliminated_markers_impl,
-    instrument_program,
-    rename_markers,
-)
+from program_markers.instrumenter import instrument_program
+from program_markers.iprogram import find_non_eliminated_markers_impl, rename_markers
 from program_markers.markers import (
-    AsmCommentEmptyOperandsStrategy,
-    AsmCommentGlobalOutOperandStrategy,
-    AsmCommentLocalOutOperandStrategy,
-    AsmCommentStaticVolatileGlobalOutOperandStrategy,
-    AsmCommentStrategy,
-    AsmCommentVolatileGlobalOutOperandStrategy,
+    AsmCommentDetectionStrategy,
+    AsmCommentEmptyOperandsDetectionStrategy,
+    AsmCommentGlobalOutOperandDetectionStrategy,
+    AsmCommentLocalOutOperandDetectionStrategy,
+    AsmCommentStaticVolatileGlobalOutOperandDetectionStrategy,
+    AsmCommentVolatileGlobalOutOperandDetectionStrategy,
     DCEMarker,
-    FunctionCallStrategy,
-    GlobalIntStrategy,
-    GlobalVolatileIntStrategy,
-    LocalVolatileIntStrategy,
-    StaticVolatileGlobalIntStrategy,
+    FunctionCallDetectionStrategy,
+    GlobalIntDetectionStrategy,
+    GlobalVolatileIntDetectionStrategy,
+    LocalVolatileIntDetectionStrategy,
+    StaticVolatileGlobalIntDetectionStrategy,
 )
 
 from .utils import get_system_gcc_O0, get_system_gcc_O3
@@ -37,7 +34,11 @@ def test_parsing_with_tailcalls() -> None:
     """
     markers = (DCEMarker.from_str("DCEMarker0_"),)
     assert (
-        set(find_non_eliminated_markers_impl(asm, markers, FunctionCallStrategy()))
+        set(
+            find_non_eliminated_markers_impl(
+                asm, markers, FunctionCallDetectionStrategy()
+            )
+        )
     ) == set((DCEMarker.from_str("DCEMarker0_"),))
 
     asm = """
@@ -50,7 +51,11 @@ def test_parsing_with_tailcalls() -> None:
         jmp     DCEMarker0_
     """
     assert (
-        set(find_non_eliminated_markers_impl(asm, markers, FunctionCallStrategy()))
+        set(
+            find_non_eliminated_markers_impl(
+                asm, markers, FunctionCallDetectionStrategy()
+            )
+        )
     ) == set((DCEMarker.from_str("DCEMarker0_"),))
 
 
@@ -69,7 +74,7 @@ def test_instrumentation() -> None:
     )
     assert set(
         (DCEMarker.from_str("DCEMarker0_"), DCEMarker.from_str("DCEMarker1_"))
-    ) == set(iprogram.enabled_markers)
+    ) == set(iprogram.enabled_markers())
 
     gcc = get_system_gcc_O0()
     assert set(
@@ -105,8 +110,10 @@ def test_disable_markers() -> None:
         iprogram.disable_markers((DCEMarker.from_str("DCEMarker2_"),))
 
     iprogram0 = iprogram.disable_markers((DCEMarker.from_str("DCEMarker1_"),))
-    assert set((DCEMarker.from_str("DCEMarker1_"),)) == set(iprogram0.disabled_markers)
-    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram0.enabled_markers)
+    assert set((DCEMarker.from_str("DCEMarker1_"),)) == set(
+        iprogram0.disabled_markers()
+    )
+    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram0.enabled_markers())
     assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(
         iprogram0.find_non_eliminated_markers(gcc)
     )
@@ -120,7 +127,9 @@ def test_disable_markers() -> None:
     assert iprogram0 == iprogram0.disable_markers((DCEMarker.from_str("DCEMarker1_"),))
 
     iprogram1 = iprogram.disable_markers((DCEMarker.from_str("DCEMarker0_"),))
-    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram1.disabled_markers)
+    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(
+        iprogram1.disabled_markers()
+    )
     assert set((DCEMarker.from_str("DCEMarker1_"),)) == set(
         iprogram1.find_non_eliminated_markers(gcc)
     )
@@ -137,7 +146,7 @@ def test_disable_markers() -> None:
             DCEMarker.from_str("DCEMarker0_"),
             DCEMarker.from_str("DCEMarker1_"),
         )
-    ) == set(iprogram1_1.disabled_markers)
+    ) == set(iprogram1_1.disabled_markers())
     assert set() == set(iprogram1_1.find_non_eliminated_markers(gcc))
     assert set(
         (
@@ -157,7 +166,7 @@ def test_disable_markers() -> None:
             DCEMarker.from_str("DCEMarker0_"),
             DCEMarker.from_str("DCEMarker1_"),
         )
-    ) == set(iprogram2.disabled_markers)
+    ) == set(iprogram2.disabled_markers())
     assert set(()) == set(iprogram2.find_non_eliminated_markers(gcc))
     assert set(
         (DCEMarker.from_str("DCEMarker0_"), DCEMarker.from_str("DCEMarker1_"))
@@ -192,9 +201,9 @@ def test_unreachable() -> None:
     # Making the same marker unreachable twice shouldn't have any effect
     iprogram == iprogram.make_markers_unreachable((DCEMarker.from_str("DCEMarker1_"),))
     assert set((DCEMarker.from_str("DCEMarker1_"),)) == set(
-        iprogram.unreachable_markers
+        iprogram.unreachable_markers()
     )
-    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram.enabled_markers)
+    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram.enabled_markers())
 
     asm = gcc.compile_program(iprogram, ASMCompilationOutput()).output.read()
     assert "bar" not in asm
@@ -227,9 +236,9 @@ def test_disable_and_unreachable() -> None:
         # We can't make ureachable a marker that was already disabled
         iprogram.make_markers_unreachable((DCEMarker.from_str("DCEMarker0_"),))
     assert set((DCEMarker.from_str("DCEMarker1_"),)) == set(
-        iprogram.unreachable_markers
+        iprogram.unreachable_markers()
     )
-    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram.disabled_markers)
+    assert set((DCEMarker.from_str("DCEMarker0_"),)) == set(iprogram.disabled_markers())
 
     assert set(()) == set(iprogram.find_non_eliminated_markers(gcc))
     assert set(
@@ -265,17 +274,17 @@ def test_strategies() -> None:
     )
 
     all_marker_strategies = (
-        FunctionCallStrategy(),
-        AsmCommentStrategy(),
-        AsmCommentEmptyOperandsStrategy(),
-        AsmCommentLocalOutOperandStrategy(),
-        AsmCommentGlobalOutOperandStrategy(),
-        AsmCommentVolatileGlobalOutOperandStrategy(),
-        AsmCommentStaticVolatileGlobalOutOperandStrategy(),
-        LocalVolatileIntStrategy(),
-        GlobalVolatileIntStrategy(),
-        GlobalIntStrategy(),
-        StaticVolatileGlobalIntStrategy(),
+        FunctionCallDetectionStrategy(),
+        AsmCommentDetectionStrategy(),
+        AsmCommentEmptyOperandsDetectionStrategy(),
+        AsmCommentLocalOutOperandDetectionStrategy(),
+        AsmCommentGlobalOutOperandDetectionStrategy(),
+        AsmCommentVolatileGlobalOutOperandDetectionStrategy(),
+        AsmCommentStaticVolatileGlobalOutOperandDetectionStrategy(),
+        LocalVolatileIntDetectionStrategy(),
+        GlobalVolatileIntDetectionStrategy(),
+        GlobalIntDetectionStrategy(),
+        StaticVolatileGlobalIntDetectionStrategy(),
     )
     gcc = get_system_gcc_O3()
 
@@ -310,10 +319,10 @@ def test_marker_renaming() -> None:
 
     assert set(
         (DCEMarker.from_str("DCEMarker0_"), DCEMarker.from_str("DCEMarker1_"))
-    ) == set(iprogram0.enabled_markers)
+    ) == set(iprogram0.enabled_markers())
     assert set(
         (DCEMarker.from_str("DCEMarker2_"), DCEMarker.from_str("DCEMarker3_"))
-    ) == set(iprogram1.enabled_markers)
+    ) == set(iprogram1.enabled_markers())
 
     assert DCEMarker.from_str("DCEMarker2_").macro() in iprogram1.code
     assert DCEMarker.from_str("DCEMarker3_").macro() in iprogram1.code

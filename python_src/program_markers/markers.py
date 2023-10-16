@@ -41,47 +41,6 @@ class Marker(ABC):
     def marker_statement_postfix(self) -> str:
         return ""
 
-    def emit_disabling_directive(self) -> str:
-        return f"#define {self.macro()} ;"
-
-    def emit_unreachable_directive(self) -> str:
-        return f"""#define {self.macro()} \
-                {self.marker_statement_prefix()}__builtin_unreachable();{self.marker_statement_postfix()}
-                """
-
-    def emit_enabled_directive(self, strategy: MarkerStrategy) -> str:
-        return f"""{strategy.definitions_and_declarations(self)}
-                #define {self.macro()} \
-                {self.marker_statement_prefix()} \
-                {strategy.make_macro_definition(self)} \
-                {self.marker_statement_postfix()}
-                """
-
-    def emit_abort_directive(self, strategy: MarkerStrategy) -> str:
-        return f"""#define {self.macro()} \
-                {self.marker_statement_prefix()} \
-                __builtin_printf("BUG\\n"); \
-                __builtin_abort(); \
-                {self.marker_statement_postfix()}
-                """
-
-    def emit_tracking_directive(self) -> str:
-        return f""" int {self.name}_ENCOUNTERED = 0;
-                    __attribute__((destructor))
-                    void {self.name}_print() {{
-                        if ({self.name}_ENCOUNTERED == 1) {{
-                        __builtin_printf("{self.name}\\n");
-                        }}
-                    }}
-                    #define {self.macro()} \
-                    {self.marker_statement_prefix()} \
-                    {self.name}_ENCOUNTERED  = 1;    \
-                    {self.marker_statement_postfix()}
-                """
-
-    def emit_tracking_directive_for_refinement(self) -> str:
-        return f"#define {self.macro()}"
-
     def parse_tracked_output_for_refinement(self, output: Sequence[str]) -> Marker:
         raise RuntimeError("This should never be called, DCEMarkers cannot be refined")
 
@@ -233,54 +192,6 @@ class VRMarker(Marker):
     def marker_statement_postfix(self) -> str:
         return " }"
 
-    def emit_tracking_directive_for_refinement(self) -> str:
-        format_specifier = {
-            "bool": "%d",
-            "char": "%d",
-            "short": "%hd",
-            "int": "%d",
-            "long": "%ld",
-            "long long": "%lld",
-            "unsigned char": "%u",
-            "unsigned short": "%hu",
-            "unsigned int": "%u",
-            "unsigned long": "%lu",
-            "unsigned long long": "%llu",
-        }[self.variable_type]
-        variable_type = self.variable_type if self.variable_type != "bool" else "int"
-        return f"""
-int {self.name}_ENCOUNTERED = 0;
-{variable_type} {self.name}_LB;
-{variable_type} {self.name}_UB;
-
-void track_{self.name}({variable_type} v) {{
-    if (!{self.name}_ENCOUNTERED) {{
-        {self.name}_LB = v;
-        {self.name}_UB = v;
-        {self.name}_ENCOUNTERED = 1;
-        return;
-    }}
-    if (v < {self.name}_LB) {{
-        {self.name}_LB = v;
-    }}
-    if (v > {self.name}_UB) {{
-        {self.name}_UB = v;
-    }}
-}}
-
-__attribute__((destructor))
-void {self.name}_print() {{
-    if ({self.name}_ENCOUNTERED == 1) {{
-    __builtin_printf(
-        "<MarkerTracking>{self.name}:{format_specifier}/{format_specifier}</MarkerTracking>\\n",
-        {self.name}_LB, {self.name}_UB);
-    }}
-}}
-
-#define {self.macro()} \
-        track_{self.name}(VAR);
-"""
-
     def parse_tracked_output_for_refinement(self, output: Sequence[str]) -> Marker:
         lbs = []
         ubs = []
@@ -361,11 +272,182 @@ void {self.name}_print() {{
 MarkerTypes = (DCEMarker, VRMarker)
 
 
-class MarkerStrategy(ABC):
+@dataclass
+class MarkerDirectiveEmitter(ABC):
+    def emit_directive(self, marker: Marker) -> str:
+        raise NotImplementedError
+
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, MarkerDirectiveEmitter):
+            return NotImplemented
+        return isinstance(other, self.__class__)
+
+    @staticmethod
+    def from_json_dict(j: dict[str, Any]) -> MarkerDirectiveEmitter:
+        match j["kind"]:
+            case "EnableEmitter":
+                strategy = MarkerDetectionStrategy.from_json_dict(j["strategy"])
+                return EnableEmitter(strategy)
+            case "DisableEmitter":
+                return DisableEmitter()
+            case "UnreachableEmitter":
+                return UnreachableEmitter()
+            case "AbortEmitter":
+                return AbortEmitter()
+            case "TrackingEmitter":
+                return TrackingEmitter()
+            case "TrackingForRefinementEmitter":
+                return TrackingForRefinementEmitter()
+            case _:
+                raise ValueError(f"Unknown kind {j['kind']}")
+
+    def to_json_dict(self) -> dict[str, Any]:
+        name = self.__class__.__name__
+        assert name in (
+            "EnableEmitter",
+            "DisableEmitter",
+            "UnreachableEmitter",
+            "AbortEmitter",
+            "TrackingEmitter",
+            "TrackingForRefinementEmitter",
+        ), self
+        j: dict[str, Any] = {"kind": name}
+        if isinstance(self, EnableEmitter):
+            j["strategy"] = self.strategy.to_json_dict()
+        return j
+
+
+@dataclass
+class NoEmitter(MarkerDirectiveEmitter):
+    def emit_directive(self, marker: Marker) -> str:
+        return ""
+
+
+@dataclass
+class EnableEmitter(MarkerDirectiveEmitter):
+    strategy: MarkerDetectionStrategy
+
+    # def __eq__(self, other: object) -> bool:
+    # if not isinstance(other, MarkerDirectiveEmitter):
+    # return NotImplemented
+    # return isinstance(other, EnableEmitter) and self.strategy == other.strategy
+
+    def emit_directive(self, marker: Marker) -> str:
+        return f"""{self.strategy.definitions_and_declarations(marker)}
+                #define {marker.macro()} \
+                {marker.marker_statement_prefix()} \
+                {self.strategy.make_macro_definition(marker)} \
+                {marker.marker_statement_postfix()}
+                """
+
+
+@dataclass
+class DisableEmitter(MarkerDirectiveEmitter):
+    def emit_directive(self, marker: Marker) -> str:
+        return f"#define {marker.macro()} ;"
+
+
+@dataclass
+class UnreachableEmitter(MarkerDirectiveEmitter):
+    def emit_directive(self, marker: Marker) -> str:
+        return f"""#define {marker.macro()} \
+                {marker.marker_statement_prefix()}__builtin_unreachable();{marker.marker_statement_postfix()}
+                """
+
+
+@dataclass
+class AbortEmitter(MarkerDirectiveEmitter):
+    def emit_directive(self, marker: Marker) -> str:
+        return f"""#define {marker.macro()} \
+                {marker.marker_statement_prefix()} \
+                __builtin_printf("BUG\\n"); \
+                __builtin_abort(); \
+                {marker.marker_statement_postfix()}
+                """
+
+
+@dataclass
+class TrackingEmitter(MarkerDirectiveEmitter):
+    def emit_directive(self, marker: Marker) -> str:
+        return f""" int {marker.name}_ENCOUNTERED = 0;
+                    __attribute__((destructor))
+                    void {marker.name}_print() {{
+                        if ({marker.name}_ENCOUNTERED == 1) {{
+                        __builtin_printf("{marker.name}\\n");
+                        }}
+                    }}
+                    #define {marker.macro()} \
+                    {marker.marker_statement_prefix()} \
+                    {marker.name}_ENCOUNTERED  = 1;    \
+                    {marker.marker_statement_postfix()}
+                """
+
+
+@dataclass
+class TrackingForRefinementEmitter(MarkerDirectiveEmitter):
+    def emit_directive(self, marker: Marker) -> str:
+        match marker:
+            case DCEMarker():
+                return f"#define {marker.macro()} "
+            case VRMarker():
+                format_specifier = {
+                    "bool": "%d",
+                    "char": "%d",
+                    "short": "%hd",
+                    "int": "%d",
+                    "long": "%ld",
+                    "long long": "%lld",
+                    "unsigned char": "%u",
+                    "unsigned short": "%hu",
+                    "unsigned int": "%u",
+                    "unsigned long": "%lu",
+                    "unsigned long long": "%llu",
+                }[marker.variable_type]
+                variable_type = (
+                    marker.variable_type if marker.variable_type != "bool" else "int"
+                )
+                return f"""
+        int {marker.name}_ENCOUNTERED = 0;
+        {variable_type} {marker.name}_LB;
+        {variable_type} {marker.name}_UB;
+
+        void track_{marker.name}({variable_type} v) {{
+            if (!{marker.name}_ENCOUNTERED) {{
+                {marker.name}_LB = v;
+                {marker.name}_UB = v;
+                {marker.name}_ENCOUNTERED = 1;
+                return;
+            }}
+            if (v < {marker.name}_LB) {{
+                {marker.name}_LB = v;
+            }}
+            if (v > {marker.name}_UB) {{
+                {marker.name}_UB = v;
+            }}
+        }}
+
+        __attribute__((destructor))
+        void {marker.name}_print() {{
+            if ({marker.name}_ENCOUNTERED == 1) {{
+            __builtin_printf(
+                "<MarkerTracking>{marker.name}:{format_specifier}/{format_specifier}</MarkerTracking>\\n",
+                {marker.name}_LB, {marker.name}_UB);
+            }}
+        }}
+
+        #define {marker.macro()} \
+                track_{marker.name}(VAR);
+        """
+            case _:
+                raise ValueError(f"Unsupported marker type {type(marker)}")
+
+
+class MarkerDetectionStrategy(ABC):
     """The base class of all marker strategies used for detecting Markers.
 
-    Subclasses of MarkerStrategy are used to specify what kind of marker preprocessor
-    directives should be generated by `Instrumenter.with_marker_strategy`.
+    Subclasses of MarkerDetectionStrategy are used to specify what kind of
+    marker preprocessor directives should be generated by
+    `Instrumenter.with_marker_strategy`.
     """
 
     @staticmethod
@@ -443,35 +525,35 @@ class MarkerStrategy(ABC):
         return {"kind": self.name()}
 
     def __eq__(self, other: object) -> bool:
-        if not isinstance(other, MarkerStrategy):
+        if not isinstance(other, MarkerDetectionStrategy):
             return NotImplemented
         return type(self) is type(other)
 
     @staticmethod
-    def from_json_dict(j: dict[str, Any]) -> MarkerStrategy:
+    def from_json_dict(j: dict[str, Any]) -> MarkerDetectionStrategy:
         match j["kind"]:
             case "Function Call":
-                return FunctionCallStrategy()
+                return FunctionCallDetectionStrategy()
             case "Asm Comment":
-                return AsmCommentStrategy()
+                return AsmCommentDetectionStrategy()
             case "Asm Comment Empty Operands":
-                return AsmCommentEmptyOperandsStrategy()
+                return AsmCommentEmptyOperandsDetectionStrategy()
             case "Asm Comment Local Out Operand":
-                return AsmCommentLocalOutOperandStrategy()
+                return AsmCommentLocalOutOperandDetectionStrategy()
             case "Asm Comment Global Out Operand":
-                return AsmCommentGlobalOutOperandStrategy()
+                return AsmCommentGlobalOutOperandDetectionStrategy()
             case "Asm Comment Volatile Global Out Operand":
-                return AsmCommentVolatileGlobalOutOperandStrategy()
+                return AsmCommentVolatileGlobalOutOperandDetectionStrategy()
             case "Asm Comment Static Volatile Global Out Operand":
-                return AsmCommentStaticVolatileGlobalOutOperandStrategy()
+                return AsmCommentStaticVolatileGlobalOutOperandDetectionStrategy()
             case "Local Volatile Int":
-                return LocalVolatileIntStrategy()
+                return LocalVolatileIntDetectionStrategy()
             case "Global Int":
-                return GlobalIntStrategy()
+                return GlobalIntDetectionStrategy()
             case "Static Volatile Global Int":
-                return StaticVolatileGlobalIntStrategy()
+                return StaticVolatileGlobalIntDetectionStrategy()
             case "Global Volatile Int":
-                return GlobalVolatileIntStrategy()
+                return GlobalVolatileIntDetectionStrategy()
             case _:
                 raise ValueError(f"Unknown marker strategy {j['kind']}")
 
@@ -485,7 +567,7 @@ def marker_prefixes() -> tuple[str, ...]:
     return tuple(prefixes)
 
 
-class FunctionCallStrategy(MarkerStrategy):
+class FunctionCallDetectionStrategy(MarkerDetectionStrategy):
     @staticmethod
     def name() -> str:
         return "Function Call"
@@ -512,7 +594,7 @@ class FunctionCallStrategy(MarkerStrategy):
         return 3
 
 
-class AsmCommentStrategy(MarkerStrategy):
+class AsmCommentDetectionStrategy(MarkerDetectionStrategy):
     @staticmethod
     def name() -> str:
         return "Asm Comment"
@@ -534,7 +616,7 @@ class AsmCommentStrategy(MarkerStrategy):
         return 2
 
 
-class AsmCommentEmptyOperandsStrategy(AsmCommentStrategy):
+class AsmCommentEmptyOperandsDetectionStrategy(AsmCommentDetectionStrategy):
     @staticmethod
     def name() -> str:
         return "Asm Comment Empty Operands"
@@ -544,7 +626,7 @@ class AsmCommentEmptyOperandsStrategy(AsmCommentStrategy):
         return f'asm("# {marker.name}" :::);'
 
 
-class AsmCommentLocalOutOperandStrategy(AsmCommentStrategy):
+class AsmCommentLocalOutOperandDetectionStrategy(AsmCommentDetectionStrategy):
     @staticmethod
     def name() -> str:
         return "Asm Comment Local Out Operand"
@@ -558,7 +640,7 @@ class AsmCommentLocalOutOperandStrategy(AsmCommentStrategy):
         )
 
 
-class AsmCommentGlobalOutOperandStrategy(AsmCommentStrategy):
+class AsmCommentGlobalOutOperandDetectionStrategy(AsmCommentDetectionStrategy):
     @staticmethod
     def name() -> str:
         return "Asm Comment Global Out Operand"
@@ -574,7 +656,9 @@ class AsmCommentGlobalOutOperandStrategy(AsmCommentStrategy):
         return f'asm("# {marker.name}" : "=r" ({variable_name}));'
 
 
-class AsmCommentVolatileGlobalOutOperandStrategy(AsmCommentGlobalOutOperandStrategy):
+class AsmCommentVolatileGlobalOutOperandDetectionStrategy(
+    AsmCommentGlobalOutOperandDetectionStrategy
+):
     @staticmethod
     def name() -> str:
         return "Asm Comment Volatile Global Out Operand"
@@ -585,8 +669,8 @@ class AsmCommentVolatileGlobalOutOperandStrategy(AsmCommentGlobalOutOperandStrat
         return f"volatile int {variable_name};"
 
 
-class AsmCommentStaticVolatileGlobalOutOperandStrategy(
-    AsmCommentGlobalOutOperandStrategy
+class AsmCommentStaticVolatileGlobalOutOperandDetectionStrategy(
+    AsmCommentGlobalOutOperandDetectionStrategy
 ):
     @staticmethod
     def name() -> str:
@@ -598,7 +682,7 @@ class AsmCommentStaticVolatileGlobalOutOperandStrategy(
         return f"static volatile int {variable_name};"
 
 
-class LocalVolatileIntStrategy(MarkerStrategy):
+class LocalVolatileIntDetectionStrategy(MarkerDetectionStrategy):
     @staticmethod
     def name() -> str:
         return "Local Volatile Int"
@@ -623,7 +707,7 @@ class LocalVolatileIntStrategy(MarkerStrategy):
         return 1
 
 
-class GlobalIntStrategy(MarkerStrategy):
+class GlobalIntDetectionStrategy(MarkerDetectionStrategy):
     @staticmethod
     def name() -> str:
         return "Global Int"
@@ -648,7 +732,7 @@ class GlobalIntStrategy(MarkerStrategy):
         return 1
 
 
-class GlobalVolatileIntStrategy(GlobalIntStrategy):
+class GlobalVolatileIntDetectionStrategy(GlobalIntDetectionStrategy):
     @staticmethod
     def name() -> str:
         return "Global Volatile Int"
@@ -659,7 +743,7 @@ class GlobalVolatileIntStrategy(GlobalIntStrategy):
         return f"volatile int {variable_name};"
 
 
-class StaticVolatileGlobalIntStrategy(GlobalIntStrategy):
+class StaticVolatileGlobalIntDetectionStrategy(GlobalIntDetectionStrategy):
     @staticmethod
     def name() -> str:
         return "Static Volatile Global Int"

@@ -20,12 +20,12 @@ def test_preprocessing() -> None:
     )
     m0 = DCEMarker.from_str("DCEMarker0_")
     m1 = DCEMarker.from_str("DCEMarker1_")
-    assert set((m0, m1)) == set(iprogram.all_markers())
+    assert set((m0, m1)) == set(iprogram.markers)
     gcc = get_system_gcc_O0()
 
     # preprocess without any disabled or unreachable markers
     iprogram_p = iprogram.preprocess_disabled_and_unreachable_markers(gcc)
-    assert set((m0, m1)) == set(iprogram_p.all_markers())
+    assert set((m0, m1)) == set(iprogram_p.markers)
     assert set((m0, m1)) == set(iprogram_p.find_non_eliminated_markers(gcc))
     assert set() == set(iprogram_p.find_eliminated_markers(gcc))
 
@@ -33,7 +33,7 @@ def test_preprocessing() -> None:
     iprogram_u = iprogram.make_markers_unreachable(
         [m0]
     ).preprocess_disabled_and_unreachable_markers(gcc)
-    assert set((m1,)) == set(iprogram_u.all_markers())
+    assert set((m1,)) == set(iprogram_u.markers)
     assert set((m1,)) == set(iprogram_u.find_non_eliminated_markers(gcc))
     assert set() == set(iprogram_u.find_eliminated_markers(gcc))
     assert "__builtin_unreachable()" in iprogram_u.code
@@ -43,7 +43,7 @@ def test_preprocessing() -> None:
     iprogram_d = iprogram.disable_markers(
         [m1]
     ).preprocess_disabled_and_unreachable_markers(gcc)
-    assert set((m0,)) == set(iprogram_d.all_markers())
+    assert set((m0,)) == set(iprogram_d.markers)
     assert set((m0,)) == set(iprogram_d.find_non_eliminated_markers(gcc))
     assert set() == set(iprogram_d.find_eliminated_markers(gcc))
     assert m0.macro() in iprogram_d.code
@@ -55,7 +55,7 @@ def test_preprocessing() -> None:
         .disable_markers([m0])
         .preprocess_disabled_and_unreachable_markers(gcc)
     )
-    assert set() == set(iprogram_ud.all_markers())
+    assert set() == set(iprogram_ud.markers)
     assert set() == set(iprogram_ud.find_non_eliminated_markers(gcc))
     assert set() == set(iprogram_ud.find_eliminated_markers(gcc))
     assert m0.macro() not in iprogram_ud.code

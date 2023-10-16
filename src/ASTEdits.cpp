@@ -73,7 +73,7 @@ void RuleActionEditCollector::run(
       continue;
     }
 
-    auto GetMarkerN = [&]() -> int & {
+    auto GetMarkerN = [&]() -> size_t & {
       return FileToNumberMarkerDecls[GetFilenameFromRange(T.Range, *SM)];
     };
 
