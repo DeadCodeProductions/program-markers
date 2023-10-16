@@ -272,6 +272,7 @@ class VRMarker(Marker):
 MarkerTypes = (DCEMarker, VRMarker)
 
 
+@dataclass
 class MarkerDirectiveEmitter(ABC):
     def emit_directive(self, marker: Marker) -> str:
         raise NotImplementedError
@@ -316,19 +317,20 @@ class MarkerDirectiveEmitter(ABC):
         return j
 
 
+@dataclass
 class NoEmitter(MarkerDirectiveEmitter):
     def emit_directive(self, marker: Marker) -> str:
         return ""
 
 
+@dataclass
 class EnableEmitter(MarkerDirectiveEmitter):
-    def __init__(self, strategy: MarkerDetectionStrategy):
-        self.strategy = strategy
+    strategy: MarkerDetectionStrategy
 
-    def __eq__(self, other: object) -> bool:
-        if not isinstance(other, MarkerDirectiveEmitter):
-            return NotImplemented
-        return isinstance(other, EnableEmitter) and self.strategy == other.strategy
+    # def __eq__(self, other: object) -> bool:
+    # if not isinstance(other, MarkerDirectiveEmitter):
+    # return NotImplemented
+    # return isinstance(other, EnableEmitter) and self.strategy == other.strategy
 
     def emit_directive(self, marker: Marker) -> str:
         return f"""{self.strategy.definitions_and_declarations(marker)}
@@ -339,11 +341,13 @@ class EnableEmitter(MarkerDirectiveEmitter):
                 """
 
 
+@dataclass
 class DisableEmitter(MarkerDirectiveEmitter):
     def emit_directive(self, marker: Marker) -> str:
         return f"#define {marker.macro()} ;"
 
 
+@dataclass
 class UnreachableEmitter(MarkerDirectiveEmitter):
     def emit_directive(self, marker: Marker) -> str:
         return f"""#define {marker.macro()} \
@@ -351,6 +355,7 @@ class UnreachableEmitter(MarkerDirectiveEmitter):
                 """
 
 
+@dataclass
 class AbortEmitter(MarkerDirectiveEmitter):
     def emit_directive(self, marker: Marker) -> str:
         return f"""#define {marker.macro()} \
@@ -361,6 +366,7 @@ class AbortEmitter(MarkerDirectiveEmitter):
                 """
 
 
+@dataclass
 class TrackingEmitter(MarkerDirectiveEmitter):
     def emit_directive(self, marker: Marker) -> str:
         return f""" int {marker.name}_ENCOUNTERED = 0;
@@ -377,6 +383,7 @@ class TrackingEmitter(MarkerDirectiveEmitter):
                 """
 
 
+@dataclass
 class TrackingForRefinementEmitter(MarkerDirectiveEmitter):
     def emit_directive(self, marker: Marker) -> str:
         match marker:

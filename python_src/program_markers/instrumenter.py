@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+import json
 from dataclasses import replace
 from enum import Enum
 from functools import cache
 from itertools import dropwhile, takewhile
 from pathlib import Path
 
-from diopter.compiler import ClangTool, ClangToolMode, CompilerExe, SourceProgram
-from program_markers.iprogram import InstrumentedProgram
+from diopter.compiler import (
+    ClangTool,
+    ClangToolMode,
+    CompilerExe,
+    SourceFile,
+    SourceProgram,
+)
+from program_markers.iprogram import InstrumentedFile, InstrumentedProgram
 from program_markers.markers import (
     DCEMarker,
     EnableEmitter,
@@ -306,3 +313,59 @@ def instrument_program(
 # (filename argument) plus an include file for the directives. It can use
 # the temp InstrumentedProgram to serialize everything and read it back in.
 # I can also add a debug mode that checks if the parsed is the same as the original.
+
+
+def instrument_file(
+    file: SourceFile,
+    output: Path,
+    ignore_functions_with_macros: bool = False,
+    mode: InstrumenterMode = InstrumenterMode.DCE,
+    instrumenter: ClangTool | None = None,
+    clang: CompilerExe | None = None,
+    timeout: int | None = None,
+) -> InstrumentedFile:
+    # TODO: operate directly on a SourceFile
+    program = SourceProgram(
+        language=file.language,
+        defined_macros=file.defined_macros,
+        include_paths=file.include_paths + (str(file.filename.parent.resolve()),),
+        system_include_paths=file.system_include_paths,
+        flags=file.flags,
+        code=open(file.filename, "r").read(),
+    )
+    iprogram = instrument_program(
+        program, ignore_functions_with_macros, mode, instrumenter, clang, timeout
+    )
+
+    output = output.resolve()
+    inc_file = output.with_suffix(".h").with_stem(output.stem + "_program_markers")
+    with open(output, "w") as f:
+        f.write(program.code)
+
+    with open(inc_file, "w") as f:
+        f.write(iprogram.generate_preprocessor_directives())
+
+    jprogram = iprogram.to_json_dict()
+    del jprogram["code"]
+    del jprogram["language"]
+    del jprogram["include_paths"]
+    del jprogram["system_include_paths"]
+    del jprogram["flags"]
+
+    j_file = output.with_suffix(".json")
+    with open(j_file, "w") as f:
+        json.dump(jprogram, f)
+
+    return InstrumentedFile(
+        marker_strategy=iprogram.marker_strategy,
+        markers=iprogram.markers,
+        directive_emitters=iprogram.directive_emitters,
+        directives_include_file=inc_file,
+        directives_json_file=j_file,
+        filename=output,
+        language=program.language,
+        defined_macros=program.defined_macros,
+        include_paths=program.include_paths,
+        system_include_paths=program.system_include_paths,
+        flags=program.flags + (f"-include {str(inc_file)}",),
+    )

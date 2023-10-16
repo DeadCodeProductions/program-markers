@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
 import re
+from abc import ABC, abstractmethod
 from collections import defaultdict
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Any, Sequence
 
 from diopter.compiler import (
@@ -12,6 +15,8 @@ from diopter.compiler import (
     CompilationSetting,
     ExeCompilationOutput,
     Language,
+    Source,
+    SourceFile,
     SourceProgram,
 )
 from program_markers.markers import (
@@ -113,10 +118,14 @@ def rename_markers(
 
 
 @dataclass(frozen=True, kw_only=True)
-class InstrumentedProgram(SourceProgram):
+class InstrumentedSourceMixin(ABC):
     marker_strategy: MarkerDetectionStrategy
     markers: tuple[Marker, ...]
     directive_emitters: dict[Marker, MarkerDirectiveEmitter]
+
+    @abstractmethod
+    def self_as_source(self) -> Source:
+        raise NotImplementedError
 
     def __post_init__(self) -> None:
         # All markers ids are unique
@@ -162,21 +171,12 @@ class InstrumentedProgram(SourceProgram):
             for marker, emitter in self.directive_emitters.items()
         )
 
-    def get_modified_code(self) -> str:
-        """Returns the necessary preprocessor directives for markers + self.code.
-
-        Only directives for the enabled, disabled and made unreachable markers
-        are added.
-
-        If any markers have not been enabled, disabled, or made unreachable,
-        then the code not compilable but it can be preprocessed.
-
-        Returns:
-            str:
-                the source code including the necessary preprocessor directives
-        """
-
-        return self.generate_preprocessor_directives() + "\n" + self.code
+    def process_tracking_reachable_markers_output(
+        self, output: str
+    ) -> tuple[Marker, ...]:
+        return tuple(
+            marker for marker in self.enabled_markers() if marker.name in output
+        )
 
     def find_non_eliminated_markers(
         self, compilation_setting: CompilationSetting
@@ -197,7 +197,7 @@ class InstrumentedProgram(SourceProgram):
                 The non_eliminated markers for the given compilation setting.
         """
         asm = compilation_setting.compile_program(
-            self, ASMCompilationOutput()
+            self.self_as_source(), ASMCompilationOutput()
         ).output.read()
         non_eliminated_markers = find_non_eliminated_markers_impl(
             asm, self.enabled_markers(), self.marker_strategy
@@ -227,6 +227,32 @@ class InstrumentedProgram(SourceProgram):
         if not include_all_markers:
             eliminated_markers = eliminated_markers & set(self.enabled_markers())
         return tuple(eliminated_markers)
+
+
+@dataclass(frozen=True, kw_only=True)
+class InstrumentedProgram(SourceProgram, InstrumentedSourceMixin):
+    marker_strategy: MarkerDetectionStrategy
+    markers: tuple[Marker, ...]
+    directive_emitters: dict[Marker, MarkerDirectiveEmitter]
+
+    def self_as_source(self) -> SourceProgram:
+        return self
+
+    def get_modified_code(self) -> str:
+        """Returns the necessary preprocessor directives for markers + self.code.
+
+        Only directives for the enabled, disabled and made unreachable markers
+        are added.
+
+        If any markers have not been enabled, disabled, or made unreachable,
+        then the code not compilable but it can be preprocessed.
+
+        Returns:
+            str:
+                the source code including the necessary preprocessor directives
+        """
+
+        return self.generate_preprocessor_directives() + "\n" + self.code
 
     def replace_markers(self, new_markers: tuple[Marker, ...]) -> InstrumentedProgram:
         """Replaces the markers in the program with the new ones.
@@ -274,13 +300,6 @@ class InstrumentedProgram(SourceProgram):
 
         tracked_program = replace(self, directive_emitters=new_emitters)
         return setting.compile_program(tracked_program, output, timeout=timeout)
-
-    def process_tracking_reachable_markers_output(
-        self, output: str
-    ) -> tuple[Marker, ...]:
-        return tuple(
-            marker for marker in self.enabled_markers() if marker.name in output
-        )
 
     def track_reachable_markers(
         self,
@@ -667,3 +686,103 @@ class InstrumentedProgram(SourceProgram):
             markers=markers,
             directive_emitters=directive_emitters,
         )
+
+
+@dataclass(frozen=True, kw_only=True)
+class InstrumentedFile(SourceFile, InstrumentedSourceMixin):
+    marker_strategy: MarkerDetectionStrategy
+    markers: tuple[Marker, ...]
+    directive_emitters: dict[Marker, MarkerDirectiveEmitter]
+    directives_include_file: Path  # this should be included
+    directives_json_file: Path
+    debug: bool = True
+
+    def self_as_source(self) -> SourceFile:
+        return self
+
+    def __post_init__(self) -> None:
+        assert self.directives_include_file.is_absolute()
+        assert self.directives_json_file.is_absolute()
+        assert self.directives_include_file.exists()
+        assert self.directives_json_file.exists()
+        assert f"-include {str(self.directives_include_file)}" in self.flags, self.flags
+
+        if self.debug:
+            with open(self.directives_json_file) as f:
+                j = json.load(f)
+            j["strategy"] = self.marker_strategy.to_json_dict()
+            directive_emitters = {
+                Marker.from_json_dict(m): MarkerDirectiveEmitter.from_json_dict(
+                    directive
+                )
+                for m, directive in j["directive_emitters"]
+            }
+            assert directive_emitters == self.directive_emitters, (
+                directive_emitters,
+                self.directive_emitters,
+            )
+
+            markers = tuple(Marker.from_json_dict(m) for m in j["markers"])
+            assert markers == self.markers
+            with open(self.directives_include_file) as f:
+                assert f.read() == self.generate_preprocessor_directives()
+
+    def generate_tracking(self) -> InstrumentedFile:
+        new_emitters = self.directive_emitters.copy()
+        tracked_markers = self.enabled_markers()
+        te = TrackingEmitter()
+        for marker in tracked_markers:
+            new_emitters[marker] = te
+
+        new_stem = self.directives_include_file.stem + "_tracking"
+        inc_file = self.directives_include_file.with_stem(new_stem)
+        with open(inc_file, "w") as f:
+            f.write(
+                "\n".join(
+                    emitter.emit_directive(marker)
+                    for marker, emitter in new_emitters.items()
+                )
+            )
+
+        json_file = self.directives_json_file.with_stem(new_stem)
+
+        with open(json_file, "w") as f:
+            json.dump(
+                {
+                    "marker_strategy": self.marker_strategy.to_json_dict(),
+                    "directive_emitters": [
+                        (m.to_json_dict(), e.to_json_dict())
+                        for m, e in new_emitters.items()
+                    ],
+                    "markers": [m.to_json_dict() for m in self.markers],
+                },
+                f,
+            )
+
+        flags = tuple(
+            f
+            for f in self.flags
+            if f != f"-include {str(self.directives_include_file)}"
+        ) + (f"-include {str(inc_file)}",)
+
+        return replace(
+            self,
+            directive_emitters=new_emitters,
+            flags=flags,
+            directives_include_file=inc_file,
+            directives_json_file=json_file,
+        )
+
+    def generate_tracking_for_refinement_version(self) -> InstrumentedFile:
+        pass
+
+    def refine_markers(self, markers: tuple[Marker, ...]) -> InstrumentedFile:
+        pass
+
+    def make_markers_unreachable(self, markers: tuple[Marker, ...]) -> InstrumentedFile:
+        pass
+
+    def disable_remaining_markers(
+        self, do_not_disable: Sequence[Marker] = tuple()
+    ) -> InstrumentedFile:
+        pass
