@@ -212,7 +212,8 @@ def instrument_program(
             timeout=timeout,
         )
         assert result.modified_source_code
-        assert result.stdout
+        if not result.stdout:
+            raise NoInstrumentationAddedError
         instrumented_code = result.modified_source_code
         marker_names = parse_marker_names(result.stdout)
         if mode == "vr":
@@ -238,7 +239,8 @@ def instrument_program(
                 timeout=timeout,
             )
             assert result.modified_source_code
-            assert result.stdout
+            if not result.stdout:
+                raise NoInstrumentationAddedError
             dce_markers = [
                 __str_to_marker(name, {}) for name in parse_marker_names(result.stdout)
             ]
@@ -255,7 +257,10 @@ def instrument_program(
                 timeout=timeout,
             )
             assert result.modified_source_code
-            assert result.stdout
+            if not result.stdout:
+                # XXX: I don't really nead to raise here,
+                # I can just ignore VRMarkers
+                raise NoInstrumentationAddedError
             instrumented_code = remove_temporary_disable_directives(
                 result.modified_source_code
             )

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 import re
 from collections import defaultdict
 from dataclasses import dataclass, replace
+from pathlib import Path
 from typing import Any, Sequence
 
 from diopter.compiler import (
@@ -12,6 +14,7 @@ from diopter.compiler import (
     CompilationSetting,
     ExeCompilationOutput,
     Language,
+    SourceFile,
     SourceProgram,
 )
 from program_markers.markers import (
@@ -127,6 +130,58 @@ class InstrumentedProgram(SourceProgram):
 
         for marker in self.markers:
             assert marker in self.directive_emitters
+
+    def to_file(
+        self, filename: Path, include_file: Path, json_file: Path
+    ) -> SourceFile:
+        """The instrumented code is returned as a SourceFile object.
+        The marker directives are emitted in a separate file (include_file).
+        This file is included in the main file (filename) using the -include
+        command line flag. All marker information and directive emitters are
+        stored in a json file (json_file).
+
+        Can be reparsed via from source_file.
+
+        """
+        with open(filename, "w") as f:
+            f.write(self.code)
+        with open(include_file, "w") as f:
+            f.write(self.generate_preprocessor_directives())
+        with open(json_file, "w") as f:
+            json.dump(self.marker_stuff_to_json_dict(), f)
+        return SourceFile(
+            filename=filename,
+            language=self.language,
+            defined_macros=self.defined_macros,
+            include_paths=self.include_paths,
+            system_include_paths=self.system_include_paths,
+            flags=self.flags + (f"-include {include_file.resolve()}",),
+        )
+
+    @staticmethod
+    def from_source_file(
+        source_file: SourceFile, include_file: Path, json_file: Path
+    ) -> InstrumentedProgram:
+        with open(json_file) as f:
+            d = json.load(f)
+        directive_emitters = {
+            Marker.from_json_dict(m): MarkerDirectiveEmitter.from_json_dict(directive)
+            for m, directive in d["directive_emitters"]
+        }
+        markers = tuple(Marker.from_json_dict(m) for m in d["markers"])
+        marker_strategy = MarkerDetectionStrategy.from_json_dict(d["marker_strategy"])
+
+        return InstrumentedProgram(
+            language=source_file.language,
+            defined_macros=source_file.defined_macros,
+            include_paths=source_file.include_paths,
+            system_include_paths=source_file.system_include_paths,
+            flags=tuple(f for f in source_file.flags if str(include_file) not in f),
+            code=source_file.filename.read_text(),
+            markers=markers,
+            directive_emitters=directive_emitters,
+            marker_strategy=marker_strategy,
+        )
 
     def enabled_markers(self) -> tuple[Marker, ...]:
         """Returns the enabled markers."""
@@ -260,19 +315,22 @@ class InstrumentedProgram(SourceProgram):
             directive_emitters=new_directive_emitters,
         )
 
-    def compile_program_for_tracking(
-        self,
-        setting: CompilationSetting,
-        output: CompilationOutputType,
-        timeout: int | None = None,
-    ) -> CompilationResult[CompilationOutputType]:
+    def generate_tracking_program(self) -> InstrumentedProgram:
         new_emitters = self.directive_emitters.copy()
         tracked_markers = self.enabled_markers()
         te = TrackingEmitter()
         for marker in tracked_markers:
             new_emitters[marker] = te
 
-        tracked_program = replace(self, directive_emitters=new_emitters)
+        return replace(self, directive_emitters=new_emitters)
+
+    def compile_program_for_tracking(
+        self,
+        setting: CompilationSetting,
+        output: CompilationOutputType,
+        timeout: int | None = None,
+    ) -> CompilationResult[CompilationOutputType]:
+        tracked_program = self.generate_tracking_program()
         return setting.compile_program(tracked_program, output, timeout=timeout)
 
     def process_tracking_reachable_markers_output(
@@ -309,6 +367,18 @@ class InstrumentedProgram(SourceProgram):
         output = result.output.run(args, timeout=timeout)
         return self.process_tracking_reachable_markers_output(output.stdout)
 
+    def generate_tracking_program_for_refinement(
+        self,
+    ) -> InstrumentedProgram:
+        new_emitters = self.directive_emitters.copy()
+        tfre = TrackingForRefinementEmitter()
+        for marker in self.enabled_markers():
+            new_emitters[marker] = tfre
+        return replace(
+            self,
+            directive_emitters=new_emitters,
+        )
+
     def compile_program_for_refinement(
         self,
         setting: CompilationSetting,
@@ -331,15 +401,7 @@ class InstrumentedProgram(SourceProgram):
             CompilationOutputType:
                 the output of the compilation
         """
-
-        new_emitters = self.directive_emitters.copy()
-        tfre = TrackingForRefinementEmitter()
-        for marker in self.enabled_markers():
-            new_emitters[marker] = tfre
-        tracked_program = replace(
-            self,
-            directive_emitters=new_emitters,
-        )
+        tracked_program = self.generate_tracking_program_for_refinement()
         return setting.compile_program(tracked_program, output, timeout=timeout)
 
     def process_tracked_output_for_refinement(
@@ -603,6 +665,16 @@ class InstrumentedProgram(SourceProgram):
             directive_emitters=new_emitters,
         )
 
+    def marker_stuff_to_json_dict(self) -> dict[str, Any]:
+        j: dict[str, Any] = {}
+        j["marker_strategy"] = self.marker_strategy.to_json_dict()
+        j["directive_emitters"] = [
+            (m.to_json_dict(), e.to_json_dict())
+            for m, e in self.directive_emitters.items()
+        ]
+        j["markers"] = [m.to_json_dict() for m in self.markers]
+        return j
+
     def to_json_dict_impl(self) -> dict[str, Any]:
         """Serializes the InstrumentedProgram specific attributes to a
         JSON-serializable dict.
@@ -613,12 +685,7 @@ class InstrumentedProgram(SourceProgram):
         """
         j = SourceProgram.to_json_dict_impl(self)
         j["kind"] = "InstrumentedProgram"
-        j["marker_strategy"] = self.marker_strategy.to_json_dict()
-        j["directive_emitters"] = [
-            (m.to_json_dict(), e.to_json_dict())
-            for m, e in self.directive_emitters.items()
-        ]
-        j["markers"] = [m.to_json_dict() for m in self.markers]
+        j.update(self.marker_stuff_to_json_dict())
         return j
 
     @staticmethod
