@@ -1,5 +1,9 @@
+from pathlib import Path
+from tempfile import NamedTemporaryFile
+
 import pytest
 from diopter.compiler import Language, Source, SourceProgram
+from program_markers.instrumenter import InstrumenterMode, instrument_program
 from program_markers.iprogram import InstrumentedProgram
 from program_markers.markers import (
     AbortEmitter,
@@ -140,3 +144,30 @@ def test_instrumented_program() -> None:
     )
 
     assert p1 == InstrumentedProgram.from_json_dict(p1.to_json_dict())
+
+
+def test_to_file() -> None:
+    iprogram = instrument_program(
+        SourceProgram(
+            code="""
+    int foo(int a){
+        if (a)
+            return 1;
+        return 0;
+    }
+    """,
+            language=Language.C,
+        ),
+        mode=InstrumenterMode.DCE_AND_VR,
+    )
+    ntfc = NamedTemporaryFile(suffix=".c")
+    ntfh = NamedTemporaryFile(suffix=".h")
+    ntfj = NamedTemporaryFile(suffix=".json")
+
+    source = iprogram.to_file(Path(ntfc.name), Path(ntfh.name), Path(ntfj.name))
+    assert any(str(ntfh.name) in flag for flag in source.flags)
+    assert source.filename.read_text() == iprogram.code
+    assert Path(ntfh.name).read_text() == iprogram.generate_preprocessor_directives()
+    assert iprogram == InstrumentedProgram.from_source_file(
+        source, Path(ntfh.name), Path(ntfj.name)
+    )
