@@ -20,6 +20,7 @@ sed -i "s~THIS_DIR~$(pwd)~g" setup.py
 
 "/opt/python/cp310-cp310/bin/python" -m build -w -o wheelhouse
 "/opt/python/cp311-cp311/bin/python" -m build -w -o wheelhouse
+"/opt/python/cp312-cp312/bin/python" -m build -w -o wheelhouse
 
 
 function repair_wheel {
