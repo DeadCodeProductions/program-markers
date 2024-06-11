@@ -88,9 +88,9 @@ def rename_markers(
             current_marker_id += 1
             new_markers.append(new_marker)
             new_directive_emitters[new_marker] = directive_emitters[marker]
-            replacements[
-                (marker.macro_without_arguments(), marker.id)
-            ] = new_marker.macro_without_arguments()
+            replacements[(marker.macro_without_arguments(), marker.id)] = (
+                new_marker.macro_without_arguments()
+            )
         return tuple(new_markers), new_directive_emitters
 
     new_programs = [programs[0]]
