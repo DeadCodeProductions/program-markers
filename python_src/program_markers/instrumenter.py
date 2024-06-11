@@ -115,7 +115,7 @@ def get_instrumenter(
             except:  # noqa: E722
                 pass
             if not clang:
-                for clang_path in ("clang-16", "clang-15", "clang-14"):
+                for clang_path in ("clang-17", "clang-16", "clang-15", "clang-14"):
                     try:
                         clang = CompilerExe.from_path(Path(clang_path))
                         break
